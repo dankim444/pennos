@@ -57,21 +57,21 @@ PennOS is a UNIX-like operating system simulator built to run as a single proces
 ## Code Layout and Description of Code
 
 ### Code Layout
-|-- Makefile
-|-- doc/
-| |--README.md
-| |--Companion Doc
-|-- log/
-| |-- *log files*
-|-- src/
-| |--utils/
-| | |--spthread.c
-| | |--spthread.h
-| |-- pennfat.c
-| |-- pennos.c
-|-- tests/
-| |-- sched-demo.c
-| |-- *other test files we may create*
+- Makefile
+- doc/
+    - README.md
+    - CompanionDoc.pdf
+- log/
+    - *log files*
+- src/
+    - utils/
+        - spthread.c
+        - spthread.h
+    - pennfat.c
+    - pennos.c
+- tests/
+    - sched-demo.c
+    - *other test files we may create*
 
 ### Description of Code and Design
 - PCB Structure: See doc/CompanionDocument.pdf for full details
