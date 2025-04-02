@@ -3,7 +3,7 @@
  * Purpose: Defines a custom errno for PennOS
  */
 
-#include "pennos-errno.h"
+#include "./pennos-errno.h"
 
 int P_ERRNO = 0;
 

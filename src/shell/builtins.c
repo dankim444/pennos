@@ -2,7 +2,7 @@
  * Authors: Dan Kim
  * Purpose: Implements various utility functions at the user level.
  */
-#include "errno/pennos-errno.h"
+#include "../lib/pennos-errno.h"
 #include <stdio.h>
 
 /**
