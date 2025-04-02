@@ -1,5 +1,5 @@
-#ifndef SYS_CALLS_H_
-#define SYS_CALLS_H_
+#ifndef KERN_SYS_CALLS_H_
+#define KERN_SYS_CALLS_H_
 
 #include <stdbool.h>
 #include <stddef.h>

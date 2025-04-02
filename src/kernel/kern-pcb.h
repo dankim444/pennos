@@ -1,5 +1,5 @@
-#ifndef KERNEL_H_
-#define KERNEL_H_
+#ifndef KERN_PCB_H_
+#define KERN_PCB_H_
 
 #include <stddef.h>
 #include <stdbool.h>
