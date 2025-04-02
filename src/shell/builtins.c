@@ -3,6 +3,7 @@
  * Purpose: Implements various utility functions at the user level.
  */
 #include "errno/pennos-errno.h"
+#include <stdio.h>
 
 /**
  * Creates a user-level error message similar to perror.
@@ -10,16 +11,21 @@
  * @param msg A string representing the error message from the shell.
  */
 void u_perror(const char *msg) {
-    fprintf(stderr, "%s: ", msg); // TODO -> may have to delete fpritnf
+    char buffer[256];  // adjust size if we need
+    const char *error_msg;
+
     switch (P_ERRNO) {
-        case P_ENOENT: fprintf(stderr, "No such file or directory\n"); break;
-        case P_EBADF: fprintf(stderr, "Bad file descriptor\n"); break;
-        case P_EPERM: fprintf(stderr, "Operation not permitted\n"); break;
-        case P_EINVAL: fprintf(stderr, "Invalid argument\n"); break;
-        case P_EEXIST: fprintf(stderr, "File already exists\n"); break;
-        case P_EBUSY: fprintf(stderr, "File is busy or open\n"); break;
-        case P_EFULL: fprintf(stderr, "No space left on device\n"); break;
+        case P_ENOENT: error_msg = "no such file or directory"; break;
+        case P_EBADF: error_msg = "bad file descriptor"; break;
+        case P_EPERM: error_msg = "operation not permitted"; break;
+        case P_EINVAL: error_msg = "invalid arg"; break;
+        case P_EEXIST: error_msg = "file already exists"; break;
+        case P_EBUSY: error_msg = "file is busy or open"; break;
+        case P_EFULL: error_msg = "no space left on device"; break;
         case P_EUNKNOWN:
-        default: fprintf(stderr, "Unknown error\n"); break;
+        default: error_msg = "Unknown error"; break;
     }
+
+    snprintf(buffer, sizeof(buffer), "%s: %s\n", msg, error_msg);
+    fputs(buffer, stderr);
 }
