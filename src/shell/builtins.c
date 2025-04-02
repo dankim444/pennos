@@ -2,16 +2,15 @@
  * Authors: Dan Kim
  * Purpose: Implements various utility functions at the user level.
  */
+#include "errno/pennos-errno.h"
 
-#include "penn_errno.h"
-
-/*
+/**
  * Creates a user-level error message similar to perror.
  *
  * @param msg A string representing the error message from the shell.
  */
 void u_perror(const char *msg) {
-    fprintf(stderr, "%s: ", msg);
+    fprintf(stderr, "%s: ", msg); // TODO -> may have to delete fpritnf
     switch (P_ERRNO) {
         case P_ENOENT: fprintf(stderr, "No such file or directory\n"); break;
         case P_EBADF: fprintf(stderr, "Bad file descriptor\n"); break;

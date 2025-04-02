@@ -1,2 +1,3 @@
-// s_spawn, s_waitpid, s_kill, s_exit
-// s_nice, s_sleep
+#include "sys_calls.h"
+
+#include "kernel.h"
