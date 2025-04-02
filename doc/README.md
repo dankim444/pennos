@@ -4,7 +4,7 @@ PennOS is a UNIX-like operating system simulator built to run as a single proces
 ## Members (Name and Pennkey)
 - Dan Kim (pennkey: dankim1)
 - Kevin Zhou (pennkey: kzhou1)
-- Krystoff Purtell (pennkey: TO-DO)
+- Krystof Purtell (pennkey: krystofp)
 - Richard Zhang (pennkey: richz)
 
 ## List of Submitted Files
