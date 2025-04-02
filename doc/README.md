@@ -33,26 +33,29 @@ PennOS is a UNIX-like operating system simulator built to run as a single proces
 ## Overview of Work Accomplished
 
 ### Kernel
-- A programming API for process-related and scheduler functions
-- PCB creation and cleanup
-- Process statuses and signals (stop, continue, terminate)
-- Priority-based scheduler
-- SIGALARM-based clock ticks
-- Sleep and wait functionality
+- Includes a programming API for process-related and scheduler functions
+- Implements a PCB structure for tracking information about processes
+- Maintains process statuses and signals (stop, continue, terminate)
+- Implements a priority-based scheduler
+- Utilizes SIGALARM-based clock ticks
+- Integrates sleep and wait functionality
 
 ### File System
-- File parsing and mounting
-- Root directory only
-- File creation, read, write, seek, unlink
-- Global file descriptor table
-- Kernel-level functions and user-level API for creating and manipulating files
-- Command routines (cd, mv, etc.)
+- Builds a file descriptor table and system-wide file descriptor table
+- Implements kernel-level functions for creating and manipulating files (k_open, k_close, k_read, k_write, k_lseek, k_unlink, k_ls)
+- Supports standalone PennFAT commands and routines (mounting, unmounting, touch, cd, mv, rm, cat, cp, chmod, ls, etc.)
+- Mounts PennFAT into memory using mmap(2)
+- Ensures robust error handling and logging (ie. FS_NOT_MOUNTED, FILE_NOT_FOUND, etc.)
+- Integrates file system into user-shell to enable user interaction with user-level system calls
 
 ### Shell
-- Built-ins: cat, echo, sleep, mv, cp, rm, chmod, ls
-- Job control: bg, fg, jobs
-- Shell script execution
-- I/O redirection and basic signal handling
+- Interacts with OS using user-level functions
+- Synchronous Child Waiting: shell waits on all children before re-prompting
+- I/O redirection (>, <, and >>)
+- Parsing (uses parser implemented in penn-shell)
+- Terminal signaling (relays signals like ctrl-z and ctrl-c to s_kill)
+- Enforcing terminal control: Tracks the terminal-controlling process using a global variable; background processes reading from stdin are stopped
+- Built-ins: cat, echo, sleep, busy, touch, mv, cp, rm, chmod, ps, kill, ls
 
 ## Code Layout and Description of Code
 
