@@ -2,8 +2,9 @@
  * Authors: Dan Kim
  * Purpose: Implements various utility functions at the user level.
  */
-#include "../lib/pennos-errno.h"
 #include <stdio.h>
+#include <builtins.h>
+#include "../lib/pennos-errno.h"
 
 /**
  * Creates a user-level error message similar to perror.
@@ -27,5 +28,5 @@ void u_perror(const char *msg) {
     }
 
     snprintf(buffer, sizeof(buffer), "%s: %s\n", msg, error_msg);
-    fputs(buffer, stderr);
+    fputs(buffer, stderr); // TODO --> check if this is allowed
 }
