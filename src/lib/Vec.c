@@ -6,6 +6,9 @@ Vec vec_new(size_t initial_capacity, ptr_dtor_fn ele_dtor_fn) {
   Vec vector;
   vector.capacity = initial_capacity;
   vector.data = malloc(sizeof(void*) * initial_capacity);
+  if (vector.data == NULL) {
+    perror("vec_new: malloc failed");
+  }
   vector.ele_dtor_fn = ele_dtor_fn;
   vector.length = 0;
   return vector;
