@@ -21,7 +21,7 @@
  * 
  * @param cmd the parsed command to execute, assumed non-null
  * @return the created child id on successful spawn, 0 on successful
- *         subroutine call, -1 on error 
+ *         subroutine call, -1 on error (given cmd is not a shell built-in)
  */
 pid_t execute_command(struct parsed_command* cmd) {
 

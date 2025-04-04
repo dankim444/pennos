@@ -28,7 +28,7 @@ typedef struct vec_st {
  *                         be called on each element.
  * @returns a newly created vector with specified capacity, 0 length and
  * the specified element destructor (cleanup) function.
- * @post if memory allocation fails, the function will panic.
+ * @post if memory allocation fails, the function will perror
  */
 Vec vec_new(size_t initial_capacity, ptr_dtor_fn ele_dtor_fn);
 
@@ -59,7 +59,7 @@ Vec vec_new(size_t initial_capacity, ptr_dtor_fn ele_dtor_fn);
  * @param index the index of the element to get.
  * @returns the element at the specified index.
  * @pre Assumes self points to a valid vector. If the index is >= self->length
- * then this function will panic()
+ * then this function will call perror
  */
 ptr_t vec_get(Vec* self, size_t index);
 
@@ -70,7 +70,7 @@ ptr_t vec_get(Vec* self, size_t index);
  * @param new_ele the value we want to set the element at that index to
  * @returns the element at the specified index.
  * @pre Assumes self points to a valid vector. If the index is >= self->length
- * then this function will panic()
+ * then this function will call perror
  */
 void vec_set(Vec* self, size_t index, ptr_t new_ele);
 
@@ -79,7 +79,7 @@ void vec_set(Vec* self, size_t index, ptr_t new_ele);
  * @param self      a pointer to the vector we are pushing onto
  * @param new_ele   the value we want to add to the end of the container
  * @pre Assumes self points to a valid vector.
- * @post If a resize is needed and it fails, then this function will panic()
+ * @post If a resize is needed and it fails, then this function will call perror
  * @post If after the operation the new length is greater than the old capacity
  * then a reallocation takes place and all elements are copied over.
  * Capacity is doubled. If initial capacity is zero, it is resized to
@@ -107,7 +107,7 @@ bool vec_pop_back(Vec* self);
  *                at the end of the vector.
  * @param new_ele the value we want to insert
  * @pre Assumes self points to a valid vector. If the index is > self->length
- * then this function will panic().
+ * then this function will call perror
  * @post If after the operation the new length is greater than the old capacity
  * then a reallocation takes place and all elements are copied over. Capacity is
  * doubled. Any pointers to elements prior to this reallocation are invalidated.
@@ -120,7 +120,7 @@ void vec_insert(Vec* self, size_t index, ptr_t new_ele);
  * @param index   the index of the element we want to erase at. Elements
  *                after this index are "shifted" down one position.
  * @pre Assumes self points to a valid vector. If the index is >= self->length
- * then this function will panic().
+ * then this function will call perror
  */
 void vec_erase(Vec* self, size_t index);
 
