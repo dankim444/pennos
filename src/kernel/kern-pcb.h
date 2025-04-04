@@ -21,8 +21,8 @@ typedef struct pcb_st {
     Vec child_pids;         
 
     int priority;            // priority level (0,1,2)
-    char process_state;      // 'R' = running, 'S' = sleeping, 'T' = terminated
-                             // 'Z' = zombie, 'W' = waiting
+    char process_state;      // 'R' = running, 'S' = stopped,
+                             // 'B' = blocked, 'Z' = zombied
 
     char* cmd;               // command name
 
@@ -53,6 +53,8 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
  * @param pcb Pointer to the PCB to be freed.
  */
 void free_pcb(pcb_t *pcb);
+
+
 ////////////////////////////////////////////////////////////////////////////////
 //        KERNEL-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
 ////////////////////////////////////////////////////////////////////////////////

@@ -126,8 +126,7 @@ void vec_erase(Vec* self, size_t index);
 
 /*!
  * Erases an element at the specified location in the container, except
- * it does not call the element deletor function on the Job. This is
- * crucial for bringing background jobs into the foreground.
+ * it does not call the element deletor function on the element.
  *
  * @param self  a pointer to the vector we want to erase from
  * @param index the index of the element we want to erase at

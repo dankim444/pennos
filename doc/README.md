@@ -97,3 +97,6 @@ PennOS is a UNIX-like operating system simulator built to run as a single proces
 
 ## General Comments
 - to-do
+
+## Attributions
+- sched-demo.c code used in scheduler.c
