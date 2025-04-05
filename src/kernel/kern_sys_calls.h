@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include "kern-pcb.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 //        SYSTEM-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
@@ -17,6 +18,8 @@
  * @param argv Null-terminated array of args, including the command name as argv[0].
  * @param fd0 Input file descriptor.
  * @param fd1 Output file descriptor.
+ * @param child ptr to the already created child pcb, which contains relevant parent 
+ *              attributes, presumably via an inital call to k_proc_create
  * @return pid_t The process ID of the created child process.
  */
 pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1);

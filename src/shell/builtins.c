@@ -3,7 +3,7 @@
  * Purpose: Implements various utility functions at the user level.
  */
 #include <stdio.h>
-#include <builtins.h>
+#include "builtins.h"
 #include "../lib/pennos-errno.h"
 
 /**
