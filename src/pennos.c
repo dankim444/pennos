@@ -1,15 +1,18 @@
-#include "src/lib/Vec.h"
-#include "src/kernel/kern-pcb.h"
-#include "src/kernel/scheduler.h"
+#include "lib/Vec.h"
+#include "kernel/kern-pcb.h"
+#include "kernel/scheduler.h"
+#include "fs/fs_syscalls.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <kernel/logger.h>
 
 
-int tick_counter = 0;
-int log_fd;
+extern int tick_counter;
+extern int log_fd;
 
-int main(char* argv[], int argc) {
+int main(int argc, char* argv[]) {
     
     // get the log fd
     if (argc > 2) {

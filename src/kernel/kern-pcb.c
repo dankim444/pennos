@@ -1,5 +1,6 @@
 #include "kern-pcb.h" 
 #include "stdlib.h"
+#include "stdio.h" // for perror
 
 
 
@@ -8,12 +9,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // TODO --> update this function as pcb changes
-void free_pcb(pcb_t *pcb) {
-    free(pcb->cmd_str);
-    vec_destroy(&pcb->child_pids);
+void free_pcb(void* pcb) {
+    pcb_t* casted_pcb = (pcb_t*) pcb;
+
+    free(casted_pcb->cmd_str);
+    vec_destroy(&casted_pcb->child_pids);
     // TODO --> free file descriptor table
 
-    free(pcb);
+    free(casted_pcb);
 }
 
 
@@ -52,6 +55,6 @@ pcb_t* k_proc_create(pcb_t *parent) {
 }
 
 void k_proc_cleanup(pcb_t *proc) {
-    // TODO: Implement the process cleanup logic
+    // TODO: Implement the process cleanup logic, note free_pcb will be useful
     return;
 }

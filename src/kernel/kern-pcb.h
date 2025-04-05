@@ -4,8 +4,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <sys/types.h> 
-#include <spthread.h>
-#include <Vec.h>
+#include "lib/spthread.h"
+#include <lib/Vec.h>
 
 
 
@@ -52,7 +52,7 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
  * 
  * @param pcb Pointer to the PCB to be freed.
  */
-void free_pcb(pcb_t *pcb);
+void free_pcb(void* pcb);
 
 
 ////////////////////////////////////////////////////////////////////////////////

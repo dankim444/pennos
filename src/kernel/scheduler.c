@@ -26,7 +26,8 @@ Vec current_pcbs; // holds all currently running processes, for logging
 static const int hundred_millisec = 100000; // 100 milliseconds
 static bool scheduling_done = false; // true if the scheduler is done
 
-extern tick_counter;
+int tick_counter = 0;
+int log_fd; // file descriptor for the log file, set in pennos.c
 
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -128,7 +129,7 @@ pcb_t* get_next_pcb(int priority) {
 }
 
 
-put_pcb_into_correct_queue(pcb_t* pcb) {
+void put_pcb_into_correct_queue(pcb_t* pcb) {
     if (pcb->process_state == 'R') {
         if (pcb->priority == 0) {
             vec_push_back(&zero_priority_queue, pcb);
