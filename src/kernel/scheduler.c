@@ -164,6 +164,17 @@ void delete_process_from_all_queues(pcb_t* pcb) {
     delete_process_from_particular_queue(pcb, &current_pcbs);
 }
 
+pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid) {
+    for (int i = 0; i < vec_len(queue); i++) {
+        pcb_t* curr_pcb = vec_get(queue, i);
+        if (curr_pcb->pid == pid) {
+            return curr_pcb;
+        }
+    }
+
+    return NULL;
+}
+
 void alarm_handler(int signum) {
     tick_counter++;
 }

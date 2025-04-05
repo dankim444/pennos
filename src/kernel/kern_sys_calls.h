@@ -14,15 +14,16 @@
  * @brief Create a child process that executes the function `func`.
  * The child will retain some attributes of the parent.
  *
- * @param func Function to be executed by the child process.
- * @param argv Null-terminated array of args, including the command name as argv[0].
- * @param fd0 Input file descriptor.
- * @param fd1 Output file descriptor.
+ * @param func  Function to be executed by the child process.
+ * @param argv  Null-terminated array of args, including the command name as argv[0].
+ * @param fd0   Input file descriptor.
+ * @param fd1   Output file descriptor.
  * @param child ptr to the already created child pcb, which contains relevant parent 
- *              attributes, presumably via an inital call to k_proc_create
+ *              attributes, presumably via an inital call to k_proc_create. Reference
+ *              this function to see how the child pcb is already filled
  * @return pid_t The process ID of the created child process.
  */
-pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1);
+pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1, pcb_t* child);
 
 /**
  * @brief Wait on a child of the calling process, until it changes state.
