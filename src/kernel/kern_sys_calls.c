@@ -16,6 +16,7 @@ extern Vec sleep_blocked_queue;
 extern Vec current_pcbs;
 
 
+
 ////////////////////////////////////////////////////////////////////////////////
 //                         GENERAL HELPER FUNCTIONS                           //
 ////////////////////////////////////////////////////////////////////////////////
@@ -110,16 +111,17 @@ pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid) {
 
 
 
-pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1) {
+pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1, pcb_t* child) {
     spthread_t thread_handle; 
-
-    // Impl after implementing k_proc_create and cleanup
 
     if (spthread_create(&thread_handle, NULL, func, argv) != 0) {
         u_perror("s_spawn thread creation failed");
         return -1;
     }
 
+    child->thread_handle = thread_handle;
+    child->input_fd = fd0;
+    child->output_fd = fd1;
 
     return -1;
 }

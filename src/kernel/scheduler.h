@@ -70,6 +70,16 @@ void delete_process_from_particular_queue(pcb_t* pcb, Vec* queue);
  */
 void delete_process_from_all_queues(pcb_t* pcb);
 
+/** 
+ * @brief Given a queue, searches for a particular pid inside that queue
+ *        and, if found, returns the pcb_t* associated with that pid.
+ * 
+ * @param queue the queue of pcb_t* ptrs to search
+ * @param pid   the pid to search for 
+ * @return a ptr to the pcb w/ the desired pid if found, NULL otherwise
+ */
+pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid);
+
 /**
  * @brief TODO
  */

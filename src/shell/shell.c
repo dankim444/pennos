@@ -26,7 +26,7 @@
  */
 pid_t execute_command(struct parsed_command* cmd) {
 
-    // TODO --> replace with s_open once implemented?
+    // TODO --> Vedansh said to use open for now?
     int input_fd = s_open(cmd->stdin_file, F_READ); // TODO --> error check these once implemented 
     int output_fd;
     if (cmd->is_file_append) {

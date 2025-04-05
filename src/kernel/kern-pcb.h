@@ -18,7 +18,7 @@ typedef struct pcb_st {
 
     pid_t pid;               
     pid_t par_pid;           // -1 if no parent
-    Vec child_pids;         
+    Vec child_pids;          // pcb ptrs to children, not ints
 
     int priority;            // priority level (0,1,2)
     char process_state;      // 'R' = running, 'S' = stopped,
