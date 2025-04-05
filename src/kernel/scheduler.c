@@ -26,6 +26,8 @@ Vec current_pcbs; // holds all currently running processes, for logging
 static const int hundred_millisec = 100000; // 100 milliseconds
 static bool scheduling_done = false; // true if the scheduler is done
 
+extern tick_counter;
+
 
 /////////////////////////////////////////////////////////////////////////////////
 //                         QUEUE MAINTENANCE FUNCTIONS                         //
@@ -143,7 +145,9 @@ put_pcb_into_correct_queue(pcb_t* pcb) {
 }
 
 
-void alarm_handler(int signum) {}
+void alarm_handler(int signum) {
+    tick_counter++;
+}
 
 void scheduler() {
 
