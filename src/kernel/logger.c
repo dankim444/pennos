@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-extern tick_counter;
-extern int log_fd;
 
 void log_scheduling_event(int pid, int queue_num, char* process_name) {
     char buffer[200];

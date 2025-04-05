@@ -1,6 +1,9 @@
 #ifndef LOGGER_H_
 #define LOGGER_H_
 
+extern int tick_counter;
+extern int log_fd;
+
 
 /**
  * @brief Logs a scheduling event i.e. the scheduling of a process for 

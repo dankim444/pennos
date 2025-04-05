@@ -3,6 +3,7 @@
 #include "kern-pcb.h"
 #include "fs/fs_kfuncs.h"
 #include "logger.h"
+#include <signal.h>
 
 
 extern Vec zero_priority_queue; // lower index = more recent 
@@ -102,6 +103,26 @@ void move_pcb_correct_queue(int prev_priority, int new_priority, pcb_t* curr_pcb
 }
 
 /**
+ * @brief Given a queue, finds the pcb with the given pid and 
+ *        returns the pointer to it
+ * 
+ * @param queue ptr to Vec queue that may contain the pid 
+ * @param pid   the pid to search for 
+ * @return a pcb pointer if found, or NULL if not found
+ */
+pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid) {
+    for (int i = 0; i < vec_len(queue); i++) {
+        pcb_t* curr_pcb = (pcb_t*) vec_get(&current_pcbs, i);
+        if (curr_pcb->pid == pid) {
+            return curr_pcb;
+        }
+    }
+
+    return NULL;
+}
+
+
+/**
  * @brief Set the priority of the specified thread.
  *
  * @param pid Process ID of the target thread.
@@ -114,14 +135,12 @@ int s_nice(pid_t pid, int priority) {
         return -1;
     }
 
-    for (int i = 0; i < vec_len(&current_pcbs); i++) {
-        pcb_t* curr_pcb = (pcb_t*) vec_get(&current_pcbs, i);
-        if (curr_pcb->pid == pid) {
-            move_pcb_correct_queue(curr_pcb->priority, priority, curr_pcb);
-            log_nice_event(pid, curr_pcb->priority, priority, curr_pcb->cmd_str);
-            curr_pcb->priority = priority;
-            return 0;
-        }
+    pcb_t* curr_pcb = get_pcb_in_queue(&current_pcbs, pid);
+    if (curr_pcb != NULL) { // found + exists
+        move_pcb_correct_queue(curr_pcb->priority, priority, curr_pcb);
+        log_nice_event(pid, curr_pcb->priority, priority, curr_pcb->cmd_str);
+        curr_pcb->priority = priority;
+        return 0;
     }
 
     return -1; // pid not found
