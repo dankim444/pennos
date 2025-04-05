@@ -51,6 +51,26 @@ pcb_t* get_next_pcb(int priority);
 void put_pcb_into_correct_queue(pcb_t* pcb);
 
 /**
+ * @brief Given a queue in the form of a vector, searches through
+ *        it for the given pcb and deletes it from the queue if 
+ *        found. Notably, it does not free the pcb. Instead, the
+ *        implmentation calls vec_erase_no_deletor instead of 
+ *        vec_erase. If the pcb isn't in the queue, this function
+ *        does nothing.
+ */
+void delete_process_from_particular_queue(pcb_t* pcb, Vec* queue);
+
+/**
+ * @brief Searches through all of the scheduler's queues and deletes the
+ *        the given pcb from all of them. Notably, it does not free the 
+ *        pcb via calling vec_erase_no_deletor instead of vec_erase. If
+ *        a particular queue does not contain the pcb, nothing occurs.
+ * 
+ * @param pcb a pointer to the pcb with the pid to delete
+ */
+void delete_process_from_all_queues(pcb_t* pcb);
+
+/**
  * @brief TODO
  */
 void scheduler();

@@ -3,7 +3,8 @@
 #include "kern-pcb.h"
 #include "fs/fs_kfuncs.h"
 #include "logger.h"
-#include <signal.h>
+#include "signal.h"
+#include "shell/builtins.h"
 
 
 extern Vec zero_priority_queue; // lower index = more recent 
@@ -16,30 +17,10 @@ extern Vec current_pcbs;
 
 
 ////////////////////////////////////////////////////////////////////////////////
-//        SYSTEM-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
+//                         GENERAL HELPER FUNCTIONS                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 
-
-pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1) {
-    // TODO --> implement s_spawn
-    return -1;
-}
-
-pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
-    // TODO --> implement s_waitpid
-    return -1;
-}
-
-int s_kill(pid_t pid, int signal) {
-    // TODO --> implement s_kill
-    return -1;
-}
-
-void s_exit(void) {
-    // TODO --> implement s_exit
-    return;
-}
 
 /** 
  * @brief Given a thread pid and Vec* queue, this helper function determines 
@@ -122,13 +103,42 @@ pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid) {
 }
 
 
-/**
- * @brief Set the priority of the specified thread.
- *
- * @param pid Process ID of the target thread.
- * @param priority The new priorty value of the thread (0, 1, or 2)
- * @return 0 on success, -1 on failure.
- */
+
+////////////////////////////////////////////////////////////////////////////////
+//        SYSTEM-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1) {
+    spthread_t thread_handle; 
+
+    // Impl after implementing k_proc_create and cleanup
+
+    if (spthread_create(&thread_handle, NULL, func, argv) != 0) {
+        u_perror("s_spawn thread creation failed");
+        return -1;
+    }
+
+
+    return -1;
+}
+
+pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
+    // TODO --> implement s_waitpid
+    return -1;
+}
+
+int s_kill(pid_t pid, int signal) {
+    // TODO --> implement s_kill
+    return -1;
+}
+
+void s_exit(void) {
+    // TODO --> implement s_exit
+    return;
+}
+
 int s_nice(pid_t pid, int priority) {
 
     if (priority < 0 || priority > 2) { // error check

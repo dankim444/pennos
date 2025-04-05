@@ -30,6 +30,9 @@ typedef struct pcb_st {
                              // signal still has to be handled)
                              // 0 = P_SIGSTOP, 1 = P_SIGCONT, 2 = P_SIGTERM
 
+    int input_fd;
+    int output_fd;
+
     // TODO --> file descriptor table
 } pcb_t;
 
@@ -41,16 +44,21 @@ typedef struct pcb_st {
  * @param par_pid       the parent process id
  * @param priority      the priority level (0,1,2)
  * @param cmd_str       the command name as a malloced string ptr
+ * @param input_fd      input fd
+ * @param output_fd     output fd
  * 
  * @return pointer to the newly created and malloced PCB
  */
-pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priority, char* cmd_str);
+pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priority, char* cmd_str, int input_fd, int output_fd);
 
 
 /**
- * @brief Frees all malloced memory associated with the PCB.
+ * @brief Frees all malloced memory associated with the PCB. Note that 
+ *        this will destroy children too, so be careful when using it.
+ *        In particular, make sure to remove any children pcbs you want
+ *        to preserve.
  * 
- * @param pcb Pointer to the PCB to be freed.
+ * @param pcb Pointer to the PCB to be freed, NULL if error
  */
 void free_pcb(void* pcb);
 
@@ -62,13 +70,17 @@ void free_pcb(void* pcb);
 /**
  * @brief Create a new child process, inheriting applicable properties from the parent.
  *
+ * @param parent a pointer to the parent pcb
+ * @param priority the priority of the child, usually 1 but exceptions like shell exist
  * @return Reference to the child PCB.
  */
-pcb_t* k_proc_create(pcb_t *parent);
+pcb_t* k_proc_create(pcb_t *parent, int priority);
 
 /**
  * @brief Clean up a terminated/finished thread's resources.
  * This may include freeing the PCB, handling children, etc.
+ * 
+ * @param proc a pcb ptr to the terminated/finished thread
  */
 void k_proc_cleanup(pcb_t *proc);
 

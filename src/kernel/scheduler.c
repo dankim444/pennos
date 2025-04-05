@@ -145,6 +145,24 @@ void put_pcb_into_correct_queue(pcb_t* pcb) {
     }
 }
 
+void delete_process_from_particular_queue(pcb_t* pcb, Vec* queue) {
+    for (int i = 0; i < vec_len(queue); i++) {
+        pcb_t* curr_pcb = vec_get(queue, i);
+        if (curr_pcb->pid == pcb->pid) {
+            vec_erase_no_deletor(queue, i);
+            return;
+        }
+    }
+}
+
+void delete_process_from_all_queues(pcb_t* pcb) {
+    delete_process_from_particular_queue(pcb, &zero_priority_queue);
+    delete_process_from_particular_queue(pcb, &one_priority_queue);
+    delete_process_from_particular_queue(pcb, &two_priority_queue);
+    delete_process_from_particular_queue(pcb, &zombie_queue);
+    delete_process_from_particular_queue(pcb, &sleep_blocked_queue);
+    delete_process_from_particular_queue(pcb, &current_pcbs);
+}
 
 void alarm_handler(int signum) {
     tick_counter++;

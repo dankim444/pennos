@@ -6,6 +6,7 @@
 #include "fs/fs_syscalls.h"
 #include "stdlib.h"
 
+
 #ifndef PROMPT
 #define PROMPT "$"
 #endif
@@ -25,6 +26,7 @@
  */
 pid_t execute_command(struct parsed_command* cmd) {
 
+    // TODO --> replace with s_open once implemented?
     int input_fd = s_open(cmd->stdin_file, F_READ); // TODO --> error check these once implemented 
     int output_fd;
     if (cmd->is_file_append) {
@@ -100,6 +102,7 @@ int shell_main() {
         // TODO --> attempt waiting on all children
 
         // prompt 
+        // TODO --> see if "write" instead of s_write is okay here
         if (s_write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
             u_perror("prompt write error");
             break;
@@ -107,6 +110,7 @@ int shell_main() {
 
         // parse user input
         char buffer[MAX_BUFFER_SIZE];
+        // TODO --> see if "write" instead of s_write is okay here
         ssize_t user_input = s_read(STDIN_FILENO, MAX_BUFFER_SIZE, buffer);
         if (user_input < 0) {
             u_perror("shell read error");
