@@ -24,7 +24,7 @@ typedef struct pcb_st {
     char process_state;      // 'R' = running, 'S' = stopped,
                              // 'B' = blocked, 'Z' = zombied
 
-    char* cmd;               // command name
+    char* cmd_str;           // str containing command
 
     bool signals[3];         // signals to be sent to the process (true if
                              // signal still has to be handled)
@@ -40,11 +40,11 @@ typedef struct pcb_st {
  * @param pid           the new process id
  * @param par_pid       the parent process id
  * @param priority      the priority level (0,1,2)
- * @param cmd           the command name as a malloced string ptr
+ * @param cmd_str       the command name as a malloced string ptr
  * 
  * @return pointer to the newly created and malloced PCB
  */
-pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priority, char* cmd);
+pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priority, char* cmd_str);
 
 
 /**

@@ -9,7 +9,7 @@
 
 // TODO --> update this function as pcb changes
 void free_pcb(pcb_t *pcb) {
-    free(pcb->cmd);
+    free(pcb->cmd_str);
     vec_destroy(&pcb->child_pids);
     // TODO --> free file descriptor table
 
@@ -18,7 +18,7 @@ void free_pcb(pcb_t *pcb) {
 
 
 // TODO --> update this function as pcb changes
-pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priority, char* cmd) {
+pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priority, char* cmd_str) {
     pcb_t *ret_pcb = malloc(sizeof(pcb_t));
     if (ret_pcb == NULL) {
         perror("malloc failed for PCB creation");
@@ -29,7 +29,7 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
     ret_pcb->par_pid = par_pid;
     ret_pcb->priority = priority;
     ret_pcb->process_state = 'R'; // running by default
-    ret_pcb->cmd = cmd;
+    ret_pcb->cmd_str = cmd_str;
 
     ret_pcb->child_pids = vec_new(0, free);
 
