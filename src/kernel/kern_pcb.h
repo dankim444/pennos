@@ -4,14 +4,22 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <sys/types.h> 
-#include "lib/spthread.h"
-#include <lib/Vec.h>
+#include "../lib/spthread.h"
+#include "../lib/Vec.h"
 
-
+#define MAX_FDS 16  // TODO: Determine the maximum number of file descriptors per process
 
 ////////////////////////////////////////////////////////////////////////////////
 //              PROCESS CONTROL BLOCK (PCB) STRUCTURE AND FUNCTIONS           //
 ////////////////////////////////////////////////////////////////////////////////
+
+typedef struct fd_entry {
+    bool in_use;          // Whether this file descriptor is in use
+    int flags;            // Open mode flags (F_READ, F_WRITE, F_APPEND)
+    int offset;           // Current file position
+    char* filename;       // Pointer to filename (dynamically allocated)
+    uint16_t start_block; // First block in FAT
+} fd_entry_t;
 
 typedef struct pcb_st {
     spthread_t thread_handle; 
@@ -41,7 +49,7 @@ typedef struct pcb_st {
                              // 0 otherwise
 
 
-    // TODO --> file descriptor table
+    fd_entry_t fd_table[MAX_FDS];  // File descriptor table
 } pcb_t;
 
 /**

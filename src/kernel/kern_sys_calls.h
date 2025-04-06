@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include "kern-pcb.h"
+#include "kern_pcb.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 //        SYSTEM-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
