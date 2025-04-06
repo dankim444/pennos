@@ -1,10 +1,10 @@
 #include "kern_sys_calls.h"
-#include "lib/Vec.h"
+#include "../lib/Vec.h"
 #include "kern-pcb.h"
-#include "fs/fs_kfuncs.h"
+#include "../fs/fs_kfuncs.h"
 #include "logger.h"
 #include "signal.h"
-#include "shell/builtins.h"
+#include "../shell/builtins.h"
 
 
 extern Vec zero_priority_queue; // lower index = more recent 
@@ -12,7 +12,6 @@ extern Vec one_priority_queue;
 extern Vec two_priority_queue;
 extern Vec zombie_queue;
 extern Vec sleep_blocked_queue;
-
 extern Vec current_pcbs;
 
 
@@ -94,12 +93,12 @@ void move_pcb_correct_queue(int prev_priority, int new_priority, pcb_t* curr_pcb
  */
 pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid) {
     for (int i = 0; i < vec_len(queue); i++) {
-        pcb_t* curr_pcb = (pcb_t*) vec_get(&current_pcbs, i);
+        pcb_t* curr_pcb = (pcb_t*) vec_get(queue, i); // i think this should be queue, since that's what ur using as param?
+                                                      // im assuming the invariant should be &current_pcbs as the argument
         if (curr_pcb->pid == pid) {
             return curr_pcb;
         }
     }
-
     return NULL;
 }
 
