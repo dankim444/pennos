@@ -131,9 +131,16 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
     return -1;
 }
 
+// TODO --> make sure signals are handled at some point in the loop
 int s_kill(pid_t pid, int signal) {
-    // TODO --> implement s_kill
-    return -1;
+    pcb_t* pcb_with_pid = get_pcb_in_queue(&current_pcbs, pid);
+    if (pcb_with_pid == NULL) {
+        return -1; // pid not found case
+    }
+
+    pcb_with_pid->signals[signal] = true; // signal flagged
+    log_generic_event('S', pid, pcb_with_pid->priority, pcb_with_pid->cmd_str);
+    return 0;
 }
 
 void s_exit(void) {

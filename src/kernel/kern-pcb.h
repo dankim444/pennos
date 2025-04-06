@@ -18,7 +18,8 @@ typedef struct pcb_st {
 
     pid_t pid;               
     pid_t par_pid;           // -1 if no parent
-    Vec child_pids;          // pcb ptrs to children, not ints
+
+    Vec child_pcbs;          // pcb ptrs to children, not ints        
 
     int priority;            // priority level (0,1,2)
     char process_state;      // 'R' = running, 'S' = stopped,
@@ -32,6 +33,13 @@ typedef struct pcb_st {
 
     int input_fd;
     int output_fd;
+
+    int process_status;      // process status 
+                             // EXITED_NORMALLY 20
+                             // STOPPED_BY_SIG 21
+                             // TERM_BY_SIG 22
+                             // 0 otherwise
+
 
     // TODO --> file descriptor table
 } pcb_t;
@@ -77,12 +85,14 @@ void free_pcb(void* pcb);
 pcb_t* k_proc_create(pcb_t *parent, int priority);
 
 /**
- * @brief Clean up a terminated/finished thread's resources.
- * This may include freeing the PCB, handling children, etc.
+ * @brief Clean up a terminated/finished thread's resources. This may include
+ *        freeing the PCB, handling children, etc. If a child is orphaned, the
+ *        INIT process becomes its parent.
  * 
  * @param proc a pcb ptr to the terminated/finished thread
  */
 void k_proc_cleanup(pcb_t *proc);
+
 
 
 #endif

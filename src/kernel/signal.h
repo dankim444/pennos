@@ -2,9 +2,9 @@
 #define SIGNAL_H_
 
 // signal definitions
-#define P_SIGSTOP 10
-#define P_SIGCONT 11
-#define P_SIGTERM 12
+#define P_SIGSTOP 0
+#define P_SIGCONT 1
+#define P_SIGTERM 2
 
 // status definitions
 #define EXITED_NORMALLY 20
