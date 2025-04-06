@@ -1,10 +1,10 @@
 #include "kern_sys_calls.h"
-#include "lib/Vec.h"
-#include "kern-pcb.h"
-#include "fs/fs_kfuncs.h"
+#include "../lib/Vec.h"
+#include "kern_pcb.h"
+#include "../fs/fs_kfuncs.h"
 #include "logger.h"
 #include "signal.h"
-#include "shell/builtins.h"
+#include "../shell/builtins.h"
 
 
 extern Vec zero_priority_queue; // lower index = more recent 

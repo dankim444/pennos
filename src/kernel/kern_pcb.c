@@ -1,4 +1,4 @@
-#include "kern-pcb.h" 
+#include "kern_pcb.h" 
 #include "stdlib.h"
 #include "stdio.h" // for perror
 #include "scheduler.h"
@@ -23,7 +23,13 @@ void free_pcb(void* pcb) {
     vec_destroy(&casted_pcb->child_pcbs); // observe will free any remaining
                                           // children too!
     
-    // TODO --> free file descriptor table
+    // free file descriptor table resources
+    for (int i = 0; i < MAX_FDS; i++) {
+        if (casted_pcb->fd_table[i].in_use && casted_pcb->fd_table[i].filename) {
+            free(casted_pcb->fd_table[i].filename);
+            casted_pcb->fd_table[i].filename = NULL;
+        }
+    }
 
     free(casted_pcb);
 }
