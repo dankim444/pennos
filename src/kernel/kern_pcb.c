@@ -3,6 +3,7 @@
 #include "stdio.h" // for perror
 #include "scheduler.h"
 #include "logger.h"
+#include "../fs/fs_syscalls.h"
 
 int next_pid = 1; // global variable to track the next pid to be assigned
                   // Note: when incrementing, be careful to lock around
@@ -58,6 +59,28 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
         ret_pcb->signals[i] = false;
     }
 
+    for (int i = 0; i < MAX_FDS; i++) {
+        ret_pcb->fd_table[i].in_use = false;
+        ret_pcb->fd_table[i].flags = 0;
+        ret_pcb->fd_table[i].offset = 0;
+        ret_pcb->fd_table[i].filename = NULL;
+        ret_pcb->fd_table[i].start_block = 0;
+    }
+
+     // set up standard I/O file descriptors
+    if (input_fd >= 0) {
+        ret_pcb->fd_table[STDIN_FILENO].in_use = true;
+        ret_pcb->fd_table[STDIN_FILENO].flags = F_READ;
+    }
+
+    if (output_fd >= 0) {
+        ret_pcb->fd_table[STDOUT_FILENO].in_use = true;
+        ret_pcb->fd_table[STDOUT_FILENO].flags = F_WRITE;
+    }
+
+    ret_pcb->fd_table[STDERR_FILENO].in_use = true;
+    ret_pcb->fd_table[STDERR_FILENO].flags = F_WRITE;
+
     return ret_pcb;
 }
 
@@ -75,7 +98,7 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
  * @return Reference to the child PCB.
  */
 pcb_t* k_proc_create(pcb_t *parent, int priority) {
-    pcb_t* child = malloc(sizeof(pcb_t));
+    pcb_t* child = (pcb_t*) malloc(sizeof(pcb_t));
     if (child == NULL) {
         perror("malloc failed in k_proc_create");
         return NULL;
@@ -93,7 +116,31 @@ pcb_t* k_proc_create(pcb_t *parent, int priority) {
     }
     child->input_fd = parent->input_fd;
     child->output_fd = parent->output_fd;
-    // TODO --> copy file descriptor table once added
+    
+    // copy parent's fd table
+    for (int i = 0; i < MAX_FDS; i++) {
+        child->fd_table[i].in_use = parent->fd_table[i].in_use;
+        child->fd_table[i].flags = parent->fd_table[i].flags;
+        child->fd_table[i].offset = parent->fd_table[i].offset;
+        child->fd_table[i].start_block = parent->fd_table[i].start_block;
+        
+        if (parent->fd_table[i].in_use && parent->fd_table[i].filename) {
+            child->fd_table[i].filename = strdup(parent->fd_table[i].filename); // verify that strdup is okay
+            if (child->fd_table[i].filename == NULL) {
+                perror("strdup failed in k_proc_create");
+                // Clean up and return error
+                for (int j = 0; j < i; j++) {
+                    if (child->fd_table[j].in_use && child->fd_table[j].filename) {
+                        free(child->fd_table[j].filename);
+                    }
+                }
+                free(child);
+                return NULL;
+            }
+        } else {
+            child->fd_table[i].filename = NULL;
+        }
+    }
 
     // update parent as needed
     vec_push_back(&parent->child_pcbs, child);
