@@ -1,7 +1,7 @@
 #include "scheduler.h"
 #include <stdbool.h>
-#include "lib/spthread.h"
-#include "lib/Vec.h"
+#include "../lib/spthread.h"
+#include "../lib/Vec.h"
 #include "kern_pcb.h"
 #include "stdlib.h"
 #include <sys/time.h>
