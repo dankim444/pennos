@@ -1,10 +1,11 @@
 #include "kern_sys_calls.h"
 #include "../lib/Vec.h"
-#include "kern-pcb.h"
+#include "kern_pcb.h"
 #include "../fs/fs_kfuncs.h"
 #include "logger.h"
 #include "signal.h"
 #include "../shell/builtins.h"
+#include "../lib/pennos-errno.h"
 
 
 extern Vec zero_priority_queue; // lower index = more recent 
@@ -114,7 +115,9 @@ pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1, pcb_t* child
     spthread_t thread_handle; 
 
     if (spthread_create(&thread_handle, NULL, func, argv) != 0) {
-        u_perror("s_spawn thread creation failed");
+        P_ERRNO = P_EINTR; // im removing u_perror here bc i believe the shell is only allowed to call u_perror 
+                            // the kernel + fs just sets the type of error and returns -1, then the shell catches the error 
+                            // and interprets it using u_perror.
         return -1;
     }
 
@@ -122,7 +125,9 @@ pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1, pcb_t* child
     child->input_fd = fd0;
     child->output_fd = fd1;
 
-    return -1;
+    // I think you need to invoke k_proc_create here to create the child process here.
+
+    return child->pid; // return child->pid if successful
 }
 
 pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {

@@ -4,14 +4,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include "kern-pcb.h"
+#include "kern_pcb.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 //        SYSTEM-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Create a child process that executes the function `func`.
+ * @brief Create a child process that executes the function `func`.k
  * The child will retain some attributes of the parent.
  *
  * @param func  Function to be executed by the child process.
