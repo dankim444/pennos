@@ -24,7 +24,9 @@ int main(int argc, char* argv[]) {
 
     // initialize scheduler architecture and init process
     initialize_scheduler_queues();
-    // TODO --> initialzie init process
+    
+    // TODO --> initialize an init process
+    
 
     scheduler();
 

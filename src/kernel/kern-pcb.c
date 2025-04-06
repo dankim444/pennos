@@ -20,7 +20,7 @@ void free_pcb(void* pcb) {
     pcb_t* casted_pcb = (pcb_t*) pcb;
 
     free(casted_pcb->cmd_str);
-    vec_destroy(&casted_pcb->child_pids); // observe will free any remaining
+    vec_destroy(&casted_pcb->child_pcbs); // observe will free any remaining
                                           // children too!
     
     // TODO --> free file descriptor table
@@ -44,8 +44,9 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
     ret_pcb->cmd_str = cmd_str;
     ret_pcb->input_fd = input_fd;
     ret_pcb->output_fd = output_fd;
+    ret_pcb->process_status = 0; // default status
 
-    ret_pcb->child_pids = vec_new(0, free_pcb);
+    ret_pcb->child_pcbs = vec_new(0, free_pcb);
 
     for (int i = 0; i < 3; i++) {
         ret_pcb->signals[i] = false;
@@ -77,9 +78,10 @@ pcb_t* k_proc_create(pcb_t *parent, int priority) {
     // set child attributes
     child->pid = next_pid++; // TODO --> check if need locking herre since not atomic
     child->par_pid = parent->pid;
-    child->child_pids = vec_new(0, free_pcb);
+    child->child_pcbs = vec_new(0, free_pcb);
     child->priority = priority;
     child->process_state = 'R'; // initially running
+    child->process_status = 0; // default status
     for (int i = 0; i < 3; i++) { // "clean slate" of signals
         child->signals[i] = false;
     }
@@ -88,7 +90,7 @@ pcb_t* k_proc_create(pcb_t *parent, int priority) {
     // TODO --> copy file descriptor table once added
 
     // update parent as needed
-    vec_push_back(&parent->child_pids, child);
+    vec_push_back(&parent->child_pcbs, child);
 
     // add to appropriate queue (TODO -> see if this is necessary)
     put_pcb_into_correct_queue(child);
@@ -99,14 +101,14 @@ pcb_t* k_proc_create(pcb_t *parent, int priority) {
 void k_proc_cleanup(pcb_t *proc) {
 
     // if proc has children, remove them and assign new parent
-    if (vec_len(&proc->child_pids) > 0 ) {
+    if (vec_len(&proc->child_pcbs) > 0 ) {
         pcb_t* par_pcb = get_pcb_in_queue(&current_pcbs, proc->par_pid);
         if (par_pcb != NULL) {
-            while (vec_len(&proc->child_pids) > 0) {
-                pcb_t* curr_child = vec_get(&proc->child_pids, 0);
-                vec_push_back(&par_pcb->child_pids, curr_child); // add to new parent
-                vec_erase_no_deletor(&proc->child_pids, 0); // don't free in erase
-                curr_child->par_pid = proc->par_pid; // update parent
+            while (vec_len(&proc->child_pcbs) > 0) {
+                pcb_t* curr_child = vec_get(&proc->child_pcbs, 0);
+                vec_push_back(&par_pcb->child_pcbs, curr_child); // add to new parent
+                vec_erase_no_deletor(&proc->child_pcbs, 0); // don't free in erase
+                curr_child->par_pid = get_pcb_in_queue(&current_pcbs, 0); // update parent to init
                 log_generic_event('O', curr_child->pid, curr_child->priority, curr_child->cmd_str);
             }
         }        
