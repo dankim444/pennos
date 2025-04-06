@@ -2,7 +2,7 @@
 #define SCHEDULER_H_
 
 #include "lib/Vec.h"
-#include "kern-pcb.h"
+#include "kern_pcb.h"
 #include "lib/spthread.h"
 #include <stdbool.h> 
 

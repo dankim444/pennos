@@ -20,5 +20,5 @@ if (fd < 0) {
     u_perror("s_open failed");
 }
 
-u_perror will be implemented user_utils.c
+u_perror is implemented in shell/builtins.c
 */

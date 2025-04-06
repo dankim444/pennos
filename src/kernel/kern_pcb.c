@@ -1,4 +1,4 @@
-#include "kern-pcb.h" 
+#include "kern_pcb.h" 
 #include "stdlib.h"
 #include "stdio.h" // for perror
 #include "scheduler.h"
@@ -69,6 +69,8 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
  * @return Reference to the child PCB.
  */
 pcb_t* k_proc_create(pcb_t *parent, int priority) {
+    /* why are you creating the pcb manually when you have a function create_pcb that does this? */
+
     pcb_t* child = malloc(sizeof(pcb_t));
     if (child == NULL) {
         perror("malloc failed in k_proc_create");
@@ -106,9 +108,12 @@ void k_proc_cleanup(pcb_t *proc) {
         if (par_pcb != NULL) {
             while (vec_len(&proc->child_pcbs) > 0) {
                 pcb_t* curr_child = vec_get(&proc->child_pcbs, 0);
+                
+                // TODO: shouldn't all children of the dying process be re-parented to init? 
                 vec_push_back(&par_pcb->child_pcbs, curr_child); // add to new parent
                 vec_erase_no_deletor(&proc->child_pcbs, 0); // don't free in erase
                 curr_child->par_pid = get_pcb_in_queue(&current_pcbs, 0); // update parent to init
+                                                                         // TODO: you're storing a pointer in a field that expects an int here
                 log_generic_event('O', curr_child->pid, curr_child->priority, curr_child->cmd_str);
             }
         }        

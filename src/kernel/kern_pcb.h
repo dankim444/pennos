@@ -4,8 +4,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <sys/types.h> 
-#include "lib/spthread.h"
-#include <lib/Vec.h>
+#include "../lib/spthread.h"
+#include "../lib/Vec.h"
 
 
 
