@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-// what is the file descriptor for log_fd, do we want to set that here? or in the main loop?
 
 void log_scheduling_event(int pid, int queue_num, char* process_name) {
     char buffer[200];
@@ -41,7 +40,7 @@ void log_generic_event(char event_type, int pid, int nice_value, char* process_n
             operation = "UNBLOCKED";
             break;
         case 's':
-            operation = "STOPPED"; // just a note for the future: do we also want to log SIGNALED here? might want to ask during OH
+            operation = "STOPPED";
             break;
         default:
             operation = "CONTINUED";

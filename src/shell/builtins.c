@@ -35,6 +35,9 @@ void u_perror(const char *msg) {
         case P_EINTR:
             error_msg = "interrupted system call"; 
             break;
+        case P_NULL:
+            error_msg = "NULL returned unexpectedly"; 
+            break;
         case P_EUNKNOWN:
             error_msg = "unknown error"; 
             break;

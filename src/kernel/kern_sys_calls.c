@@ -6,6 +6,8 @@
 #include "signal.h"
 #include "../shell/builtins.h"
 #include "../lib/pennos-errno.h"
+#include <string.h>
+#include "scheduler.h"
 
 
 extern Vec zero_priority_queue; // lower index = more recent 
@@ -14,6 +16,8 @@ extern Vec two_priority_queue;
 extern Vec zombie_queue;
 extern Vec sleep_blocked_queue;
 extern Vec current_pcbs;
+
+extern pcb_t* current_running_pcb; // currently running process
 
 
 
@@ -84,25 +88,6 @@ void move_pcb_correct_queue(int prev_priority, int new_priority, pcb_t* curr_pcb
     vec_push_back(new_queue, curr_pcb);
 }
 
-/**
- * @brief Given a queue, finds the pcb with the given pid and 
- *        returns the pointer to it
- * 
- * @param queue ptr to Vec queue that may contain the pid 
- * @param pid   the pid to search for 
- * @return a pcb pointer if found, or NULL if not found
- */
-pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid) {
-    for (int i = 0; i < vec_len(queue); i++) {
-        pcb_t* curr_pcb = (pcb_t*) vec_get(queue, i); // i think this should be queue, since that's what ur using as param?
-                                                      // im assuming the invariant should be &current_pcbs as the argument
-        if (curr_pcb->pid == pid) {
-            return curr_pcb;
-        }
-    }
-    return NULL;
-}
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,21 +96,22 @@ pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid) {
 
 
 
-pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1, pcb_t* child) {
+pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1) {
+    pcb_t* child = k_proc_create(current_running_pcb, 1);
+
     spthread_t thread_handle; 
 
     if (spthread_create(&thread_handle, NULL, func, argv) != 0) {
         P_ERRNO = P_EINTR; // im removing u_perror here bc i believe the shell is only allowed to call u_perror 
                             // the kernel + fs just sets the type of error and returns -1, then the shell catches the error 
-                            // and interprets it using u_perror.
+                            // and interprets it using u_perror. -Dan
         return -1;
     }
 
+    child->cmd_str = strdup(argv[0]);
     child->thread_handle = thread_handle;
     child->input_fd = fd0;
     child->output_fd = fd1;
-
-    // I think you need to invoke k_proc_create here to create the child process here.
 
     return child->pid; // return child->pid if successful
 }

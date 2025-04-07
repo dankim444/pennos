@@ -16,7 +16,7 @@
 typedef struct pcb_st {
     spthread_t thread_handle; 
 
-    pid_t pid;               
+    pid_t pid;               // 0 if init 
     pid_t par_pid;           // -1 if no parent
 
     Vec child_pcbs;          // pcb ptrs to children, not ints        
@@ -45,19 +45,18 @@ typedef struct pcb_st {
 } pcb_t;
 
 /**
- * @brief Creates a new PCB and initializes its fields
+ * @brief Creates a new PCB and initializes its fields. Notably, the thread handle
+ *        and cmd are left out. It's up to the user to assign them post-call.
  * 
- * @param thread_handle thread handle for associated spthread
  * @param pid           the new process id
  * @param par_pid       the parent process id
  * @param priority      the priority level (0,1,2)
- * @param cmd_str       the command name as a malloced string ptr
  * @param input_fd      input fd
  * @param output_fd     output fd
  * 
- * @return pointer to the newly created and malloced PCB
+ * @return pointer to the newly created and malloced PCB or NULL if failure
  */
-pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priority, char* cmd_str, int input_fd, int output_fd);
+pcb_t* create_pcb(pid_t pid, pid_t par_pid, int priority, int input_fd, int output_fd);
 
 
 /**
@@ -70,6 +69,15 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
  */
 void free_pcb(void* pcb);
 
+/**
+ * @brief Given a parent, removes the child from the parent's child
+ *        vector if its exists. Notably, it does not free the child but
+ *        simply removes it via the vec_erase_no_deletor function.
+ * 
+ * @param parent a ptr to the parent pcb with the child list 
+ * @param child  a ptr to the child pcb that we'd like to remove
+ */
+void remove_child_in_parent(pcb_t* parent, pcb_t* child);
 
 ////////////////////////////////////////////////////////////////////////////////
 //        KERNEL-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
@@ -80,7 +88,7 @@ void free_pcb(void* pcb);
  *
  * @param parent a pointer to the parent pcb
  * @param priority the priority of the child, usually 1 but exceptions like shell exist
- * @return Reference to the child PCB.
+ * @return Reference to the child PCB or NULL if error
  */
 pcb_t* k_proc_create(pcb_t *parent, int priority);
 
