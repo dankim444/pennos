@@ -1,9 +1,9 @@
-#include "kernel/kern_sys_calls.h"
+#include "../kernel/kern_sys_calls.h"
 #include "parser.h"
 #include "shell-built-ins.h"
 #include "builtins.h" // contains u_perrror
 #include <string.h>
-#include "fs/fs_syscalls.h"
+#include "../fs/fs_syscalls.h"
 #include "stdlib.h"
 
 
@@ -104,6 +104,7 @@ int shell_main() {
         // prompt 
         // TODO --> see if "write" instead of s_write is okay here
         if (s_write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
+            // TODO: remember to set PERRNO
             u_perror("prompt write error");
             break;
         }

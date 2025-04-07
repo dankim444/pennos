@@ -30,8 +30,8 @@ void log_scheduling_event(int pid, int queue_num, char* process_name);
  * @param nice_value   process nice value
  * @param process_name string containing process name
  * 
- * @pre assums event_type matches one of the above characters
- * @post will perrorr if the write fails
+ * @pre assumes event_type matches one of the above characters
+ * @post will perror if the write fails
  */
 void log_generic_event(char event_type, int pid, int nice_value, char* process_name);
 
