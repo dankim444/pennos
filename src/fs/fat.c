@@ -56,14 +56,19 @@ int fat_init(const char* fs_name, uint16_t num_blocks, uint32_t block_size) {
   switch (block_size) {
     case 0:
       block_size_bytes = 256;
+      break;
     case 1:
       block_size_bytes = 512;
+      break;
     case 2:
       block_size_bytes = 1024;
+      break;
     case 3:
       block_size_bytes = 2048;
+      break;
     case 4:
       block_size_bytes = 4096;
+      break;
     default:
       return -1;
   }
@@ -140,7 +145,69 @@ int fat_init(const char* fs_name, uint16_t num_blocks, uint32_t block_size) {
  *         On error, returns -1 and sets P_ERRNO to indicate the error.
  */
 int fat_load(const char* fs_name) {
-  return -1;  // TODO | NEED FOR TESTING
+  if (!fs_name || is_mounted) {
+    return -1;
+  }
+
+  fs_fd = open(fs_name, O_RDWR);
+  if (fs_fd == -1) {
+    return -1;
+  }
+
+  // 4bytes -> uint16
+  void* fat_map =
+      mmap(NULL, sizeof(uint16_t), PROT_READ, MAP_PRIVATE, fs_fd, 0);
+
+  if (fat_map == MAP_FAILED) {
+    close(fs_fd);
+    fs_fd = -1;
+    return -1;
+    // do P_ERRNO stuff later TODO
+  }
+
+  uint16_t load_fat_metadata = *(uint16_t*)fat_map;
+
+  uint8_t block_size = load_fat_metadata & 0xFF;
+  uint8_t num_blocks = (load_fat_metadata >> 8) & 0xFF;
+
+  munmap(fat_map, sizeof(uint16_t));
+
+  if (num_blocks < 1 || num_blocks > 32 || block_size < 0 || block_size > 4) {
+    return -1;
+  }
+
+  int block_size_bytes;
+  switch (block_size) {
+    case 0:
+      block_size_bytes = 256;
+    case 1:
+      block_size_bytes = 512;
+    case 2:
+      block_size_bytes = 1024;
+    case 3:
+      block_size_bytes = 2048;
+    case 4:
+      block_size_bytes = 4096;
+    default:
+      return -1;
+  }
+
+  fat_size_bytes = num_blocks * block_size_bytes;
+  num_fat_entries = fat_size_bytes / 2;
+
+  fat = mmap(
+      NULL, fat_size_bytes, PROT_READ | PROT_WRITE, MAP_SHARED, fs_fd,
+      0);  // MAP_SHARED -> writes to the memory are reflected back to the file
+
+  if (fat == MAP_FAILED) {
+    close(fs_fd);
+    fs_fd = -1;
+    return -1;
+  }
+
+  is_mounted = true;
+
+  return 0;  // TODO | NEED FOR TESTING
 }
 
 /**
@@ -157,7 +224,7 @@ void fat_unmount() {
 
   // fat_sync to disk
   // what do i even do if this fails realistically
-  if (fat_sync() == -1) {
+  if (fat_save() == -1) {
     munmap(fat, fat_size_bytes);
     fat = NULL;
     close(fs_fd);
@@ -180,7 +247,7 @@ void fat_unmount() {
   block_size = 0;
 }
 
-fat_sync() {
+int fat_save() {
   if (!is_mounted || fat == NULL) {
     return -1;
   }
@@ -189,4 +256,32 @@ fat_sync() {
     return -1;
   }
   return 0;
+}
+
+uint16_t fat_get_block(uint16_t index) {
+  return index;
+}
+
+void fat_set_block(uint16_t index, uint16_t value) {
+  return;
+}
+
+int fat_find_free_block() {
+  return -1;
+}
+
+int fat_get_block_size() {
+  return -1;
+}
+
+int fat_get_data_offset() {
+  return -1;
+}
+
+int fat_get_num_entries() {
+  return -1;
+}
+
+int fat_get_fat_size_bytes() {
+  return -1;
 }
