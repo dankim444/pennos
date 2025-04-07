@@ -98,5 +98,62 @@ int fat_init(const char* fs_name, uint16_t num_blocks, uint32_t block_size) {
   }
 
   memset(fat, 0, fat_size_bytes);
+
+  // MSB|LSB
+  fat[0] = (num_blocks << 8) | block_size;
+  fat[1] = FAT_EOF;
+
+  // Block 1 as Root Directory block
+  char* root_dir = (char*)calloc(1, block_size_bytes);
+  if (!root_dir) {
+    munmap(fat, fat_size_bytes);
+    close(fs_fd);
+    fs_fd = -1;
+    return -1;
+  }
+
+  // Write root dir to disk
+  if (lseek(fs_fd, fat_size_bytes, SEEK_SET) == -1 ||
+      write(fs_fd, root_dir, block_size_bytes) != block_size_bytes) {
+    free(root_dir);
+    munmap(fat, fat_size_bytes);
+    close(fs_fd);
+    fs_fd = -1;
+    return -1;
+  }
+
+  free(root_dir);
+  block_size = block_size_bytes;
+  is_mounted = true;
+
   return 0;
+}
+
+/**
+ * @brief Load an existing FAT file system.
+ *
+ * This function mounts an existing FAT file system from the specified file.
+ * It reads the superblock and FAT data into memory for fast access.
+ *
+ * @param fs_name The name of the file containing the file system.
+ * @return On success, returns 0.
+ *         On error, returns -1 and sets P_ERRNO to indicate the error.
+ */
+int fat_load(const char* fs_name) {
+  return -1;  // TODO | NEED FOR TESTING
+}
+
+/**
+ * @brief Unmount the currently mounted FAT file system.
+ *
+ * This function synchronizes any cached data to disk and releases
+ * all resources associated with the file system. After calling this
+ * function, no further file system operations should be performed
+ * until fat_init() or fat_load() is called again.
+ */
+void fat_unmount() {
+  // TODO NEXT
+  if (!is_mounted) {
+    return;
+  }
 }
