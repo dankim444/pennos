@@ -29,6 +29,8 @@ static bool scheduling_done = false; // true if the scheduler is done
 int tick_counter = 0;
 int log_fd; // file descriptor for the log file, set in pennos.c
 
+pcb_t* current_running_pcb = NULL; // currently running process
+
 
 /////////////////////////////////////////////////////////////////////////////////
 //                         QUEUE MAINTENANCE FUNCTIONS                         //
@@ -179,7 +181,11 @@ void alarm_handler(int signum) {
     tick_counter++;
 }
 
+
+// TODO --> this function needs a solid amt of work
 void scheduler() {
+
+    // TODO --> check signals in here?
 
     // TODO --> insert code somewhere to prevent busy waiting via sigsuspend
     // Is init always running? Need to figure this out
@@ -223,14 +229,3 @@ void scheduler() {
         put_pcb_into_correct_queue(curr_pcb);
     }
 }
-
-
-
-
-
-
-
-
-
-
-

@@ -11,23 +11,21 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Create a child process that executes the function `func`.k
- * The child will retain some attributes of the parent.
+ * @brief Create a child process that executes the function `func`.
+ *        The child will retain some attributes of the parent.
  *
  * @param func  Function to be executed by the child process.
  * @param argv  Null-terminated array of args, including the command name as argv[0].
  * @param fd0   Input file descriptor.
  * @param fd1   Output file descriptor.
- * @param child ptr to the already created child pcb, which contains relevant parent 
- *              attributes, presumably via an inital call to k_proc_create. Reference
- *              this function to see how the child pcb is already filled
- * @return pid_t The process ID of the created child process.
+ * @return pid_t The process ID of the created child process or -1 on error
  */
-pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1, pcb_t* child);
+pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1);
 
 /**
  * @brief Wait on a child of the calling process, until it changes state.
- * If `nohang` is true, this will not block the calling process and return immediately.
+ *        If `nohang` is true, this will not block the calling process and 
+ *        return immediately.
  *
  * @param pid Process ID of the child to wait for.
  * @param wstatus Pointer to an integer variable where the status will be stored.

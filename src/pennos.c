@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     initialize_scheduler_queues();
     
     // TODO --> initialize an init process
-    
+
 
     scheduler();
 
