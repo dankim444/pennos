@@ -85,6 +85,7 @@ pcb_t* k_proc_create(pcb_t *parent, int priority) {
         if (init == NULL) {
             P_ERRNO = P_NULL; // TODO --> do we want this?
         }
+        put_pcb_into_correct_queue(init);
         return init;
     }
 
