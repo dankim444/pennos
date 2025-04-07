@@ -1,5 +1,5 @@
 #include "lib/Vec.h"
-#include "kernel/kern-pcb.h"
+#include "kernel/kern_pcb.h"
 #include "kernel/scheduler.h"
 #include "fs/fs_syscalls.h"
 #include <stdbool.h>
