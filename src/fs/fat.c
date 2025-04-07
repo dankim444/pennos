@@ -144,8 +144,6 @@ int fat_load(const char* fs_name) {
 }
 
 /**
- * @brief Unmount the currently mounted FAT file system.
- *
  * This function synchronizes any cached data to disk and releases
  * all resources associated with the file system. After calling this
  * function, no further file system operations should be performed
@@ -156,4 +154,39 @@ void fat_unmount() {
   if (!is_mounted) {
     return;
   }
+
+  // fat_sync to disk
+  // what do i even do if this fails realistically
+  if (fat_sync() == -1) {
+    munmap(fat, fat_size_bytes);
+    fat = NULL;
+    close(fs_fd);
+    fs_fd = -1;
+  }
+
+  if (fat != NULL) {
+    munmap(fat, fat_size_bytes);
+    fat = NULL;
+  }
+
+  if (fs_fd != -1) {
+    close(fs_fd);
+    fs_fd = -1;
+  }
+
+  is_mounted = false;
+  num_fat_entries = 0;
+  fat_size_bytes = 0;
+  block_size = 0;
+}
+
+fat_sync() {
+  if (!is_mounted || fat == NULL) {
+    return -1;
+  }
+
+  if (msync(fat, fat_size_bytes, MS_SYNC) == -1) {
+    return -1;
+  }
+  return 0;
 }
