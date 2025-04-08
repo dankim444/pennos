@@ -10,7 +10,7 @@
 #include <fcntl.h>
 
 #ifndef PROMPT
-#define PROMPT "$"
+#define PROMPT "$ "
 #endif
 
 #define MAX_BUFFER_SIZE 4096
@@ -60,6 +60,8 @@ pid_t execute_command(struct parsed_command* cmd) {
         return s_spawn(b_rm, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "chmod") == 0) {
         return s_spawn(b_chmod, cmd->commands[0], input_fd, output_fd);
+    } else if (strcmp(cmd->commands[0][0], "ps") == 0) {
+        return s_spawn(b_ps, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "kill") == 0) {
         return s_spawn(b_kill, cmd->commands[0], input_fd, output_fd);
     } 

@@ -10,6 +10,9 @@
 #include <kernel/logger.h>
 #include "shell/builtins.h"
 
+#include <stdio.h> // DELETE
+
+
 
 extern int tick_counter;
 extern int log_fd;
@@ -23,10 +26,9 @@ int main(int argc, char* argv[]) {
         log_fd = open("log", O_WRONLY | O_CREAT | O_TRUNC, 0644);
     }
 
-
     // initialize scheduler architecture and init process
     initialize_scheduler_queues();
-    
+
     pid_t init_pid = s_spawn_init();
     if (init_pid == -1) {
         u_perror("init spawn failed"); // TODO --> possible update with new funcs

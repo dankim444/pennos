@@ -7,6 +7,8 @@
 #include <sys/time.h>
 #include <signal.h> // TODO --> make sure this is ok to include
 
+#include <stdio.h> // TODO: delete this once finished
+
 
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -212,13 +214,14 @@ void scheduler() {
     pthread_sigmask(SIG_UNBLOCK, &alarm_set, NULL);
 
     struct itimerval it;
-    it.it_interval = (struct timeval){.tv_usec = hundred_millisec * 10};
+    it.it_interval = (struct timeval){.tv_usec = hundred_millisec};
     it.it_value = it.it_interval;
     setitimer(ITIMER_REAL, &it, NULL);
 
     while(!scheduling_done) {
         curr_priority_queue_num = generate_next_priority();
         pcb_t* curr_pcb = get_next_pcb(curr_priority_queue_num);
+    
 
         spthread_continue(curr_pcb->thread_handle);
         sigsuspend(&suspend_set);
