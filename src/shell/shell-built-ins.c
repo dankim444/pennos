@@ -3,6 +3,20 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include "../lib/Vec.h"
+#include "../kernel/kern_pcb.h" // TODO --> this is a little dangerous, 
+                                // make sure not to use k funcs
+#include "../kernel/kern_sys_calls.h"
+#include "../fs/fs_syscalls.h"
+#include <string.h>
+
+
+#include <unistd.h> // probably delete once done 
+#include <stdio.h> // I think this is okay? Using snprintf
+
+
+
+extern Vec current_pcbs;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -61,8 +75,24 @@ void* b_chmod(void *arg) {
     return NULL;
 }
 
+
+/**
+ * @brief List all processes on PennOS, displaying PID, PPID, priority, status,
+ * and command name.
+ *
+ * Example Usage: ps
+ */
 void* b_ps(void *arg) {
-    // TODO --> implement ps
+    write(STDOUT_FILENO, "PID\tPPID\tPRI\tSTAT\tCMD\n", 35); // replace w/ s_write
+    for (int i = 0; i < vec_len(&current_pcbs); i++) {
+        pcb_t* curr_pcb = (pcb_t*) vec_get(&current_pcbs, i);
+        char buffer[100];
+        snprintf(buffer, sizeof(buffer), "%d\t%d\t%d\t%c\t%s\n", 
+                 curr_pcb->pid, curr_pcb->par_pid, curr_pcb->priority, 
+                 curr_pcb->process_state, curr_pcb->cmd_str); // TODO --> is this allowed?
+        write(STDOUT_FILENO, buffer, strlen(buffer)); // replace w/ s_write
+    }
+
     return NULL;
 }
 

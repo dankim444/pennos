@@ -86,6 +86,7 @@ pcb_t* k_proc_create(pcb_t *parent, int priority) {
             P_ERRNO = P_NULL; // TODO --> do we want this?
         }
         put_pcb_into_correct_queue(init);
+        vec_push_back(&current_pcbs, init);
         return init;
     }
 
@@ -102,6 +103,7 @@ pcb_t* k_proc_create(pcb_t *parent, int priority) {
 
     // add to appropriate queue (TODO -> see if this is necessary)
     put_pcb_into_correct_queue(child);
+    vec_push_back(&current_pcbs, child); 
 
     return child;
 }
