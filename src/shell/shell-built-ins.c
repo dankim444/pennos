@@ -3,6 +3,20 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include "../lib/Vec.h"
+#include "../kernel/kern_pcb.h" // TODO --> this is a little dangerous, 
+                                // make sure not to use k funcs
+#include "../kernel/kern_sys_calls.h"
+#include "../fs/fs_syscalls.h"
+#include <string.h>
+
+
+#include <unistd.h> // probably delete once done 
+#include <stdio.h> // I think this is okay? Using snprintf
+
+
+
+extern Vec current_pcbs;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -11,62 +25,78 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 
-void* cat(void *arg) {
+void* b_cat(void *arg) {
     // TODO --> implement cat
     return NULL;
 }
 
-void* sleep(void *arg) {
+void* b_sleep(void *arg) {
     // TODO --> implement sleep
     return NULL;
 }
 
-void* busy(void *arg) {
+void* b_busy(void *arg) {
     // TODO --> implement busy
     return NULL;
 }
 
-void* echo(void *arg) {
+void* b_echo(void *arg) {
     // TODO --> implement echo
     return NULL;
 }
 
-void* ls(void *arg) {
+void* b_ls(void *arg) {
     // TODO --> implement ls
     return NULL;
 }
 
-void* touch(void *arg) {
+void* b_touch(void *arg) {
     // TODO --> implement touch
     return NULL;
 }
 
-void* mv(void *arg) {
+void* b_mv(void *arg) {
     // TODO --> implement mv
     return NULL;
 }
 
-void* cp(void *arg) {
+void* b_cp(void *arg) {
     // TODO --> implement cp
     return NULL;
 }
 
-void* rm(void *arg) {
+void* b_rm(void *arg) {
     // TODO --> implement rm
     return NULL;
 }
 
-void* chmod(void *arg) {
+void* b_chmod(void *arg) {
     // TODO --> implement chmod
     return NULL;
 }
 
-void* ps(void *arg) {
-    // TODO --> implement ps
+
+/**
+ * @brief List all processes on PennOS, displaying PID, PPID, priority, status,
+ * and command name.
+ *
+ * Example Usage: ps
+ */
+void* b_ps(void *arg) {
+    write(STDOUT_FILENO, "PID\tPPID\tPRI\tSTAT\tCMD\n", 35); // replace w/ s_write
+    for (int i = 0; i < vec_len(&current_pcbs); i++) {
+        pcb_t* curr_pcb = (pcb_t*) vec_get(&current_pcbs, i);
+        char buffer[100];
+        snprintf(buffer, sizeof(buffer), "%d\t%d\t%d\t%c\t%s\n", 
+                 curr_pcb->pid, curr_pcb->par_pid, curr_pcb->priority, 
+                 curr_pcb->process_state, curr_pcb->cmd_str); // TODO --> is this allowed?
+        write(STDOUT_FILENO, buffer, strlen(buffer)); // replace w/ s_write
+    }
+
     return NULL;
 }
 
-void* kill(void *arg) {
+void* b_kill(void *arg) {
     // TODO --> implement kill
     return NULL;
 }
@@ -81,37 +111,37 @@ void* kill(void *arg) {
 
 
 
-void* nice(void* arg) {
+void* b_nice(void* arg) {
     // TODO --> implement nice
     return NULL;
 }
 
-void* nice_pid(void* arg) {
+void* b_nice_pid(void* arg) {
     // TODO --> implement nice_pid
     return NULL;
 }
 
-void* man(void* arg) {
+void* b_man(void* arg) {
     // TODO --> implement man
     return NULL;
 }
 
-void* bg(void* arg) {
+void* b_bg(void* arg) {
     // TODO --> implement bg
     return NULL;
 }
 
-void* fg(void* arg) {
+void* b_fg(void* arg) {
     // TODO --> implement fg
     return NULL;
 }
 
-void* jobs(void* arg) {
+void* b_jobs(void* arg) {
     // TODO --> implement jobs
     return NULL;
 }
 
-void* logout(void* arg) {
+void* b_logout(void* arg) {
     // TODO --> implement logout
     return NULL;
 }

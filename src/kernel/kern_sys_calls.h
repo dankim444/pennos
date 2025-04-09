@@ -7,8 +7,17 @@
 #include "kern_pcb.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-//        SYSTEM-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
+//        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
 ////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief Similar to s_spawn except only called when you want to spawn the init
+ *        process. It will create the init process and also spawn in the 
+ *        shell. 
+ * 
+ * @return the pid_t of the created process on sucsses or -1 on error
+ */
+pid_t s_spawn_init();
 
 /**
  * @brief Create a child process that executes the function `func`.

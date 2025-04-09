@@ -8,7 +8,10 @@
 #include "../lib/pennos-errno.h"
 #include <string.h>
 #include "scheduler.h"
+#include "../shell/shell.h" 
 
+#include "stdio.h" // TODO: delete this once finished
+ 
 
 extern Vec zero_priority_queue; // lower index = more recent 
 extern Vec one_priority_queue;
@@ -91,13 +94,45 @@ void move_pcb_correct_queue(int prev_priority, int new_priority, pcb_t* curr_pcb
 
 
 ////////////////////////////////////////////////////////////////////////////////
-//        SYSTEM-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
+//        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
 ////////////////////////////////////////////////////////////////////////////////
 
+void* init_func(void* input) {
 
+    // spawns in the shell
+    char* shell_argv[] = {"shell_main", NULL};
+    s_spawn(shell_main, shell_argv, 0, 1); // TODO: check these fds
+
+    // TODO --> determine if we should wait here
+
+
+    return NULL; // needed for void* output
+}
+
+pid_t s_spawn_init() {
+    pcb_t* init = k_proc_create(NULL, 0);
+    if (init == NULL) {
+        P_ERRNO = P_NULL;
+        return -1;
+    }
+
+    spthread_t thread_handle;
+    if (spthread_create(&thread_handle, NULL, init_func, NULL) != 0) {
+        P_ERRNO = P_EINTR; 
+        return -1;
+    }
+
+    init->cmd_str = strdup("init");
+    init->thread_handle = thread_handle;
+    return init->pid; 
+}
 
 pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1) {
     pcb_t* child = k_proc_create(current_running_pcb, 1);
+    if (child == NULL) {
+        P_ERRNO = P_NULL;
+        return -1;
+    }
 
     spthread_t thread_handle; 
 
