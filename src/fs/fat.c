@@ -23,7 +23,7 @@ static uint16_t* fat = NULL;  // Pointer to memory-mapped FAT table
 static uint16_t num_fat_entries = 0;  // Number of entries in the FAT
 static uint32_t block_size = 0;       // Size of each block in bytes
 static uint32_t fat_size_bytes = 0;   // Size of the FAT table in bytes
-static bool is_mounted = false;  // Flag indicating if a filesystem is mounted
+static bool is_mounted = false;
 
 typedef struct {
   char name[32];        // Null-terminated file name
@@ -259,29 +259,47 @@ int fat_save() {
 }
 
 uint16_t fat_get_block(uint16_t index) {
-  return index;
+  if (!is_mounted || !fat || index >= num_fat_entries) {
+    return FAT_EOF;
+  }
+  return fat[index];
 }
 
 void fat_set_block(uint16_t index, uint16_t value) {
-  return;
+  if (is_mounted && fat && index < num_fat_entries) {
+    fat[index] = value;
+  }
 }
 
 int fat_find_free_block() {
-  return -1;
+  if (!is_mounted || !fat) {
+    return -1;
+  }
+
+  // Start search from block 2
+  for (uint16_t i = 2; i < num_fat_entries; i++) {
+    if (fat[i] == FAT_FREE) {
+      return i;
+    }
+  }
+
+  return -1;  // No free blocks found
 }
 
 int fat_get_block_size() {
-  return -1;
+  return is_mounted ? block_size : -1;
 }
 
+// the offset of the fat itself
 int fat_get_data_offset() {
-  return -1;
+  return is_mounted ? fat_size_bytes : -1;
 }
 
 int fat_get_num_entries() {
-  return -1;
+  return is_mounted ? num_fat_entries : -1;
 }
 
+// TODO: dan is this not the same thing as the data offset?
 int fat_get_fat_size_bytes() {
-  return -1;
+  return is_mounted ? fat_size_bytes : -1;
 }
