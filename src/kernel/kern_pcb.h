@@ -44,6 +44,10 @@ typedef struct pcb_st {
     // TODO --> file descriptor table
 } pcb_t;
 
+////////////////////////////////////////////////////////////////////////////////
+//                             PCB FUNCTIONS                                  //
+////////////////////////////////////////////////////////////////////////////////
+
 /**
  * @brief Creates a new PCB and initializes its fields. Notably, the thread handle
  *        and cmd are left out. It's up to the user to assign them post-call.
@@ -85,7 +89,8 @@ void remove_child_in_parent(pcb_t* parent, pcb_t* child);
 
 /**
  * @brief Create a new child process, inheriting applicable properties from the parent.
- *
+ *        Also inserts the created child into the correct scheduler queue based on its
+ *        priority.
  * @param parent a pointer to the parent pcb
  * @param priority the priority of the child, usually 1 but exceptions like shell exist
  * @return Reference to the child PCB or NULL if error
@@ -100,7 +105,5 @@ pcb_t* k_proc_create(pcb_t *parent, int priority);
  * @param proc a pcb ptr to the terminated/finished thread
  */
 void k_proc_cleanup(pcb_t *proc);
-
-
 
 #endif
