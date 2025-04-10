@@ -28,7 +28,7 @@ extern pcb_t* current_running_pcb; // DELETE
 ////////////////////////////////////////////////////////////////////////////////
 
 
-void* b_cat(void *arg) {
+void* cat(void *arg) {
     // TODO --> implement cat
     return NULL;
 }
@@ -38,42 +38,43 @@ void* b_sleep(void *arg) {
     return NULL;
 }
 
-void* b_busy(void *arg) {
-    // TODO --> implement busy
+void* busy(void *arg) {
+    while(1);
+    s_exit();
     return NULL;
 }
 
-void* b_echo(void *arg) {
+void* echo(void *arg) {
     // TODO --> implement echo
     return NULL;
 }
 
-void* b_ls(void *arg) {
+void* ls(void *arg) {
     // TODO --> implement ls
     return NULL;
 }
 
-void* b_touch(void *arg) {
+void* touch(void *arg) {
     // TODO --> implement touch
     return NULL;
 }
 
-void* b_mv(void *arg) {
+void* mv(void *arg) {
     // TODO --> implement mv
     return NULL;
 }
 
-void* b_cp(void *arg) {
+void* cp(void *arg) {
     // TODO --> implement cp
     return NULL;
 }
 
-void* b_rm(void *arg) {
+void* rm(void *arg) {
     // TODO --> implement rm
     return NULL;
 }
 
-void* b_chmod(void *arg) {
+void* chmod(void *arg) {
     // TODO --> implement chmod
     return NULL;
 }
@@ -85,7 +86,7 @@ void* b_chmod(void *arg) {
  *
  * Example Usage: ps
  */
-void* b_ps(void *arg) {
+void* ps(void *arg) {
     char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";
     write(STDOUT_FILENO, pid_top, strlen(pid_top)); // replace w/ s_write
     for (int i = 0; i < vec_len(&current_pcbs); i++) {
@@ -100,7 +101,7 @@ void* b_ps(void *arg) {
     return NULL;
 }
 
-void* b_kill(void *arg) {
+void* kill(void *arg) {
     // TODO --> implement kill
     return NULL;
 }
@@ -120,32 +121,32 @@ void* b_nice(void* arg) {
     return NULL;
 }
 
-void* b_nice_pid(void* arg) {
+void* nice_pid(void* arg) {
     // TODO --> implement nice_pid
     return NULL;
 }
 
-void* b_man(void* arg) {
+void* man(void* arg) {
     // TODO --> implement man
     return NULL;
 }
 
-void* b_bg(void* arg) {
+void* bg(void* arg) {
     // TODO --> implement bg
     return NULL;
 }
 
-void* b_fg(void* arg) {
+void* fg(void* arg) {
     // TODO --> implement fg
     return NULL;
 }
 
-void* b_jobs(void* arg) {
+void* jobs(void* arg) {
     // TODO --> implement jobs
     return NULL;
 }
 
-void* b_logout(void* arg) {
+void* logout(void* arg) {
     // TODO --> implement logout
     return NULL;
 }
@@ -161,7 +162,8 @@ void* b_logout(void* arg) {
  * @brief Helper for zombify.
  */
 void* zombie_child(void* arg) {
-    return NULL; // TODO --> this was originally just 'return', update if needed
+    s_exit();
+    return NULL;
 }
   
 void* zombify(void* arg) {
@@ -176,6 +178,7 @@ void* zombify(void* arg) {
  */
 void* orphan_child(void* arg) {
     while (1);
+    s_exit();
 }
 
 void* orphanify(void* arg) {

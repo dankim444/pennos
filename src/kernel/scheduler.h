@@ -38,6 +38,7 @@ int generate_next_priority();
  *        never be called when the queue is empty. Notably, it removes 
  *        the PCB from the queue. 
  * 
+ * @pre assumes the queue associated with the priority value is nonempty
  * @param priority queue priority to get next PCB from
  * @return         a ptr to the next pcb struct in queue
  */
