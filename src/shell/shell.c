@@ -40,46 +40,50 @@ pid_t execute_command(struct parsed_command* cmd) {
     if (strcmp(cmd->commands[0][0], "cat") == 0) {
         // TODO --> make sure these files from parser are okay!
         // I'm assuming yes b/c we implement s_spawn but just check
-        return s_spawn(b_cat, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(cat, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "sleep") == 0) {
         return s_spawn(b_sleep, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "busy") == 0) {
-        return s_spawn(b_busy, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(busy, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "echo") == 0) {
-        return s_spawn(b_echo, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(echo, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "ls") == 0) {
-        return s_spawn(b_ls, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(ls, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "touch") == 0) {
-        return s_spawn(b_touch, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(touch, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "mv") == 0) {
-        return s_spawn(b_mv, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(mv, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "cp") == 0) {
-        return s_spawn(b_cp, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(cp, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "rm") == 0) {
-        return s_spawn(b_rm, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(rm, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "chmod") == 0) {
-        return s_spawn(b_chmod, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(chmod, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "ps") == 0) {
-        return s_spawn(b_ps, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(ps, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "kill") == 0) {
-        return s_spawn(b_kill, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(kill, cmd->commands[0], input_fd, output_fd);
+    } else if (strcmp(cmd->commands[0][0], "zombify") == 0) {
+        return s_spawn(zombify, cmd->commands[0], input_fd, output_fd);
+    } else if (strcmp(cmd->commands[0][0], "orphanify") == 0) {
+        return s_spawn(orphanify, cmd->commands[0], input_fd, output_fd);
     } 
 
     // check for sub-routines (nice, nice_pid, man, bg, fg, jobs, logout)
     if (strcmp(cmd->commands[0][0], "nice") == 0) {
         b_nice(cmd->commands[0]);
     } else if (strcmp(cmd->commands[0][0], "nice_pid") == 0) {
-        b_nice_pid(cmd->commands[0]);
+        nice_pid(cmd->commands[0]);
     } else if (strcmp(cmd->commands[0][0], "man") == 0) {
-        b_man(cmd->commands[0]);
+        man(cmd->commands[0]);
     } else if (strcmp(cmd->commands[0][0], "bg") == 0) {
-        b_bg(cmd->commands[0]);
+        bg(cmd->commands[0]);
     } else if (strcmp(cmd->commands[0][0], "fg") == 0) {
-        b_fg(cmd->commands[0]);
+        fg(cmd->commands[0]);
     } else if (strcmp(cmd->commands[0][0], "jobs") == 0) {
-        b_jobs(cmd->commands[0]);
+        jobs(cmd->commands[0]);
     } else if (strcmp(cmd->commands[0][0], "logout") == 0) {
-        b_logout(cmd->commands[0]);
+        logout(cmd->commands[0]);
     } else {
         // TODO --> handle error via some valid print
         return -1;

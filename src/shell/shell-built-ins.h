@@ -22,7 +22,7 @@
  * Example Usage: cat f1 f2 < f3 (concatenates f1 and f2 and prints to stdout, ignores f3)
  * Example Usage: cat < f3 (concatenates f3, prints to stdout)
  */
-void* b_cat(void *arg);
+void* cat(void *arg);
 
 /**
  * @brief Sleep for `n` seconds.
@@ -40,14 +40,14 @@ void* b_sleep(void *arg);
  *
  * Example Usage: busy
  */
-void* b_busy(void *arg);
+void* busy(void *arg);
 
 /**
  * @brief Echo back an input string.
  *
  * Example Usage: echo Hello World
  */
-void* b_echo(void *arg);
+void* echo(void *arg);
 
 /**
  * @brief Lists all files in the working directory.
@@ -56,14 +56,14 @@ void* b_echo(void *arg);
  * Example Usage: ls (regular credit)
  * Example Usage: ls ../../foo/./bar/sample (only for EC)
  */
-void* b_ls(void *arg);
+void* ls(void *arg);
 
 /**
  * @brief For each file, create an empty file if it doesn't exist, else update its timestamp.
  *
  * Example Usage: touch f1 f2 f3 f4 f5
  */
-void* b_touch(void *arg);
+void* touch(void *arg);
 
 /**
  * @brief Rename a file. If the `dst_file` file already exists, overwrite it.
@@ -75,7 +75,7 @@ void* b_touch(void *arg);
  *
  * Example Usage: mv src_file dst_file
  */
-void* b_mv(void *arg);
+void* mv(void *arg);
 
 /**
  * Copy a file. If the `dst_file` file already exists, overwrite it.
@@ -87,7 +87,7 @@ void* b_mv(void *arg);
  *
  * Example Usage: cp src_file dst_file
  */
-void* b_cp(void *arg);
+void* cp(void *arg);
 
 /**
  * @brief Remove a list of files.
@@ -99,7 +99,7 @@ void* b_cp(void *arg);
  *
  * Example Usage: rm f1 f2 f3 f4 f5
  */
-void* b_rm(void *arg);
+void* rm(void *arg);
 
 /**
  * @brief Change permissions of a file.
@@ -114,7 +114,7 @@ void* b_rm(void *arg);
  * Example Usage: chmod +rw file (adds read + write permissions to file)
  * Example Usage: chmod -wx file (removes write + executable permissions from file)
  */
-void* b_chmod(void *arg);
+void* chmod(void *arg);
 
 /**
  * @brief List all processes on PennOS, displaying PID, PPID, priority, status,
@@ -122,7 +122,7 @@ void* b_chmod(void *arg);
  *
  * Example Usage: ps
  */
-void* b_ps(void *arg);
+void* ps(void *arg);
 
 /**
  * @brief Sends a specified signal to a list of processes.
@@ -134,7 +134,7 @@ void* b_ps(void *arg);
  * Example Usage: kill -stop 1 2 (sends stop to processes 1 and 2)
  * Example Usage: kill -cont 1 (sends cont to process 1)
  */
-void* b_kill(void *arg);
+void* kill(void *arg);
 
 
 
@@ -159,14 +159,14 @@ void* b_nice(void* arg);
  *
  * Example Usage: nice_pid 0 123 (sets priority 0 to PID 123)
  */
-void* b_nice_pid(void* arg);
+void* nice_pid(void* arg);
 
 /**
  * @brief Lists all available commands.
  *
  * Example Usage: man
  */
-void* b_man(void* arg);
+void* man(void* arg);
 
 /**
  * @brief Resumes the most recently stopped job in the background, or the job
@@ -175,7 +175,7 @@ void* b_man(void* arg);
  * Example Usage: bg
  * Example Usage: bg 2 (job_id is 2)
  */
-void* b_bg(void* arg);
+void* bg(void* arg);
 
 /**
  * @brief Brings the most recently stopped or background job to the foreground,
@@ -184,21 +184,21 @@ void* b_bg(void* arg);
  * Example Usage: fg
  * Example Usage: fg 2 (job_id is 2)
  */
-void* b_fg(void* arg);
+void* fg(void* arg);
 
 /**
  * @brief Lists all jobs.
  *
  * Example Usage: jobs
  */
-void* b_jobs(void* arg);
+void* jobs(void* arg);
 
 /**
  * @brief Exits the shell and shutsdown PennOS.
  *
  * Example Usage: logout
  */
-void* b_logout(void* arg);
+void* logout(void* arg);
 
 
 

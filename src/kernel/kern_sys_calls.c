@@ -9,6 +9,7 @@
 #include <string.h>
 #include "scheduler.h"
 #include "../shell/shell.h" 
+#include "logger.h"
 
 #include "stdio.h" // TODO: delete this once finished
  
@@ -152,6 +153,8 @@ pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1) {
     child->input_fd = fd0;
     child->output_fd = fd1;
 
+    log_generic_event('C', child->pid, child->priority, child->cmd_str);
+
     return child->pid; // return child->pid if successful
 }
 
@@ -173,8 +176,9 @@ int s_kill(pid_t pid, int signal) {
 }
 
 void s_exit(void) {
-    // TODO --> implement s_exit
-    return;
+    current_running_pcb->process_state = 'Z'; // set to zombie
+    current_running_pcb->process_status = 20; // exited normally
+    log_generic_event('Z', current_running_pcb->pid, current_running_pcb->priority, current_running_pcb->cmd_str);
 }
 
 int s_nice(pid_t pid, int priority) {
