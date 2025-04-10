@@ -6,8 +6,10 @@
 #include "stdlib.h"
 #include <sys/time.h>
 #include <signal.h> // TODO --> make sure this is ok to include
+#include "logger.h"
 
 #include <stdio.h> // TODO: delete this once finished
+#include <string.h>
 
 
 
@@ -194,6 +196,7 @@ void scheduler() {
     while(!scheduling_done) {
         curr_priority_queue_num = generate_next_priority();
         current_running_pcb = get_next_pcb(curr_priority_queue_num);
+        log_scheduling_event(current_running_pcb->pid, curr_priority_queue_num, current_running_pcb->cmd_str);
 
         spthread_continue(current_running_pcb->thread_handle);
         sigsuspend(&suspend_set);
