@@ -9,6 +9,7 @@
 #include "../kernel/kern_sys_calls.h"
 #include "../fs/fs_syscalls.h"
 #include <string.h>
+#include "../lib/spthread.h"
 
 
 #include <unistd.h> // probably delete once done 
@@ -83,6 +84,7 @@ void* b_chmod(void *arg) {
  * Example Usage: ps
  */
 void* b_ps(void *arg) {
+
     write(STDOUT_FILENO, "PID\tPPID\tPRI\tSTAT\tCMD\n", 35); // replace w/ s_write
     for (int i = 0; i < vec_len(&current_pcbs); i++) {
         pcb_t* curr_pcb = (pcb_t*) vec_get(&current_pcbs, i);

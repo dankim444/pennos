@@ -153,6 +153,7 @@ void* shell_main(void*) {
         } else if (child_pid > 0) {
             // TODO --> handle child process,
             // see if we need to wait for child to finish
+            sleep(1); // REPLACE WITH WAITPID
         } 
 
         // TODO --> free cmd?
