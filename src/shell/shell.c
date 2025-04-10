@@ -15,7 +15,6 @@
 
 #define MAX_BUFFER_SIZE 4096
 
-
 /**
  * @brief Helper function to execute a parsed command from the shell. 
  * In particular, it spawns a child process to execute the command if 
@@ -153,6 +152,7 @@ void* shell_main(void*) {
         } else if (child_pid > 0) {
             // TODO --> handle child process,
             // see if we need to wait for child to finish
+            sleep(1); // REPLACE WITH WAITPID
         } 
 
         // TODO --> free cmd?
