@@ -19,7 +19,7 @@ void initialize_scheduler_queues();
 void free_scheduler_queues();
 
 /**
- * @brief Chooses a random integer from 0, 1, 2 at the prescribed 
+ * @brief Deterministically chooses an integer from 0, 1, 2 at the prescribed 
  *        probabilites. In particular, 0 is output 1.5x more than
  *        1, which is output 1.5x more than 2. Notably, it accounts
  *        for cases where some of the queues are empty. As a result,
@@ -27,6 +27,7 @@ void free_scheduler_queues();
  *        non-empty queues. This function should never be called when
  *        all queues are empty consequently.
  * 
+ * @pre assumes that at least one of the scheduler queues in non-empty
  * @return int 0, 1, or 2
  */
 int generate_next_priority();
