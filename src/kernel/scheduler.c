@@ -31,7 +31,7 @@ static bool scheduling_done = false; // true if the scheduler is done
 int tick_counter = 0;
 int log_fd; // file descriptor for the log file, set in pennos.c
 
-pcb_t* current_running_pcb = NULL; // currently running process
+pcb_t* current_running_pcb; // currently running process
 
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -220,15 +220,14 @@ void scheduler() {
 
     while(!scheduling_done) {
         curr_priority_queue_num = generate_next_priority();
-        pcb_t* curr_pcb = get_next_pcb(curr_priority_queue_num);
-    
+        pcb_t* current_running_pcb = get_next_pcb(curr_priority_queue_num);
 
-        spthread_continue(curr_pcb->thread_handle);
+        spthread_continue(current_running_pcb->thread_handle);
         sigsuspend(&suspend_set);
-        spthread_suspend(curr_pcb->thread_handle);
+        spthread_suspend(current_running_pcb->thread_handle);
 
         // TODO --> probably will need some way to track state here +
         // determine which queue to put the pcb into
-        put_pcb_into_correct_queue(curr_pcb);
+        put_pcb_into_correct_queue(current_running_pcb);
     }
 }
