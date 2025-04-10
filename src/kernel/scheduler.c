@@ -92,19 +92,19 @@ int generate_next_priority() {
 
     // 2 non-empty cases
     double rand_proportion = (double) rand() / (double)RAND_MAX; // rand num in [0, 1]
-    if (vec_is_empty(&zero_priority_queue) && !vec_is_empty(&one_priority_queue)) {
+    if (!vec_is_empty(&zero_priority_queue) && !vec_is_empty(&one_priority_queue)) {
         if (rand_proportion <= .60) {
             return 0;
         } else {
             return 1;
         }
-    } else if (vec_is_empty(&one_priority_queue) && !vec_is_empty(&two_priority_queue)) {
+    } else if (!vec_is_empty(&one_priority_queue) && !vec_is_empty(&two_priority_queue)) {
         if (rand_proportion <= .60) {
             return 1;
         } else {
             return 2;
         }
-    } else if (vec_is_empty(&zero_priority_queue) && !vec_is_empty(&two_priority_queue)) {
+    } else if (!vec_is_empty(&zero_priority_queue) && !vec_is_empty(&two_priority_queue)) {
         if (rand_proportion <= .6923) {
             return 0;
         } else {
@@ -134,6 +134,7 @@ pcb_t* get_next_pcb(int priority) {
 
 
 void put_pcb_into_correct_queue(pcb_t* pcb) {
+
     if (pcb->process_state == 'R') {
         if (pcb->priority == 0) {
             vec_push_back(&zero_priority_queue, pcb);
@@ -224,10 +225,7 @@ void scheduler() {
 
         spthread_continue(current_running_pcb->thread_handle);
         sigsuspend(&suspend_set);
-        spthread_suspend(current_running_pcb->thread_handle);
-
-        // TODO --> probably will need some way to track state here +
-        // determine which queue to put the pcb into
         put_pcb_into_correct_queue(current_running_pcb);
+        spthread_suspend(current_running_pcb->thread_handle);
     }
 }
