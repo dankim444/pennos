@@ -86,9 +86,6 @@ void* b_chmod(void *arg) {
  * Example Usage: ps
  */
 void* b_ps(void *arg) {
-
-    fprintf(stderr, "Currently runnign %s", current_running_pcb->cmd_str); // TODO --> remove this
-
     char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";
     write(STDOUT_FILENO, pid_top, strlen(pid_top)); // replace w/ s_write
     for (int i = 0; i < vec_len(&current_pcbs); i++) {
