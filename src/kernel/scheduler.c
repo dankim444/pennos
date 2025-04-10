@@ -221,7 +221,7 @@ void scheduler() {
 
     while(!scheduling_done) {
         curr_priority_queue_num = generate_next_priority();
-        pcb_t* current_running_pcb = get_next_pcb(curr_priority_queue_num);
+        current_running_pcb = get_next_pcb(curr_priority_queue_num);
 
         spthread_continue(current_running_pcb->thread_handle);
         sigsuspend(&suspend_set);

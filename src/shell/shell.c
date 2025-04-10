@@ -15,7 +15,6 @@
 
 #define MAX_BUFFER_SIZE 4096
 
-
 /**
  * @brief Helper function to execute a parsed command from the shell. 
  * In particular, it spawns a child process to execute the command if 
