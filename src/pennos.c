@@ -21,9 +21,9 @@ int main(int argc, char* argv[]) {
     
     // get the log fd
     if (argc > 2) {
-        log_fd = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        log_fd = open(argv[2], O_RDWR | O_CREAT | O_TRUNC, 0644);
     } else {
-        log_fd = open("log", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        log_fd = open("log/log", O_RDWR | O_CREAT | O_TRUNC, 0644);
     }
 
     // initialize scheduler architecture and init process
