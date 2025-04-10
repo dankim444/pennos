@@ -86,21 +86,21 @@ int generate_next_priority() {
   // 2 non-empty cases
   double rand_proportion =
       (double)rand() / (double)RAND_MAX;  // rand num in [0, 1]
-  if (vec_is_empty(&zero_priority_queue) &&
+  if (!vec_is_empty(&zero_priority_queue) &&
       !vec_is_empty(&one_priority_queue)) {
     if (rand_proportion <= .60) {
       return 0;
     } else {
       return 1;
     }
-  } else if (vec_is_empty(&one_priority_queue) &&
+  } else if (!vec_is_empty(&one_priority_queue) &&
              !vec_is_empty(&two_priority_queue)) {
     if (rand_proportion <= .60) {
       return 1;
     } else {
       return 2;
     }
-  } else if (vec_is_empty(&zero_priority_queue) &&
+  } else if (!vec_is_empty(&zero_priority_queue) &&
              !vec_is_empty(&two_priority_queue)) {
     if (rand_proportion <= .6923) {
       return 0;

@@ -23,7 +23,6 @@ extern Vec current_pcbs;
 extern pcb_t* current_running_pcb; // currently running process
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
 //                         GENERAL HELPER FUNCTIONS                           //
 ////////////////////////////////////////////////////////////////////////////////
@@ -105,7 +104,6 @@ void* init_func(void* input) {
 
     // TODO --> determine if we should wait here
 
-
     return NULL; // needed for void* output
 }
 
@@ -128,7 +126,13 @@ pid_t s_spawn_init() {
 }
 
 pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1) {
-    pcb_t* child = k_proc_create(current_running_pcb, 1);
+    pcb_t* child;
+    if (strcmp(argv[0], "shell_main") == 0) { // shell, unlike others, has priority 1
+        child = k_proc_create(current_running_pcb, 0);
+    } else {
+        child = k_proc_create(current_running_pcb, 1);
+    }
+   
     if (child == NULL) {
         P_ERRNO = P_NULL;
         return -1;
