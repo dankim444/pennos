@@ -37,10 +37,8 @@ int main(int argc, char* argv[]) {
 
     scheduler();
 
-    /*
-
     // cleanup
     free_scheduler_queues();
-    close(log_fd);*/
+    close(log_fd);
     // TODO --> add anything else that's needed
 }

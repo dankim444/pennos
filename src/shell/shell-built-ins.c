@@ -165,9 +165,10 @@ void* zombie_child(void* arg) {
 }
   
 void* zombify(void* arg) {
-    //s_spawn(zombie_child, ...); TODO --> fix/fill in args
+    char* zombie_child_argv[] = {"zombie_child", NULL};
+    s_spawn(zombie_child, zombie_child_argv, 0, 1); // TODO --> check these fds
     while (1);
-    return NULL; // TODO --> this was originally just 'return', update if needed
+    return NULL; 
 }
   
 /** 
@@ -178,6 +179,7 @@ void* orphan_child(void* arg) {
 }
 
 void* orphanify(void* arg) {
-    // s_spawn(orphan_child, ...); TODO --> fix/fill in args
+    char* orphan_child_argv[] = {"orphan_child", NULL};
+    s_spawn(orphan_child, orphan_child_argv, 0, 1); //TODO --> fix/fill in args
     return NULL; // TODO --> this was originally just 'return', update if needed
 }

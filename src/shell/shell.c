@@ -63,8 +63,12 @@ pid_t execute_command(struct parsed_command* cmd) {
         return s_spawn(b_ps, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "kill") == 0) {
         return s_spawn(b_kill, cmd->commands[0], input_fd, output_fd);
+    } else if (strcmp(cmd->commands[0][0], "zombify") == 0) {
+        return s_spawn(zombify, cmd->commands[0], input_fd, output_fd);
+    } else if (strcmp(cmd->commands[0][0], "orphanify") == 0) {
+        return s_spawn(orphanify, cmd->commands[0], input_fd, output_fd);
     } 
-
+    
     // check for sub-routines (nice, nice_pid, man, bg, fg, jobs, logout)
     if (strcmp(cmd->commands[0][0], "nice") == 0) {
         b_nice(cmd->commands[0]);
