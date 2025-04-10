@@ -159,8 +159,74 @@ pid_t s_spawn(void* (*func)(void*), char *argv[], int fd0, int fd1) {
 }
 
 pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
-    // TODO --> implement s_waitpid
-    return -1;
+    pcb_t* parent = current_running_pcb;
+    if (parent == NULL) {
+        return -1;
+    }
+
+    // Search for the child in the zombie queue
+    for (int i = 0; i < vec_len(&zombie_queue); i++) {
+        pcb_t* child = vec_get(&zombie_queue, i);
+        
+        // If pid is -1, wait for any child
+        // Otherwise, wait for specific child
+        if (pid == -1 || child->pid == pid) {
+            // Check if child belongs to this parent
+            if (child->par_pid == parent->pid) {
+                // Set status based on how the child terminated
+                if (wstatus != NULL) {
+                    *wstatus = child->process_status;
+                }
+                
+                // Log the wait event
+                log_generic_event('W', child->pid, child->priority, child->cmd_str);
+                
+                // Remove from zombie queue and clean up
+                vec_erase_no_deletor(&zombie_queue, i);
+                k_proc_cleanup(child);
+                
+                return child->pid;
+            }
+        }
+    }
+
+    // If nohang is true, return immediately if no child has exited
+    if (nohang) {
+        return 0;
+    }
+
+    // Block the parent until a child exits
+    parent->process_state = 'B';
+    log_generic_event('B', parent->pid, parent->priority, parent->cmd_str);
+    
+    // The scheduler will unblock the parent when a child becomes a zombie
+    while (true) {
+        // Check if any child has become a zombie
+        for (int i = 0; i < vec_len(&zombie_queue); i++) {
+            pcb_t* child = vec_get(&zombie_queue, i);
+            if (pid == -1 || child->pid == pid) {
+                if (child->par_pid == parent->pid) {
+                    // Set status based on how the child terminated
+                    if (wstatus != NULL) {
+                        *wstatus = child->process_status;
+                    }
+                    
+                    // Log the wait event
+                    log_generic_event('W', child->pid, child->priority, child->cmd_str);
+                    
+                    // Remove from zombie queue and clean up
+                    vec_erase_no_deletor(&zombie_queue, i);
+                    k_proc_cleanup(child);
+                    
+                    // Unblock parent
+                    parent->process_state = 'R';
+                    log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
+                    
+                    return child->pid;
+                }
+            }
+        }
+    }
 }
 
 // TODO --> make sure signals are handled at some point in the loop
@@ -176,9 +242,18 @@ int s_kill(pid_t pid, int signal) {
 }
 
 void s_exit(void) {
-    current_running_pcb->process_state = 'Z'; // set to zombie
-    current_running_pcb->process_status = 20; // exited normally
-    log_generic_event('Z', current_running_pcb->pid, current_running_pcb->priority, current_running_pcb->cmd_str);
+    // Set process state to zombie
+    current_running_pcb->process_state = 'Z';
+    current_running_pcb->process_status = 20; // EXITED_NORMALLY
+
+    // Log the exit
+    log_generic_event('E', current_running_pcb->pid, current_running_pcb->priority, current_running_pcb->cmd_str);
+
+    // Add to zombie queue
+    vec_push_back(&zombie_queue, current_running_pcb);
+
+    // If parent is waiting, it will be unblocked by s_waitpid
+    // Otherwise, the process will remain a zombie until parent calls s_waitpid
 }
 
 int s_nice(pid_t pid, int priority) {
@@ -201,5 +276,5 @@ int s_nice(pid_t pid, int priority) {
 
 void s_sleep(unsigned int ticks) {
     // TODO --> implement s_sleep
-    return;
+     return;
 }

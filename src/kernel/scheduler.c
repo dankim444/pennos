@@ -1,6 +1,5 @@
 #include "scheduler.h"
 #include <signal.h>  // TODO --> make sure this is ok to include
-#include <signal.h>  // TODO --> make sure this is ok to include
 #include <stdbool.h>
 #include <stdio.h>  // TODO: delete this once finished
 #include <sys/time.h>
@@ -153,17 +152,39 @@ void alarm_handler(int signum) {
 void handle_signal(pcb_t* pcb, int signal) {
   switch (signal) {
     case 0:  // P_SIGSTOP
-      pcb->process_state = 'S';
-      log_generic_event('s', pcb->pid, pcb->priority, pcb->cmd_str);
+      if (pcb->process_state == 'R') {  // Only stop if running
+        pcb->process_state = 'S';
+        log_generic_event('s', pcb->pid, pcb->priority, pcb->cmd_str);
+        // Remove from current queue and add to blocked queue
+        delete_process_from_all_queues(pcb);
+        vec_push_back(&sleep_blocked_queue, pcb);
+      }
       break;
     case 1:  // P_SIGCONT
-      pcb->process_state = 'R';
-      log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
+      if (pcb->process_state == 'S') {  // Only continue if stopped
+        pcb->process_state = 'R';
+        log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
+        // Remove from blocked queue and add to appropriate priority queue
+        delete_process_from_all_queues(pcb);
+        put_pcb_into_correct_queue(pcb);
+      }
       break;
     case 2:  // P_SIGTERM
-      pcb->process_state = 'Z';
-      pcb->process_status = 22;  // TERM_BY_SIG
-      log_generic_event('S', pcb->pid, pcb->priority, pcb->cmd_str);
+      if (pcb->process_state != 'Z') {  // Don't terminate if already zombie
+        pcb->process_state = 'Z';
+        pcb->process_status = 22;  // TERM_BY_SIG
+        log_generic_event('S', pcb->pid, pcb->priority, pcb->cmd_str);
+        // Remove from current queue and add to zombie queue
+        delete_process_from_all_queues(pcb);
+        vec_push_back(&zombie_queue, pcb);
+        
+        // Handle orphaned children
+        for (int i = 0; i < vec_len(&pcb->child_pcbs); i++) {
+          pcb_t* child = vec_get(&pcb->child_pcbs, i);
+          child->par_pid = 1;  // Set parent to init
+          log_generic_event('O', child->pid, child->priority, child->cmd_str);
+        }
+      }
       break;
   }
 }
@@ -201,6 +222,12 @@ void scheduler() {
         if (current_running_pcb->signals[i]) {
           handle_signal(current_running_pcb, i);
           current_running_pcb->signals[i] = false;
+          
+          // If process was terminated, don't continue scheduling it
+          if (current_running_pcb->process_state == 'Z') {
+            current_running_pcb = NULL;
+            break;
+          }
         }
       }
     }
@@ -236,10 +263,12 @@ void scheduler() {
 
     // Suspend the process
     spthread_suspend(next_pcb->thread_handle);
-
-    // Put process back in appropriate queue
-    put_pcb_into_correct_queue(next_pcb);
-
+    
+    // Put process back in appropriate queue if it's still runnable
+    if (next_pcb->process_state == 'R') {
+      put_pcb_into_correct_queue(next_pcb);
+    }
+    
     // Clear current running process if it's the one we just suspended
     if (current_running_pcb == next_pcb) {
       current_running_pcb = NULL;
