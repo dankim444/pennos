@@ -97,7 +97,7 @@ void* ps(void *arg) {
                  curr_pcb->process_state, curr_pcb->cmd_str); // TODO --> is this allowed?
         write(STDOUT_FILENO, buffer, strlen(buffer)); // replace w/ s_write
     }
-
+    s_exit();
     return NULL;
 }
 

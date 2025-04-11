@@ -21,6 +21,7 @@ Vec one_priority_queue;
 Vec two_priority_queue;
 Vec zombie_queue;
 Vec sleep_blocked_queue;
+Vec waiting_parents;
 
 Vec current_pcbs;  // holds all currently running processes, for logging
 
@@ -47,6 +48,7 @@ void initialize_scheduler_queues() {
   zombie_queue = vec_new(0, free_pcb);
   sleep_blocked_queue = vec_new(0, free_pcb);
   current_pcbs = vec_new(0, free_pcb);
+  waiting_parents = vec_new(0, NULL);
 }
 
 void free_scheduler_queues() {
@@ -56,6 +58,7 @@ void free_scheduler_queues() {
   vec_destroy(&zombie_queue);
   vec_destroy(&sleep_blocked_queue);
   vec_destroy(&current_pcbs);
+  vec_destroy(&waiting_parents);
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -151,7 +154,7 @@ void alarm_handler(int signum) {
 
 void handle_signal(pcb_t* pcb, int signal) {
   switch (signal) {
-    case 0:  // P_SIGSTOP
+    case 0:                             // P_SIGSTOP
       if (pcb->process_state == 'R') {  // Only stop if running
         pcb->process_state = 'S';
         log_generic_event('s', pcb->pid, pcb->priority, pcb->cmd_str);
@@ -160,7 +163,7 @@ void handle_signal(pcb_t* pcb, int signal) {
         vec_push_back(&sleep_blocked_queue, pcb);
       }
       break;
-    case 1:  // P_SIGCONT
+    case 1:                             // P_SIGCONT
       if (pcb->process_state == 'S') {  // Only continue if stopped
         pcb->process_state = 'R';
         log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
@@ -169,7 +172,7 @@ void handle_signal(pcb_t* pcb, int signal) {
         put_pcb_into_correct_queue(pcb);
       }
       break;
-    case 2:  // P_SIGTERM
+    case 2:                             // P_SIGTERM
       if (pcb->process_state != 'Z') {  // Don't terminate if already zombie
         pcb->process_state = 'Z';
         pcb->process_status = 22;  // TERM_BY_SIG
@@ -177,7 +180,7 @@ void handle_signal(pcb_t* pcb, int signal) {
         // Remove from current queue and add to zombie queue
         delete_process_from_all_queues(pcb);
         vec_push_back(&zombie_queue, pcb);
-        
+
         // Handle orphaned children
         for (int i = 0; i < vec_len(&pcb->child_pcbs); i++) {
           pcb_t* child = vec_get(&pcb->child_pcbs, i);
@@ -222,7 +225,7 @@ void scheduler() {
         if (current_running_pcb->signals[i]) {
           handle_signal(current_running_pcb, i);
           current_running_pcb->signals[i] = false;
-          
+
           // If process was terminated, don't continue scheduling it
           if (current_running_pcb->process_state == 'Z') {
             current_running_pcb = NULL;
@@ -263,12 +266,12 @@ void scheduler() {
 
     // Suspend the process
     spthread_suspend(next_pcb->thread_handle);
-    
+
     // Put process back in appropriate queue if it's still runnable
     if (next_pcb->process_state == 'R') {
       put_pcb_into_correct_queue(next_pcb);
     }
-    
+
     // Clear current running process if it's the one we just suspended
     if (current_running_pcb == next_pcb) {
       current_running_pcb = NULL;
