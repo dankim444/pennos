@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <time.h>
+#include <unistd.h>  // For close(), lseek(), write(), ftruncate()
+#include <string.h>  // For memset()
 
 // TODO: Implement FAT initialization, parsing MSB/LSB
 // TODO: Implement finding next free block
@@ -173,6 +175,8 @@ int fat_load(const char* fs_name) {
   munmap(fat_map, sizeof(uint16_t));
 
   if (num_blocks < 1 || num_blocks > 32 || block_size < 0 || block_size > 4) {
+    close(fs_fd);
+    fs_fd = -1;
     return -1;
   }
 
@@ -180,15 +184,22 @@ int fat_load(const char* fs_name) {
   switch (block_size) {
     case 0:
       block_size_bytes = 256;
+      break;  // Added break statements
     case 1:
       block_size_bytes = 512;
+      break;
     case 2:
       block_size_bytes = 1024;
+      break;
     case 3:
       block_size_bytes = 2048;
+      break;
     case 4:
       block_size_bytes = 4096;
+      break;
     default:
+      close(fs_fd);
+      fs_fd = -1;
       return -1;
   }
 
