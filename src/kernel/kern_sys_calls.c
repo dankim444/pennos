@@ -19,8 +19,6 @@ extern Vec two_priority_queue;
 extern Vec zombie_queue;
 extern Vec sleep_blocked_queue;
 extern Vec current_pcbs;
-extern Vec waiting_parents;
-
 extern pcb_t* current_running_pcb;  // currently running process
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -90,17 +88,35 @@ void move_pcb_correct_queue(int prev_priority,
   vec_push_back(new_queue, curr_pcb);
 }
 
+/**
+ * @brief Deletes the PCB with the specified PID from one of the priority
+ * queues, selected by the provided queue_id (0, 1, or 2).
+ *
+ * @param queue_id An integer representing the queue: 0 for zero_priority_queue,
+ *                 1 for one_priority_queue, or 2 for two_priority_queue.
+ * @param pid The PID of the PCB to be removed.
+ */
+void delete_from_queue(int queue_id, int pid) {
+  Vec* queue = NULL;
+  if (queue_id == 0) {
+    queue = &zero_priority_queue;
+  } else if (queue_id == 1) {
+    queue = &one_priority_queue;
+  } else {
+    queue = &two_priority_queue;
+  }
+
+  int index = determine_index_in_queue(queue, pid);
+  if (index != -1) {
+    vec_erase_no_deletor(queue, index);
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
 ////////////////////////////////////////////////////////////////////////////////
 
 void* init_func(void* input) {
-  // Set init process state to blocked since it's waiting for children
-  current_running_pcb->process_state = 'B';
-  log_generic_event('B', current_running_pcb->pid,
-                    current_running_pcb->priority,
-                    current_running_pcb->cmd_str);
-
   // Spawn the shell
   char* shell_argv[] = {"shell_main", NULL};
   s_spawn(shell_main, shell_argv, 0, 1);  // TODO: check these fds
@@ -108,15 +124,7 @@ void* init_func(void* input) {
   // Main init loop - continuously wait for and reap zombie children
   while (true) {
     int status;
-    pid_t child_pid = s_waitpid(-1, &status, false);
-
-    // If no children to reap, go back to being blocked
-    if (child_pid <= 0) {
-      current_running_pcb->process_state = 'B';
-      log_generic_event('B', current_running_pcb->pid,
-                        current_running_pcb->priority,
-                        current_running_pcb->cmd_str);
-    }
+    s_waitpid(-1, &status, false);
   }
 
   return NULL;  // This should never be reached
@@ -181,29 +189,20 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
     return -1;
   }
 
-  // Search for the child in the zombie queue
+  // Scan the zombie queue first for terminated children.
   for (int i = 0; i < vec_len(&zombie_queue); i++) {
     pcb_t* child = vec_get(&zombie_queue, i);
-
-    // If pid is -1, wait for any child
-    // Otherwise, wait for specific child
-    if (pid == -1 || child->pid == pid) {
-      // Check if child belongs to this parent
-      if (child->par_pid == parent->pid) {
-        // Set status based on how the child terminated
-        if (wstatus != NULL) {
-          *wstatus = child->process_status;
-        }
-
-        // Log the wait event
-        log_generic_event('W', child->pid, child->priority, child->cmd_str);
-
-        // Remove from zombie queue and clean up
-        vec_erase_no_deletor(&zombie_queue, i);
-        k_proc_cleanup(child);
-
-        return child->pid;
+    if ((pid == -1 || child->pid == pid) && child->par_pid == parent->pid) {
+      if (wstatus != NULL) {
+        *wstatus = child->process_status;
       }
+      log_generic_event('W', child->pid, child->priority, child->cmd_str);
+      vec_erase_no_deletor(&zombie_queue, i);
+      k_proc_cleanup(child);
+      parent->process_state = 'R';
+      put_pcb_into_correct_queue(parent);
+      log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
+      return child->pid;
     }
   }
 
@@ -213,43 +212,27 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
   }
 
   // Block the parent until a child exits
+  delete_from_queue(parent->priority, parent->pid);
   parent->process_state = 'B';
   log_generic_event('B', parent->pid, parent->priority, parent->cmd_str);
+  put_pcb_into_correct_queue(parent);
 
-  // The scheduler will unblock the parent when a child becomes a zombie
-  // We need to yield control to the scheduler by suspending the current thread
-  spthread_suspend_self();
-
-  // After being resumed, check if any child has become a zombie
-  for (int i = 0; i < vec_len(&zombie_queue); i++) {
-    pcb_t* child = vec_get(&zombie_queue, i);
-    if (pid == -1 || child->pid == pid) {
-      if (child->par_pid == parent->pid) {
-        // Set status based on how the child terminated
+  while (true) {
+    // Scan the zombie queue first for terminated children.
+    for (int i = 0; i < vec_len(&zombie_queue); i++) {
+      pcb_t* child = vec_get(&zombie_queue, i);
+      if ((pid == -1 || child->pid == pid) && child->par_pid == parent->pid) {
         if (wstatus != NULL) {
           *wstatus = child->process_status;
         }
-
-        // Log the wait event
         log_generic_event('W', child->pid, child->priority, child->cmd_str);
-
-        // Remove from zombie queue and clean up
         vec_erase_no_deletor(&zombie_queue, i);
         k_proc_cleanup(child);
-
-        // Unblock parent
-        parent->process_state = 'R';
-        log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
-
         return child->pid;
       }
     }
   }
-
   // If we get here, something went wrong
-  // Unblock the parent and return -1
-  parent->process_state = 'R';
-  log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
   return -1;
 }
 
@@ -275,11 +258,13 @@ void s_exit(void) {
                     current_running_pcb->priority,
                     current_running_pcb->cmd_str);
 
+  delete_from_queue(current_running_pcb->priority, current_running_pcb->pid);
   // Add to zombie queue
-  vec_push_back(&zombie_queue, current_running_pcb);
+  put_pcb_into_correct_queue(current_running_pcb);
 
-  // If parent is waiting, it will be unblocked by s_waitpid
-  // Otherwise, the process will remain a zombie until parent calls s_waitpid
+  log_generic_event('Z', current_running_pcb->pid,
+                    current_running_pcb->priority,
+                    current_running_pcb->cmd_str);
 }
 
 int s_nice(pid_t pid, int priority) {
