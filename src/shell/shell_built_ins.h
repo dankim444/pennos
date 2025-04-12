@@ -32,7 +32,7 @@ void* cat(void *arg);
  *
  * Example Usage: sleep 10
  */
-void* sleep(void *arg);
+void* b_sleep(void *arg);
 
 /**
  * @brief Busy wait indefinitely.
@@ -152,7 +152,7 @@ void* kill(void *arg);
  *
  * Example Usage: nice 2 cat f1 f2 f3 (spawns cat with priority 2)
  */
-void* nice(void* arg);
+void* b_nice(void* arg);
 
 /**
  * @brief Adjust the priority level of an existing process.

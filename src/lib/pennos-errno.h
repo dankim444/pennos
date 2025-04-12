@@ -14,6 +14,8 @@ extern int P_ERRNO; // Global errno variable that is set to different
 #define P_EBUSY 6 // File is busy (in use)
 #define P_EFULL 7 // No space left / FAT full
 #define P_FS_NOT_MOUNTED 8 // File system not mounted
+#define P_EINTR 8 // Interrupted system call
+#define P_NULL 9  // Undesired NULL output
 #define P_EUNKNOWN 99 // Catch-all unknown error
 
 #endif

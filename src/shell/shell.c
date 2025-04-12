@@ -6,13 +6,14 @@
 #include "../fs/fs_syscalls.h"
 #include "stdlib.h"
 
+#include <unistd.h> // delete these once finished
+#include <fcntl.h>
 
 #ifndef PROMPT
-#define PROMPT "$"
+#define PROMPT "$ "
 #endif
 
 #define MAX_BUFFER_SIZE 4096
-
 
 /**
  * @brief Helper function to execute a parsed command from the shell. 
@@ -27,12 +28,12 @@
 pid_t execute_command(struct parsed_command* cmd) {
 
     // TODO --> Vedansh said to use open for now?
-    int input_fd = s_open(cmd->stdin_file, F_READ); // TODO --> error check these once implemented 
+    int input_fd = open(cmd->stdin_file, F_READ); // TODO --> error check these once implemented 
     int output_fd;
     if (cmd->is_file_append) {
-        output_fd = s_open(cmd->stdout_file, F_APPEND);
+        output_fd = open(cmd->stdout_file, F_APPEND);
     } else {
-        output_fd = s_open(cmd->stdout_file, F_WRITE);
+        output_fd = open(cmd->stdout_file, F_WRITE);
     }
 
     // check for independently scheduled processes
@@ -41,7 +42,7 @@ pid_t execute_command(struct parsed_command* cmd) {
         // I'm assuming yes b/c we implement s_spawn but just check
         return s_spawn(cat, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "sleep") == 0) {
-        return s_spawn(sleep, cmd->commands[0], input_fd, output_fd);
+        return s_spawn(b_sleep, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "busy") == 0) {
         return s_spawn(busy, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "echo") == 0) {
@@ -58,13 +59,19 @@ pid_t execute_command(struct parsed_command* cmd) {
         return s_spawn(rm, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "chmod") == 0) {
         return s_spawn(chmod, cmd->commands[0], input_fd, output_fd);
+    } else if (strcmp(cmd->commands[0][0], "ps") == 0) {
+        return s_spawn(ps, cmd->commands[0], input_fd, output_fd);
     } else if (strcmp(cmd->commands[0][0], "kill") == 0) {
         return s_spawn(kill, cmd->commands[0], input_fd, output_fd);
+    } else if (strcmp(cmd->commands[0][0], "zombify") == 0) {
+        return s_spawn(zombify, cmd->commands[0], input_fd, output_fd);
+    } else if (strcmp(cmd->commands[0][0], "orphanify") == 0) {
+        return s_spawn(orphanify, cmd->commands[0], input_fd, output_fd);
     } 
 
     // check for sub-routines (nice, nice_pid, man, bg, fg, jobs, logout)
     if (strcmp(cmd->commands[0][0], "nice") == 0) {
-        nice(cmd->commands[0]);
+        b_nice(cmd->commands[0]);
     } else if (strcmp(cmd->commands[0][0], "nice_pid") == 0) {
         nice_pid(cmd->commands[0]);
     } else if (strcmp(cmd->commands[0][0], "man") == 0) {
@@ -85,12 +92,7 @@ pid_t execute_command(struct parsed_command* cmd) {
     return 0; // only reached for subroutines
 }
 
-/**
- * @brief TODO --> once we figure out what this is supposed to be 
- * 
- * @return 0 on success, -1 on error
- */
-int shell_main() {
+void* shell_main(void*) {
 
     // TODO --> determine if we need more here
     // add in the jobs, bg, fg stuff as needed
@@ -103,15 +105,21 @@ int shell_main() {
 
         // prompt 
         // TODO --> see if "write" instead of s_write is okay here
-        if (s_write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
+        /*if (s_write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
+            // TODO: remember to set PERRNO
             u_perror("prompt write error");
+            break;
+        }*/
+       if (write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
+            perror("prompt write error");
             break;
         }
 
         // parse user input
         char buffer[MAX_BUFFER_SIZE];
         // TODO --> see if "write" instead of s_write is okay here
-        ssize_t user_input = s_read(STDIN_FILENO, MAX_BUFFER_SIZE, buffer);
+        //ssize_t user_input = s_read(STDIN_FILENO, MAX_BUFFER_SIZE, buffer);
+        ssize_t user_input = read(STDIN_FILENO, buffer, MAX_BUFFER_SIZE);
         if (user_input < 0) {
             u_perror("shell read error");
             break;
@@ -148,6 +156,7 @@ int shell_main() {
         } else if (child_pid > 0) {
             // TODO --> handle child process,
             // see if we need to wait for child to finish
+            sleep(1); // REPLACE WITH WAITPID
         } 
 
         // TODO --> free cmd?
