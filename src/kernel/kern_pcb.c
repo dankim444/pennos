@@ -3,13 +3,14 @@
 #include "stdio.h" // for perror
 #include "scheduler.h"
 #include "logger.h"
-#include "../fs/fs_syscalls.h"
+#include "../lib/pennos-errno.h"
 
-int next_pid = 1; // global variable to track the next pid to be assigned
+int next_pid = 2; // global variable to track the next pid to be assigned
                   // Note: when incrementing, be careful to lock around
-                  // incrementation
+                  // incrementation. Starts at 2 b/c init is 1
 
 extern Vec current_pcbs;
+extern pcb_t* current_running_pcb;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,31 +25,23 @@ void free_pcb(void* pcb) {
     vec_destroy(&casted_pcb->child_pcbs); // observe will free any remaining
                                           // children too!
     
-    // free file descriptor table resources
-    for (int i = 0; i < MAX_FDS; i++) {
-        if (casted_pcb->fd_table[i].in_use && casted_pcb->fd_table[i].filename) {
-            free(casted_pcb->fd_table[i].filename);
-            casted_pcb->fd_table[i].filename = NULL;
-        }
-    }
+    // TODO --> free file descriptor table
 
     free(casted_pcb);
 }
 
-
 // TODO --> update this function as pcb changes
-pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priority, char* cmd_str, int input_fd, int output_fd) {
+pcb_t* create_pcb(pid_t pid, pid_t par_pid, int priority, int input_fd, int output_fd) {
     pcb_t *ret_pcb = malloc(sizeof(pcb_t));
     if (ret_pcb == NULL) {
         perror("malloc failed for PCB creation");
+        return NULL;
     }
 
-    ret_pcb->thread_handle = thread_handle;
     ret_pcb->pid = pid;
     ret_pcb->par_pid = par_pid;
     ret_pcb->priority = priority;
     ret_pcb->process_state = 'R'; // running by default
-    ret_pcb->cmd_str = cmd_str;
     ret_pcb->input_fd = input_fd;
     ret_pcb->output_fd = output_fd;
     ret_pcb->process_status = 0; // default status
@@ -59,29 +52,17 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
         ret_pcb->signals[i] = false;
     }
 
-    for (int i = 0; i < MAX_FDS; i++) {
-        ret_pcb->fd_table[i].in_use = false;
-        ret_pcb->fd_table[i].flags = 0;
-        ret_pcb->fd_table[i].offset = 0;
-        ret_pcb->fd_table[i].filename = NULL;
-        ret_pcb->fd_table[i].start_block = 0;
-    }
-
-     // set up standard I/O file descriptors
-    if (input_fd >= 0) {
-        ret_pcb->fd_table[STDIN_FILENO].in_use = true;
-        ret_pcb->fd_table[STDIN_FILENO].flags = F_READ;
-    }
-
-    if (output_fd >= 0) {
-        ret_pcb->fd_table[STDOUT_FILENO].in_use = true;
-        ret_pcb->fd_table[STDOUT_FILENO].flags = F_WRITE;
-    }
-
-    ret_pcb->fd_table[STDERR_FILENO].in_use = true;
-    ret_pcb->fd_table[STDERR_FILENO].flags = F_WRITE;
-
     return ret_pcb;
+}
+
+void remove_child_in_parent(pcb_t* parent, pcb_t* child) {
+    for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
+        pcb_t* curr_child = (pcb_t*) vec_get(&parent->child_pcbs, i);
+        if (curr_child->pid == child->pid) {
+            vec_erase_no_deletor(&parent->child_pcbs, i);
+            return;
+        }
+    }
 }
 
 
@@ -98,74 +79,61 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
  * @return Reference to the child PCB.
  */
 pcb_t* k_proc_create(pcb_t *parent, int priority) {
-    pcb_t* child = (pcb_t*) malloc(sizeof(pcb_t));
+
+    if (parent == NULL) { // init creation case
+        pcb_t* init = create_pcb(1, 0, 0, 0, 1); // TODO: check these fds
+        if (init == NULL) {
+            P_ERRNO = P_NULL; // TODO --> do we want this?
+        }
+        current_running_pcb = init;
+        put_pcb_into_correct_queue(init);
+        vec_push_back(&current_pcbs, init);
+        return init;
+    }
+
+    pcb_t* child = create_pcb(next_pid++, parent->pid, priority, parent->input_fd, parent->output_fd);
     if (child == NULL) {
-        perror("malloc failed in k_proc_create");
+        P_ERRNO = P_NULL; // TODO --> do we want this?
         return NULL;
     }
 
-    // set child attributes
-    child->pid = next_pid++; // TODO --> check if need locking herre since not atomic
-    child->par_pid = parent->pid;
-    child->child_pcbs = vec_new(0, free_pcb);
-    child->priority = priority;
-    child->process_state = 'R'; // initially running
-    child->process_status = 0; // default status
-    for (int i = 0; i < 3; i++) { // "clean slate" of signals
-        child->signals[i] = false;
-    }
-    child->input_fd = parent->input_fd;
-    child->output_fd = parent->output_fd;
-    
-    // copy parent's fd table
-    for (int i = 0; i < MAX_FDS; i++) {
-        child->fd_table[i].in_use = parent->fd_table[i].in_use;
-        child->fd_table[i].flags = parent->fd_table[i].flags;
-        child->fd_table[i].offset = parent->fd_table[i].offset;
-        child->fd_table[i].start_block = parent->fd_table[i].start_block;
-        
-        if (parent->fd_table[i].in_use && parent->fd_table[i].filename) {
-            child->fd_table[i].filename = strdup(parent->fd_table[i].filename); // verify that strdup is okay
-            if (child->fd_table[i].filename == NULL) {
-                perror("strdup failed in k_proc_create");
-                // Clean up and return error
-                for (int j = 0; j < i; j++) {
-                    if (child->fd_table[j].in_use && child->fd_table[j].filename) {
-                        free(child->fd_table[j].filename);
-                    }
-                }
-                free(child);
-                return NULL;
-            }
-        } else {
-            child->fd_table[i].filename = NULL;
-        }
-    }
+    // TODO --> copy file descriptor table once added
 
     // update parent as needed
     vec_push_back(&parent->child_pcbs, child);
 
     // add to appropriate queue (TODO -> see if this is necessary)
-    put_pcb_into_correct_queue(child);
+    put_pcb_into_correct_queue(child); // CAUSING ERROR!
+    vec_push_back(&current_pcbs, child); 
 
     return child;
 }
 
 void k_proc_cleanup(pcb_t *proc) {
 
-    // if proc has children, remove them and assign new parent
-    if (vec_len(&proc->child_pcbs) > 0 ) {
-        pcb_t* par_pcb = get_pcb_in_queue(&current_pcbs, proc->par_pid);
-        if (par_pcb != NULL) {
-            while (vec_len(&proc->child_pcbs) > 0) {
-                pcb_t* curr_child = vec_get(&proc->child_pcbs, 0);
-                vec_push_back(&par_pcb->child_pcbs, curr_child); // add to new parent
-                vec_erase_no_deletor(&proc->child_pcbs, 0); // don't free in erase
-                curr_child->par_pid = get_pcb_in_queue(&current_pcbs, 0); // update parent to init
-                log_generic_event('O', curr_child->pid, curr_child->priority, curr_child->cmd_str);
-            }
-        }        
+    // if proc has parent (i.e. isn't init) then remove it from parent's child list
+    pcb_t* par_pcb = get_pcb_in_queue(&current_pcbs, proc->par_pid);
+    if (par_pcb != NULL) {
+        remove_child_in_parent(par_pcb, proc);
+    } else {
+        P_ERRNO = P_NULL; // TODO --> do we want this?
+        return;
     }
+
+    // if proc has children, remove them and assign them to init parent
+    if (vec_len(&proc->child_pcbs) > 0) {
+
+        // retrieve the init process
+        pcb_t* init_pcb = get_pcb_in_queue(&current_pcbs, 1); // init process has pid 1
+
+        while (vec_len(&proc->child_pcbs) > 0) {
+            pcb_t* curr_child = vec_get(&proc->child_pcbs, 0);
+            vec_push_back(&init_pcb->child_pcbs, curr_child); 
+            vec_erase_no_deletor(&proc->child_pcbs, 0); // don't free in erase
+            curr_child->par_pid = 1; // update parent to init (pid 1)
+            log_generic_event('O', curr_child->pid, curr_child->priority, curr_child->cmd_str);
+        }      
+    } 
 
     // TODO --> handle fd table once added
 
