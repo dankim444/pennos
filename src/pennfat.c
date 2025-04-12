@@ -5,9 +5,15 @@
 #include <string.h>
 
 // function declarations for special routines
-static void mkfs(const char *fs_name, int blocks_in_fat, int block_size_config);
-static int mount(const char *fs_name);
-static int unmount();
+static void mkfs(const char *fs_name, int blocks_in_fat, int block_size_config) {
+    return;
+}
+static int mount(const char *fs_name) {
+    return 0;
+}
+static int unmount() {
+    return 0;
+}
 
 // Signal handler function
 static void signal_handler(int signum) {
@@ -17,7 +23,7 @@ static void signal_handler(int signum) {
 int main(int argc, char *argv[]) {
     // Register signal handlers
     struct sigaction sa;
-    sa.sa_handler = signal_handler
+    sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
 
