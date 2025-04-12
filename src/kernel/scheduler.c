@@ -6,6 +6,10 @@
 #include "stdlib.h"
 #include <sys/time.h>
 #include <signal.h> // TODO --> make sure this is ok to include
+#include "logger.h"
+
+#include <stdio.h> // TODO: delete this once finished
+#include <string.h>
 
 
 
@@ -28,6 +32,11 @@ static bool scheduling_done = false; // true if the scheduler is done
 
 int tick_counter = 0;
 int log_fd; // file descriptor for the log file, set in pennos.c
+
+pcb_t* current_running_pcb; // currently running process
+
+int curr_priority_arr_index = 0;
+int det_priorities_arr[19] = {0, 1, 2, 0, 0, 1, 0, 1, 2, 0, 0, 1, 2, 0, 1, 0, 0, 1, 2};
 
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -60,55 +69,24 @@ void free_scheduler_queues() {
 //                         SCHEDULING FUNCTIONS                                //
 /////////////////////////////////////////////////////////////////////////////////
 
-
 int generate_next_priority() {
-
-    // only 1 non-empty cases
-    if (vec_is_empty(&zero_priority_queue) && vec_is_empty(&one_priority_queue)) {
-        return 2;
-    } else if (vec_is_empty(&zero_priority_queue) && vec_is_empty(&two_priority_queue)) {
-        return 1;
-    } else if (vec_is_empty(&one_priority_queue) && vec_is_empty(&two_priority_queue)) {
-        return 0;
-    }
-
-    // all 3 non-empty case
-    if (!vec_is_empty(&zero_priority_queue) && !vec_is_empty(&one_priority_queue) && !vec_is_empty(&two_priority_queue)) {
-
-        double rand_num = (double) rand() / (double)RAND_MAX * 4.75; // rand num in [0, 4.75]
-
-        if (rand_num <= 2.25) {
+    bool priority_found = false;
+    while (!priority_found) {
+        int curr_pri = det_priorities_arr[curr_priority_arr_index];
+        curr_priority_arr_index = (curr_priority_arr_index + 1) % 19;
+        if (curr_pri == 0 && !vec_is_empty(&zero_priority_queue)) {
+            priority_found = true;
             return 0;
-        } else if (rand_num <= 3.75) {
+        } else if (curr_pri == 1 && !vec_is_empty(&one_priority_queue)) {
+            priority_found = true;
             return 1;
-        } else {
+        } else if (curr_pri == 2 && !vec_is_empty(&two_priority_queue)) {
+            priority_found = true;
             return 2;
         }
     }
-
-    // 2 non-empty cases
-    double rand_proportion = (double) rand() / (double)RAND_MAX; // rand num in [0, 1]
-    if (vec_is_empty(&zero_priority_queue) && !vec_is_empty(&one_priority_queue)) {
-        if (rand_proportion <= .60) {
-            return 0;
-        } else {
-            return 1;
-        }
-    } else if (vec_is_empty(&one_priority_queue) && !vec_is_empty(&two_priority_queue)) {
-        if (rand_proportion <= .60) {
-            return 1;
-        } else {
-            return 2;
-        }
-    } else if (vec_is_empty(&zero_priority_queue) && !vec_is_empty(&two_priority_queue)) {
-        if (rand_proportion <= .6923) {
-            return 0;
-        } else {
-            return 2;
-        }
-    }
-
-    return -1; // should never reach here
+    
+    return -1; // should never reach here by assumption
 }
 
 pcb_t* get_next_pcb(int priority) {
@@ -130,6 +108,7 @@ pcb_t* get_next_pcb(int priority) {
 
 
 void put_pcb_into_correct_queue(pcb_t* pcb) {
+
     if (pcb->process_state == 'R') {
         if (pcb->priority == 0) {
             vec_push_back(&zero_priority_queue, pcb);
@@ -179,7 +158,11 @@ void alarm_handler(int signum) {
     tick_counter++;
 }
 
+
+// TODO --> this function needs a solid amt of work
 void scheduler() {
+
+    // TODO --> check signals in here?
 
     // TODO --> insert code somewhere to prevent busy waiting via sigsuspend
     // Is init always running? Need to figure this out
@@ -206,31 +189,18 @@ void scheduler() {
     pthread_sigmask(SIG_UNBLOCK, &alarm_set, NULL);
 
     struct itimerval it;
-    it.it_interval = (struct timeval){.tv_usec = hundred_millisec * 10};
+    it.it_interval = (struct timeval){.tv_usec = hundred_millisec};
     it.it_value = it.it_interval;
     setitimer(ITIMER_REAL, &it, NULL);
 
     while(!scheduling_done) {
         curr_priority_queue_num = generate_next_priority();
-        pcb_t* curr_pcb = get_next_pcb(curr_priority_queue_num);
+        current_running_pcb = get_next_pcb(curr_priority_queue_num);
+        log_scheduling_event(current_running_pcb->pid, curr_priority_queue_num, current_running_pcb->cmd_str);
 
-        spthread_continue(curr_pcb->thread_handle);
+        spthread_continue(current_running_pcb->thread_handle);
         sigsuspend(&suspend_set);
-        spthread_suspend(curr_pcb->thread_handle);
-
-        // TODO --> probably will need some way to track state here +
-        // determine which queue to put the pcb into
-        put_pcb_into_correct_queue(curr_pcb);
+        put_pcb_into_correct_queue(current_running_pcb);
+        spthread_suspend(current_running_pcb->thread_handle);
     }
 }
-
-
-
-
-
-
-
-
-
-
-

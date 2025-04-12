@@ -7,24 +7,16 @@
 #include "../lib/spthread.h"
 #include "../lib/Vec.h"
 
-#define MAX_FDS 16  // TODO: Determine the maximum number of file descriptors per process
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //              PROCESS CONTROL BLOCK (PCB) STRUCTURE AND FUNCTIONS           //
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef struct fd_entry {
-    bool in_use;          // Whether this file descriptor is in use
-    int flags;            // Open mode flags (F_READ, F_WRITE, F_APPEND)
-    int offset;           // Current file position
-    char* filename;       // Pointer to filename (dynamically allocated)
-    uint16_t start_block; // First block in FAT
-} fd_entry_t;
-
 typedef struct pcb_st {
     spthread_t thread_handle; 
 
-    pid_t pid;               
+    pid_t pid;               // 0 if init 
     pid_t par_pid;           // -1 if no parent
 
     Vec child_pcbs;          // pcb ptrs to children, not ints        
@@ -49,23 +41,26 @@ typedef struct pcb_st {
                              // 0 otherwise
 
 
-    fd_entry_t fd_table[MAX_FDS];  // File descriptor table
+    // TODO --> file descriptor table
 } pcb_t;
 
+////////////////////////////////////////////////////////////////////////////////
+//                             PCB FUNCTIONS                                  //
+////////////////////////////////////////////////////////////////////////////////
+
 /**
- * @brief Creates a new PCB and initializes its fields
+ * @brief Creates a new PCB and initializes its fields. Notably, the thread handle
+ *        and cmd are left out. It's up to the user to assign them post-call.
  * 
- * @param thread_handle thread handle for associated spthread
  * @param pid           the new process id
  * @param par_pid       the parent process id
  * @param priority      the priority level (0,1,2)
- * @param cmd_str       the command name as a malloced string ptr
  * @param input_fd      input fd
  * @param output_fd     output fd
  * 
- * @return pointer to the newly created and malloced PCB
+ * @return pointer to the newly created and malloced PCB or NULL if failure
  */
-pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priority, char* cmd_str, int input_fd, int output_fd);
+pcb_t* create_pcb(pid_t pid, pid_t par_pid, int priority, int input_fd, int output_fd);
 
 
 /**
@@ -78,6 +73,15 @@ pcb_t* create_pcb(spthread_t thread_handle, pid_t pid, pid_t par_pid, int priori
  */
 void free_pcb(void* pcb);
 
+/**
+ * @brief Given a parent, removes the child from the parent's child
+ *        vector if its exists. Notably, it does not free the child but
+ *        simply removes it via the vec_erase_no_deletor function.
+ * 
+ * @param parent a ptr to the parent pcb with the child list 
+ * @param child  a ptr to the child pcb that we'd like to remove
+ */
+void remove_child_in_parent(pcb_t* parent, pcb_t* child);
 
 ////////////////////////////////////////////////////////////////////////////////
 //        KERNEL-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
@@ -85,10 +89,11 @@ void free_pcb(void* pcb);
 
 /**
  * @brief Create a new child process, inheriting applicable properties from the parent.
- *
+ *        Also inserts the created child into the correct scheduler queue based on its
+ *        priority.
  * @param parent a pointer to the parent pcb
  * @param priority the priority of the child, usually 1 but exceptions like shell exist
- * @return Reference to the child PCB.
+ * @return Reference to the child PCB or NULL if error
  */
 pcb_t* k_proc_create(pcb_t *parent, int priority);
 
@@ -100,7 +105,5 @@ pcb_t* k_proc_create(pcb_t *parent, int priority);
  * @param proc a pcb ptr to the terminated/finished thread
  */
 void k_proc_cleanup(pcb_t *proc);
-
-
 
 #endif

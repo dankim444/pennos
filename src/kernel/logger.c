@@ -62,4 +62,3 @@ void log_nice_event(int pid, int old_nice_value, int new_nice_value, char* proce
     }
 }
 
-
