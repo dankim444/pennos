@@ -1,6 +1,60 @@
 #ifndef FAT_ROUTINES_H
 #define FAT_ROUTINES_H
 
+#include <stdint.h>
+#include <time.h>
+
+////////////////////////////////////////////////////////////////////////////////
+//                                  DEFINITIONS                               //
+////////////////////////////////////////////////////////////////////////////////
+
+// constants for file types
+#define TYPE_UNKNOWN 0
+#define TYPE_REGULAR 1
+#define TYPE_DIRECTORY 2
+#define TYPE_SYMLINK 4 // TODO: EXTRA CREDIT
+
+#define FAT_EOF 0xFFFF // denotes last block
+#define FAT_FREE 0x0000 // denotes unused block
+
+// constants for file modes (needed when calling k_open)
+#define F_READ 0x01
+#define F_WRITE 0x02
+#define F_APPEND 0x04
+
+// constants for permission (needed for chmod operations)
+#define PERM_NONE 0
+#define PERM_WRITE 2
+#define PERM_READ 4
+#define PERM_READ_EXEC 5
+#define PERM_READ_WRITE 6
+#define PERM_READ_WRITE_EXEC 7
+
+////////////////////////////////////////////////////////////////////////////////
+//                                  FAT STRUCTURES                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// directory entry structure (64 bytes)
+typedef struct {
+    char name[32]; 
+    uint32_t size;
+    uint16_t firstBlock;
+    uint8_t type;
+    uint8_t perm;
+    time_t mtime;
+    char reserved[16]; // TODO: EXTRA CREDIT
+} dir_entry_t;
+
+// file descriptor structure
+typedef struct {
+    int in_use; // 1 for in use, 0 for not in use
+    char filename[32]; // name of the file
+    uint32_t size; // size of the file (in bytes)
+    uint16_t first_block; // first block of the file
+    uint32_t position; // current file position
+    uint8_t mode; // open mode (read, write, append)
+} fd_entry_t;
+
 ////////////////////////////////////////////////////////////////////////////////
 //                           SPECIAL ROUTINES                                 //
 ////////////////////////////////////////////////////////////////////////////////
