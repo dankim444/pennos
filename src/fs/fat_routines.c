@@ -312,6 +312,25 @@ void* ls(void* arg) {
       continue;
     }
 
+    // format permission string
+    char perm_str[4] = "---";
+    if (dir_entry.perm & PERM_READ)
+      perm_str[0] = 'r';
+    if (dir_entry.perm & PERM_WRITE)
+      perm_str[1] = 'w';
+    // if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // do we need x?
+
+    // format time
+    struct tm* tm_info = localtime(&dir_entry.mtime);
+    char time_str[20];
+    strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y",
+             tm_info);  // TODO: check if we're allowed to use strftime
+
+    // print entry details
+    printf("%2d -%s- %6d %s %s\n", dir_entry.firstBlock, perm_str,
+           dir_entry.size, time_str, dir_entry.name);  // TODO: replace printf
+    offset += sizeof(dir_entry);
+
     // No more blocks to search
     break;
   }
