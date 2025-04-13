@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
         // skip empty commands
         if (parsed_command->num_commands == 0) {
             free(parsed_command);
-            continue; // reprompt
+            continue; // re-prompt
         }
         
         // extract command and arguments
@@ -90,13 +90,11 @@ int main(int argc, char *argv[]) {
         // execute command
         if (strcmp(args[0], "mkfs") == 0) {
             if (args[1] == NULL || args[2] == NULL || args[3] == NULL) {
-                // set error code --> invalid args
                 u_perror("Usage: mkfs FS_NAME BLOCKS_IN_FAT BLOCK_SIZE_CONFIG\n");
             } else {
                 int blocks_in_fat = atoi(args[2]);
                 int block_size = atoi(args[3]);
                 if (mkfs(args[1], blocks_in_fat, block_size) != 0) {
-                    // set error code --> failed command
                     u_perror("mkfs");
                 }
             }
@@ -105,28 +103,23 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Usage: mount FS_NAME\n");
             } else {
                 if (mount(args[1]) != 0) {
-                    // set error code
-                    u_perror("mount");
+                    u_perror("unexpected command");
                 }
             }
         } else if (strcmp(args[0], "unmount") == 0) {
             if (unmount() != 0) {
-                // set error
                 u_perror("unmount");
             }
         } else if (strcmp(args[0], "ls") == 0) {
             if (ls(args) != 0) {
-                // set error code
                 u_perror("ls");
             }
         } else if (strcmp(args[0], "touch") == 0) {
             if (touch(args) != 0) {
-                // set error code
                 u_perror("touch");
             }
         } else if (strcmp(args[0], "cat") == 0) {
             if (cat(args) != 0) {
-                // set error code
                 u_perror("cat");
             }
         } 
@@ -139,17 +132,14 @@ int main(int argc, char *argv[]) {
         // } 
         else if (strcmp(args[0], "mv") == 0) {
             if (mv(args) != 0) {
-                // set error code
                 u_perror("mv");
             }
         } else if (strcmp(args[0], "rm") == 0) {
             if (rm(args) != 0) {
-                // set error code
                 u_perror("rm");
             }
         } else if (strcmp(args[0], "cp") == 0) {
             if (cp(args) != 0) {
-                // set error code
                 u_perror("cp");
             }
         } else {
