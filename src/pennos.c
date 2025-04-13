@@ -31,6 +31,7 @@ int main(int argc, char* argv[]) {
 
     pid_t init_pid = s_spawn_init();
     if (init_pid == -1) {
+        // Dan: don't worry abt this until later, but you will have to set the error code here
         u_perror("init spawn failed"); // TODO --> possible update with new funcs
         exit(EXIT_FAILURE);          // in case exit is illegal or perror is preferred
     }

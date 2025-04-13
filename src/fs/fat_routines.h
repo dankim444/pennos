@@ -10,13 +10,13 @@
  * 
  * This function initializes a new PennFAT filesystem with the specified parameters.
  * The number of blocks in the FAT ranges from 1 through 32, and the block size
- * is determined by block_size_config (0=256B, 1=512B, 2=1024B, 3=2048B, 4=4096B).
+ * is determined by block_size (0=256B, 1=512B, 2=1024B, 3=2048B, 4=4096B).
  * 
  * @param fs_name The name of the file to create the filesystem in.
- * @param blocks_in_fat The number of blocks in the FAT (1-32).
- * @param block_size_config The block size configuration (0-4).
+ * @param num_blocks The number of blocks in the FAT (1-32).
+ * @param block_size The block size configuration (0-4).
  */
-void mkfs(const char *fs_name, int blocks_in_fat, int block_size_config);
+int mkfs(const char *fs_name, int num_blocks, int block_size);
 
 /**
  * @brief Mounts the filesystem named fs_name by loading its FAT into memory.
@@ -135,6 +135,6 @@ void* rm(void *arg);
  * @param arg Arguments array (command line arguments)
  * @return void pointer (unused)
  */
-void* chmod(void *arg);
+// void* chmod(void *arg); --> getting conflicting types issue
 
 #endif
