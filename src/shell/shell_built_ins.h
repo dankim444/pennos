@@ -1,8 +1,6 @@
 #ifndef SHELL_BUILT_INS_H_
 #define SHELL_BUILT_INS_H_
 
-#include "syscall.h"
-
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
 //        independently scheduled PennOS processes.                           //
@@ -18,7 +16,7 @@
  * Example Usage: cat f1 f2 < f3 (concatenates f1 and f2 and prints to stdout,
  * ignores f3) Example Usage: cat < f3 (concatenates f3, prints to stdout)
  */
-void* cat(void* arg);
+// void* cat(void *arg);
 
 /**
  * @brief Sleep for `n` seconds.
@@ -52,7 +50,7 @@ void* echo(void* arg);
  * Example Usage: ls (regular credit)
  * Example Usage: ls ../../foo/./bar/sample (only for EC)
  */
-void* ls(void* arg);
+// void* ls(void *arg);
 
 /**
  * @brief For each file, create an empty file if it doesn't exist, else update
@@ -60,7 +58,7 @@ void* ls(void* arg);
  *
  * Example Usage: touch f1 f2 f3 f4 f5
  */
-void* touch(void* arg);
+// void* touch(void *arg);
 
 /**
  * @brief Rename a file. If the `dst_file` file already exists, overwrite it.
@@ -72,7 +70,7 @@ void* touch(void* arg);
  *
  * Example Usage: mv src_file dst_file
  */
-void* mv(void* arg);
+// void* mv(void *arg);
 
 /**
  * Copy a file. If the `dst_file` file already exists, overwrite it.
@@ -84,7 +82,7 @@ void* mv(void* arg);
  *
  * Example Usage: cp src_file dst_file
  */
-void* cp(void* arg);
+// void* cp(void *arg);
 
 /**
  * @brief Remove a list of files.
@@ -96,7 +94,7 @@ void* cp(void* arg);
  *
  * Example Usage: rm f1 f2 f3 f4 f5
  */
-void* rm(void* arg);
+// void* rm(void *arg);
 
 /**
  * @brief Change permissions of a file.

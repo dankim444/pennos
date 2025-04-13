@@ -41,6 +41,18 @@ void u_perror(const char *msg) {
         case P_EUNKNOWN:
             error_msg = "unknown error"; 
             break;
+        case P_READ:
+            error_msg = "interrupted read call"; 
+            break;
+        case P_LSEEK:
+            error_msg = "interrupted lseek call"; 
+            break;
+        case P_MAP:
+            error_msg = "interrupted mmap/munmap call"; 
+            break;
+        case P_EFUNC:
+            error_msg = "interrupted custom call";
+            break;
         default: 
             error_msg = "Unknown error"; 
             break;

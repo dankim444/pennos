@@ -1,29 +1,59 @@
-#include "fs_syscalls.h"
+// #include "fs_syscalls.h"
+// #include "fs_kfuncs.h"
+// #include "../lib/pennos-errno.h"
 
-int s_open(const char *fname, int mode) {
-    return -1; // TODO --> implement s_open
-}
+// /**
+//  * System call to open a file.
+//  * This is a wrapper around the kernel function k_open.
+//  */
+// int s_open(const char *fname, int mode) {
+//     return k_open(fname, mode);
+// }
 
-int s_read(int fd, int n, char *buf) {
-    return -1; // TODO --> implement s_read
-}
+// /**
+//  * System call to read from a file.
+//  * This is a wrapper around the kernel function k_read.
+//  */
+// int s_read(int fd, int n, char *buf) {
+//     return k_read(fd, n, buf);
+// }
 
-int s_write(int fd, const char *str, int n) {
-    return -1; // TODO --> implement s_write
-}
+// /**
+//  * System call to write to a file.
+//  * This is a wrapper around the kernel function k_write.
+//  */
+// int s_write(int fd, const char *str, int n) {
+//     return k_write(fd, str, n);
+// }
 
-int s_close(int fd) {
-    return -1; // TODO --> implement s_close
-}
+// /**
+//  * System call to close a file.
+//  * This is a wrapper around the kernel function k_close.
+//  */
+// int s_close(int fd) {
+//     return k_close(fd);
+// }
 
-int s_unlink(const char *fname) {
-    return -1; // TODO --> implement s_unlink
-}
+// /**
+//  * System call to remove a file.
+//  * This is a wrapper around the kernel function k_unlink.
+//  */
+// int s_unlink(const char *fname) {
+//     return k_unlink(fname);
+// }
 
-int s_lseek(int fd, int offset, int whence) {
-    return -1; // TODO --> implement s_lseek
-}
+// /**
+//  * System call to reposition the file offset.
+//  * This is a wrapper around the kernel function k_lseek.
+//  */
+// int s_lseek(int fd, int offset, int whence) {
+//     return k_lseek(fd, offset, whence);
+// }
 
-int s_ls(const char *filename) {
-    return -1; // TODO --> implement s_ls
-}
+// /**
+//  * System call to list files.
+//  * This is a wrapper around the kernel function k_ls.
+//  */
+// int s_ls(const char *filename) {
+//     return k_ls(filename);
+// }

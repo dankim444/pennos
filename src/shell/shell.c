@@ -1,9 +1,10 @@
 #include <string.h>
+#include "../fs/fat_routines.h"
 #include "../fs/fs_syscalls.h"
 #include "../kernel/kern_sys_calls.h"
 #include "builtins.h"  // contains u_perrror
 #include "parser.h"
-#include "shell-built-ins.h"
+#include "shell_built_ins.h"
 #include "stdlib.h"
 
 #include <fcntl.h>
