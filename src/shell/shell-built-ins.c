@@ -148,6 +148,11 @@ void* b_kill(void* arg) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void* b_nice(void* arg) {
+    // TODO --> implement b_nice
+    return NULL;
+}
+
+void* nice_pid(void* arg) {
     char* endptr;
     int errno = 0; 
     int new_priority = (int) strtol(((char**)arg)[1], &endptr, 10);
@@ -160,11 +165,6 @@ void* b_nice(void* arg) {
     }
     s_nice(pid, new_priority);
     return NULL;
-}
-
-void* nice_pid(void* arg) {
-  // TODO --> implement nice_pid
-  return NULL;
 }
 
 void* man(void* arg) {
