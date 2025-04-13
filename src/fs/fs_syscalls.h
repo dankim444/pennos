@@ -12,7 +12,7 @@
 #define F_READ   2  // Open for reading
 #define F_APPEND 4  // Open for appending (write at end of file)
 
-// Standard file descriptors
+// Reserved standard file descriptors
 #define STDIN_FILENO 0  // Standard input
 #define STDOUT_FILENO 1  // Standard output
 #define STDERR_FILENO 2  // Standard error

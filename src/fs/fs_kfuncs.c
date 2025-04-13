@@ -3,19 +3,18 @@
 #include "../lib/pennos-errno.h"
 #include "../kernel/kern_pcb.h"
 #include "fs_helpers.h"
-#include "fs_syscalls.h"  // Include this for F_READ, F_WRITE, F_APPEND constants
+#include "fs_syscalls.h"  // F_READ, F_WRITE, F_APPEND, STDIN_FILENO, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
 
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
-
 // Global file descriptor table
 sys_fd_entry_t sys_fd_table[MAX_GLOBAL_FD];
 
+/**
+ * Kernel-level call to open a file.
+ */
 int k_open(const char *fname, int mode) {
     // validate inputs
     if (fname == NULL) {
@@ -81,6 +80,9 @@ int k_open(const char *fname, int mode) {
     return fd;
 }
 
+/**
+ * Kernel-level call to read a file.
+ */
 int k_read(int fd, int n, char *buf) {
     if (fd < 0 || fd >= MAX_GLOBAL_FD || !sys_fd_table[fd].in_use) {
         P_ERRNO = P_EBADF;
@@ -148,6 +150,9 @@ int k_read(int fd, int n, char *buf) {
     return bytes_read;
 }
 
+/**
+ * Kernel-level call to write to a file.
+ */
 int k_write(int fd, const char *str, int n) {
     if (fd < 0 || fd >= MAX_GLOBAL_FD || !sys_fd_table[fd].in_use) {
         P_ERRNO = P_EBADF;
@@ -262,6 +267,9 @@ int k_write(int fd, const char *str, int n) {
     return bytes_written;
 }
 
+/**
+ * Kernel-level call to close a file.
+ */
 int k_close(int fd) {
     // validate inputs
     if (fd < 0 || fd >= MAX_GLOBAL_FD || !sys_fd_table[fd].in_use) {
@@ -278,6 +286,9 @@ int k_close(int fd) {
     return 0;
 }
 
+/**
+ * Kernel-level call to remove a file.
+ */
 int k_unlink(const char *fname) {
     // validate inputs
     if (fname == NULL) {
@@ -321,6 +332,9 @@ int k_unlink(const char *fname) {
     return 0;
 }
 
+/**
+ * Kernel-level call to re-position a file offset.
+ */
 int k_lseek(int fd, int offset, int whence) {
     // validate inputs
     if (fd < 0 || fd >= MAX_GLOBAL_FD || !sys_fd_table[fd].in_use) {
@@ -364,6 +378,9 @@ int k_lseek(int fd, int offset, int whence) {
     return new_position;
 }
 
+/**
+ * Kernel-level call to list files.
+ */
 int k_ls(const char *filename) {
     int count = 0;
     int total_entries = get_metadata_count();
