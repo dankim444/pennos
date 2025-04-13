@@ -2,6 +2,7 @@
 #include "fat_routines.h"
 #include "lib/pennos-errno.h"
 #include "shell/builtins.h"
+#include "fs_kfuncs.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,6 +64,7 @@ int find_file(const char *filename, dir_entry_t *entry) {
     }
     
     // read the root directory block (always block 1)
+    // TODO: REPLACE WITH K_LSEEK
     if (lseek(fs_fd, fat_size, SEEK_SET) == -1) {
         P_ERRNO = P_EINVAL;
         return -1;
@@ -73,6 +75,7 @@ int find_file(const char *filename, dir_entry_t *entry) {
     int offset = 0;
     
     while (offset < block_size) {
+        // TODO: REPLACE WITH K_READ
         if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
             P_ERRNO = P_EINVAL;
             return -1;
@@ -120,6 +123,7 @@ int add_file_entry(const char *filename, uint32_t size, uint16_t first_block, ui
     }
     
     // read the root directory block (always block 1)
+    // TODO: REPLACE WITH K_LSEEK
     if (lseek(fs_fd, fat_size, SEEK_SET) == -1) {
         P_ERRNO = P_EINVAL;
         return -1;
@@ -130,6 +134,7 @@ int add_file_entry(const char *filename, uint32_t size, uint16_t first_block, ui
     int offset = 0;
     
     while (offset < block_size) {
+        // TODO: REPLACE WITH K_READ
         if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
             P_ERRNO = P_EINVAL;
             return -1;
@@ -146,7 +151,9 @@ int add_file_entry(const char *filename, uint32_t size, uint16_t first_block, ui
             dir_entry.mtime = time(NULL); // TODO: check if this is how this is done
             
             // write the entry back
+            // TODO: REPLACE WITH K_LSEEK
             if (lseek(fs_fd, fat_size + offset, SEEK_SET) == -1 ||
+                // TODO: REPLACE WITH K_WRITE
                 write(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
                 P_ERRNO = P_EINVAL;
                 return -1;
@@ -171,6 +178,7 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
     }
     
     // open the host file
+    // TODO: REPLACE WITH K_OPEN
     int host_fd = open(host_filename, O_RDONLY);
     if (host_fd == -1) {
         P_ERRNO = P_ENOENT;
@@ -178,16 +186,20 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
     }
     
     // determine file size by seeking to the end and getting position
+    // TODO: REPLACE WITH K_LSEEK
     off_t file_size = lseek(host_fd, 0, SEEK_END); 
     if (file_size == -1) {
         P_ERRNO = P_EINVAL;
+        // TODO: REPLACE WITH K_CLOSE
         close(host_fd);
         return -1;
     }
 
     // go back to beginning of file for reading
+    // TODO: REPLACE WITH K_LSEEK
     if (lseek(host_fd, 0, SEEK_SET) == -1) {
         P_ERRNO = P_EINVAL;
+        // TODO: REPLACE WITH K_CLOSE
         close(host_fd);
         return -1;
     }
@@ -196,6 +208,7 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
     uint16_t first_block = allocate_block();
     if (first_block == 0) {
         P_ERRNO = P_EFULL;
+        // TODO: REPLACE WITH K_CLOSE
         close(host_fd);
         return -1;
     }
@@ -203,6 +216,7 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
     // create the file entry in the directory
     if (add_file_entry(pennfat_filename, file_size, first_block, TYPE_REGULAR, PERM_READ_WRITE) == -1) {
         // TODO: deallocate the block if failed
+        // TODO: REPLACE WITH K_CLOSE
         close(host_fd);
         return -1;
     }
@@ -211,6 +225,7 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
     uint8_t *buffer = (uint8_t *)malloc(block_size);
     if (!buffer) {
         P_ERRNO = P_EINVAL;
+        // TODO: REPLACE WITH K_CLOSE
         close(host_fd);
         return -1;
     }
@@ -221,6 +236,7 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
     while (bytes_remaining > 0) {
         // read from host file
         ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+        // TODO: REPLACE WITH K_READ
         ssize_t bytes_read = read(host_fd, buffer, bytes_to_read);
         
         if (bytes_read <= 0) {
@@ -228,10 +244,13 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
         }
         
         // write to PennFAT
+        // TODO: REPLACE WITH K_LSEEK
         if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1 || 
+            // TODO: REPLACE WITH K_WRITE
             write(fs_fd, buffer, bytes_read) != bytes_read) {
             P_ERRNO = P_EINVAL;
             free(buffer);
+            // TODO: REPLACE WITH K_CLOSE
             close(host_fd);
             return -1;
         }
@@ -244,6 +263,7 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
             if (next_block == 0) {
                 P_ERRNO = P_EFULL;
                 free(buffer);
+                // TODO: REPLACE WITH K_CLOSE
                 close(host_fd);
                 return -1;
             }
@@ -255,6 +275,7 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
     }
     
     free(buffer);
+     // TODO: REPLACE WITH K_CLOSE
     close(host_fd);
     return 0;
 }
@@ -262,7 +283,6 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
 // helper function to copy data from PennFAT to host OS
 int copy_pennfat_to_host(const char *pennfat_filename, const char *host_filename) {
     if (!is_mounted) {
-        P_ERRNO = P_FS_NOT_MOUNTED;
         return -1;
     }
     
@@ -273,16 +293,16 @@ int copy_pennfat_to_host(const char *pennfat_filename, const char *host_filename
     }
     
     // open the host file
+     // TODO: REPLACE WITH K_OPEN
     int host_fd = open(host_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (host_fd == -1) {
-        P_ERRNO = P_EINVAL;
         return -1;
     }
     
     // copy the data into buffer
     uint8_t *buffer = (uint8_t *)malloc(block_size);
     if (!buffer) {
-        P_ERRNO = P_EINVAL;
+         // TODO: REPLACE WITH K_CLOSE
         close(host_fd);
         return -1;
     }
@@ -292,14 +312,16 @@ int copy_pennfat_to_host(const char *pennfat_filename, const char *host_filename
     
     while (bytes_remaining > 0 && current_block != 0 && current_block != 0xFFFF) {
         // read from PennFAT
+         // TODO: REPLACE WITH K_LSEEK
         if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
-            P_ERRNO = P_EINVAL;
             free(buffer);
+             // TODO: REPLACE WITH K_CLOSE
             close(host_fd);
             return -1;
         }
         
         ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+         // TODO: REPLACE WITH K_READ
         ssize_t bytes_read = read(fs_fd, buffer, bytes_to_read);
         
         if (bytes_read <= 0) {
@@ -307,9 +329,10 @@ int copy_pennfat_to_host(const char *pennfat_filename, const char *host_filename
         }
         
         // write to host file
+         // TODO: REPLACE WITH K_WRITE
         if (write(host_fd, buffer, bytes_read) != bytes_read) {
-            P_ERRNO = P_EINVAL;
             free(buffer);
+             // TODO: REPLACE WITH K_CLOSE
             close(host_fd);
             return -1;
         }
@@ -321,6 +344,7 @@ int copy_pennfat_to_host(const char *pennfat_filename, const char *host_filename
     }
     
     free(buffer);
+     // TODO: REPLACE WITH K_CLOSE
     close(host_fd);
     return 0;
 }
@@ -345,11 +369,13 @@ int update_file_size(const char *filename, uint32_t new_size) {
     entry.mtime = time(NULL);
     
     // write the updated entry back to the directory
+     // TODO: REPLACE WITH K_LSEEK
     if (lseek(fs_fd, fat_size + offset, SEEK_SET) == -1) {
         P_ERRNO = P_LSEEK;
         return -1;
     }
     
+     // TODO: REPLACE WITH K_WRITE
     if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
         P_ERRNO = P_EINVAL;
         return -1;
@@ -373,6 +399,7 @@ void* cat_overwrite(char** args, fd_entry_t* fd_table) {
         
         // TODO: we should add a proper k_unlink function to handle this
         // for now, just mark the file entry as deleted
+         // TODO: REPLACE WITH K_LSEEK
         if (lseek(fs_fd, fat_size + find_file(args[2], NULL), SEEK_SET) == -1) {
             P_ERRNO = P_LSEEK;
             u_perror("cat");
@@ -380,6 +407,7 @@ void* cat_overwrite(char** args, fd_entry_t* fd_table) {
         }
         
         char deleted = 1; // mark as deleted
+         // TODO: REPLACE WITH K_WRITE
         if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
             P_ERRNO = P_EINVAL;
             u_perror("cat");
@@ -418,6 +446,7 @@ void* cat_overwrite(char** args, fd_entry_t* fd_table) {
     uint32_t block_offset = 0;
     
     while (1) {
+         // TODO: REPLACE WITH K_READ
         ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
         
         if (bytes_read <= 0) { // eof or ctrl-d
@@ -434,6 +463,7 @@ void* cat_overwrite(char** args, fd_entry_t* fd_table) {
             size_t write_now = bytes_to_write < space_in_block ? bytes_to_write : space_in_block;
             
             // seek to the correct position in the current block
+             // TODO: REPLACE WITH K_LSEEK
             if (lseek(fs_fd, fat_size + (current_block - 1) * block_size + block_offset, SEEK_SET) == -1) {
                 P_ERRNO = P_LSEEK;
                 u_perror("cat");
@@ -442,6 +472,7 @@ void* cat_overwrite(char** args, fd_entry_t* fd_table) {
             }
             
             // write the data
+             // TODO: REPLACE WITH K_WRITE
             if (write(fs_fd, buffer + buffer_offset, write_now) != write_now) {
                 P_ERRNO = P_EINVAL;
                 update_file_size(args[2], total_bytes);
