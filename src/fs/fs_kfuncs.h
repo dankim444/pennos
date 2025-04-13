@@ -7,6 +7,10 @@
 //                   KERNEL-RELATED FILE SYSTEM FUNCTIONS                     //
 ////////////////////////////////////////////////////////////////////////////////
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 /**
  * @brief Opens a file with the specified mode.
  *

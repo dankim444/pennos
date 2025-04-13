@@ -1,15 +1,12 @@
 #ifndef SHELL_BUILT_INS_H_
 #define SHELL_BUILT_INS_H_
 
-#include "syscall.h"
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
 //        independently scheduled PennOS processes.                           //
 ////////////////////////////////////////////////////////////////////////////////
-
 
 
 /**
