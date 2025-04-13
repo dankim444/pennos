@@ -1,6 +1,7 @@
 #include "fat_routines.h"
 #include "fs_kfuncs.h"
 #include "fs_helpers.h"
+#include "../lib/pennos-errno.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,11 +45,9 @@ int mkfs(const char *fs_name, int num_blocks, int blk_size) {
         return -1;
     }
     
-    // determine actual block size
+    // determine the file system size
     int block_sizes[] = {256, 512, 1024, 2048, 4096};
     int actual_block_size = block_sizes[blk_size];
-    
-    // compute size (for both fat and all of file system)
     int fat_size = num_blocks * actual_block_size;
     int fat_entries = fat_size / 2;
     int num_data_blocks = (num_blocks == 32) ? fat_entries - 2 : fat_entries - 1;
@@ -107,21 +106,21 @@ int mkfs(const char *fs_name, int num_blocks, int blk_size) {
 int mount(const char *fs_name) {
     // check if a filesystem is already mounted
     if (is_mounted) {
-        // set error --> P_ERRNO = P_EBUSY;
+        P_ERRNO = P_EBUSY;
         return -1; // another fs has already been mounted
     }
 
     // open the file with fs_name + set the global fs_fd
     fs_fd = open(fs_name, O_RDWR);
     if (fs_fd == -1) {
-        // set error --> P_ERRNO = P_ENOENT;
+        P_ERRNO = P_ENOENT;
         return -1;
     }
 
     // read the first two bytes to get configuration
     uint16_t config;
     if (read(fs_fd, &config, sizeof(config)) != sizeof(config)) {
-        // set error --> P_ERRNO = P_EINVAL;
+        P_ERRNO = P_READ;
         close(fs_fd);
         fs_fd = -1;
         return -1;
@@ -129,12 +128,16 @@ int mount(const char *fs_name) {
 
     // extract size information from first two bytes
     num_fat_blocks = (config >> 8) & 0xFF;
-    block_size = config & 0xFF;
+    int block_size_config = config & 0xFF;
+
+    // determine actual block size from configuration
+    int block_sizes[] = {256, 512, 1024, 2048, 4096};
+    block_size = block_sizes[block_size_config];
     fat_size = num_fat_blocks * block_size;
 
     // map the FAT into memory
     if (lseek(fs_fd, 0, SEEK_SET) == -1) {
-        // set error -> P_ERRNO = P_EINVAL;
+        P_ERRNO = P_LSEEK;
         close(fs_fd);
         fs_fd = -1;
         return -1;
@@ -142,7 +145,7 @@ int mount(const char *fs_name) {
 
     fat = mmap(NULL, fat_size, PROT_READ | PROT_WRITE, MAP_SHARED, fs_fd, 0);
     if (fat == MAP_FAILED) {
-        // set error --> P_ERRNO = P_EINVAL;
+        P_ERRNO = P_MMAP;
         close(fs_fd);
         fs_fd = -1;
         return -1;
@@ -154,6 +157,9 @@ int mount(const char *fs_name) {
     return 0;
 }
 
+/**
+* Unmounts the current filesystem and reset variables.
+*/
 int unmount() {
     // first check that a file system is actually mounted
     if (!is_mounted) {
@@ -210,7 +216,41 @@ void* mv(void *arg) {
 * Copies the source file to the destination.
 */
 void* cp(void *arg) {
-    return 0;
+    char **args = (char **)arg;
+
+    // check that we have enough arguments
+    if (args[1] == NULL || args[2] == NULL) {
+        // set error --> not enough args
+        return NULL;
+    }
+
+    // check if we're copying from host to PennFAT
+    if (strcmp(args[1], "-h") == 0) {
+        if (args[2] == NULL || args[3] == NULL) {
+            // set error --> not enough args
+            return NULL;
+        }
+        
+        if (copy_host_to_pennfat(args[2], args[3]) != 0) {
+            // set error
+            return NULL;
+        }
+    } else if (args[2] != NULL && strcmp(args[2], "-h") == 0) {
+        if (args[3] == NULL) {
+            // set error --> not enough args
+            return NULL;
+        }
+        
+        if (copy_pennfat_to_host(args[1], args[3]) != 0) {
+            // set error
+            return NULL;
+        }
+    } else {
+        // set error
+        return NULL;
+    }
+    
+    return NULL;
 }
 
 void* rm(void *arg) {
