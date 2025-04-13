@@ -7,11 +7,6 @@
 //       SYSTEM-LEVEL FILE SYSTEM VARIABLES (USER-ACCESSIBLE)                 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// File access mode flags
-#define F_WRITE  1  // Open for writing (create file if it doesn't exist)
-#define F_READ   2  // Open for reading
-#define F_APPEND 4  // Open for appending (write at end of file)
-
 // Reserved standard file descriptors
 #define STDIN_FILENO 0  // Standard input
 #define STDOUT_FILENO 1  // Standard output

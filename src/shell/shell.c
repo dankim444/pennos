@@ -5,6 +5,7 @@
 #include <string.h>
 #include "../fs/fs_syscalls.h"
 #include "stdlib.h"
+#include "../fs/fat_routines.h"
 
 #include <unistd.h> // delete these once finished
 #include <fcntl.h>
