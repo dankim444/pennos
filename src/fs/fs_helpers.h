@@ -2,103 +2,67 @@
 #define FS_HELPERS_H
 
 #include <stdint.h>  // For uint8_t, uint16_t, uint32_t types
-
-////////////////////////////////////////////////////////////////////////////////
-//                          KERNEL FS HELPERS                                 //
-////////////////////////////////////////////////////////////////////////////////
-
-// Forward declaration of file_metadata_t structure
-typedef struct file_metadata_st file_metadata_t;
-
-// Structure for file metadata
-struct file_metadata_st {
-    char filename[32];         // Null-terminated filename
-    uint16_t first_block;      // First block of file data
-    uint32_t size;             // File size in bytes
-    uint8_t permissions;       // File permissions (read/write/execute)
-    uint32_t timestamp;        // Last modification time
-    uint8_t is_used;           // 1 if entry is used, 0 if free
-};
-
-// Maximum number of file descriptors
-#define MAX_GLOBAL_FD 64
-
-// File descriptor table entry structure
-typedef struct {
-    int in_use;               // Whether this fd is in use
-    int meta_idx;             // Index into metadata table
-    uint32_t offset;          // Current file position
-    int flags;                // Open mode flags
-} sys_fd_entry_t;
-
-// Global file descriptor table
-extern sys_fd_entry_t sys_fd_table[MAX_GLOBAL_FD];
+#include "fat_routines.h"
 
 /**
- * Find an unused file descriptor in the system file descriptor table.
+ * Initializes all entries in the file descriptor table to not in use
  * 
- * @return Index of free fd on success, -1 if no free fd available
+ * @param fd_table pointer to the file descriptor table to initialize
  */
-int find_free_fd(void);
+void init_fd_table(fd_entry_t *fd_table);
 
 /**
- * Find a file's metadata entry by name.
+ * Finds the first available file descriptor in the table
  * 
- * @param fname Filename to search for
- * @return Metadata index on success, -1 if file not found
+ * @param fd_table pointer to the file descriptor table to search
+ * @return index of the first free file descriptor, or -1 if none available
  */
-int find_file_metadata(const char *fname);
+int get_free_fd(fd_entry_t *fd_table);
 
 /**
- * Allocate a new file in the metadata table.
+ * Allocates a free block in the FAT
  * 
- * @param fname Filename for the new file
- * @param permissions Initial file permissions
- * @return Metadata index on success, -1 on error
+ * @return block number of the allocated block, or 0 if no free blocks available
  */
-int allocate_new_file(const char *fname, uint8_t permissions);
+uint16_t allocate_block();
 
 /**
- * Get a pointer to a block's data.
+ * Searches for a file in the root directory
  * 
- * @param block_num Block number to access
- * @return Pointer to block data, or NULL on error
+ * @param filename name of the file to find
+ * @param entry pointer to store the directory entry if found
+ * @return offset of the entry in the directory if found, -1 if not found
  */
-void* get_block_data(uint16_t block_num);
+int find_file(const char *filename, dir_entry_t *entry);
 
 /**
- * Follow FAT chain to find block containing a specific offset.
+ * Adds a new file entry to the root directory
  * 
- * @param start_block First block in the chain
- * @param offset Byte offset into the file
- * @param block_offset Output parameter for offset within found block
- * @return Block number containing the offset, or FAT_EOF on error
+ * @param filename name of the file to add
+ * @param size size of the file in bytes
+ * @param first_block block number of the first block of the file
+ * @param type file type (regular, directory, etc.)
+ * @param perm file permissions
+ * @return offset of the new entry in the directory if successful, -1 on error
  */
-uint16_t follow_fat_chain(uint16_t start_block, uint32_t offset, uint32_t *block_offset);
+int add_file_entry(const char *filename, uint32_t size, uint16_t first_block, uint8_t type, uint8_t perm);
 
 /**
- * Read file metadata from the metadata table.
+ * Copies a file from the host OS to the PennFAT filesystem
  * 
- * @param meta_idx Index in metadata table
- * @param metadata Output parameter for file metadata
+ * @param host_filename path to the file on the host OS
+ * @param pennfat_filename name to give the file in PennFAT
  * @return 0 on success, -1 on error
  */
-int read_file_metadata(int meta_idx, file_metadata_t *metadata);
+int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename);
 
 /**
- * Update file metadata in the metadata table.
+ * Copies a file from the PennFAT filesystem to the host OS
  * 
- * @param meta_idx Index in metadata table
- * @param metadata New file metadata
+ * @param pennfat_filename name of the file in PennFAT
+ * @param host_filename path to save the file on the host OS
  * @return 0 on success, -1 on error
  */
-int update_file_metadata(int meta_idx, file_metadata_t *metadata);
-
-/**
- * Get the number of entries in the metadata table.
- * 
- * @return Number of metadata entries
- */
-int get_metadata_count(void);
+int copy_pennfat_to_host(const char *pennfat_filename, const char *host_filename);
 
 #endif

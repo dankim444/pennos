@@ -2,6 +2,7 @@
 #include "fs_kfuncs.h"
 #include "fs_helpers.h"
 #include "../lib/pennos-errno.h"
+#include "../shell/builtins.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,7 +55,7 @@ int mkfs(const char *fs_name, int num_blocks, int blk_size) {
     size_t filesystem_size = fat_size + (actual_block_size * num_data_blocks);
     
     // create the file for the filesystem
-    int fd = open(fs_name, O_RDWR | O_CREAT | O_TRUNC);
+    int fd = open(fs_name, O_RDWR | O_CREAT | O_TRUNC, 0644);
     if (fd == -1) {
         return -1;
     }
@@ -145,7 +146,7 @@ int mount(const char *fs_name) {
 
     fat = mmap(NULL, fat_size, PROT_READ | PROT_WRITE, MAP_SHARED, fs_fd, 0);
     if (fat == MAP_FAILED) {
-        P_ERRNO = P_MMAP;
+        P_ERRNO = P_MAP;
         close(fs_fd);
         fs_fd = -1;
         return -1;
@@ -163,14 +164,14 @@ int mount(const char *fs_name) {
 int unmount() {
     // first check that a file system is actually mounted
     if (!is_mounted) {
-        // set error code --> P_ERRNO = P_FS_NOT_MOUNTED;
+        P_ERRNO = P_FS_NOT_MOUNTED;
         return -1;
     }
 
     // unmap the FAT
     if (fat != NULL) {
         if (munmap(fat, fat_size) == -1) {
-            // set error code --> P_ERRNO = P_EINVAL;
+            P_ERRNO = P_MAP;
             return -1;
         }
         fat = NULL;
@@ -179,7 +180,7 @@ int unmount() {
     // close fs_fd
     if (fs_fd != -1) {
         if (close(fs_fd) == -1) {
-            // set error code --> P_ERRNO = P_EBADF;
+            P_ERRNO = P_EBADF;
             return -1;
         }
         fs_fd = -1;
@@ -201,7 +202,68 @@ void* cat(void *arg) {
 * List all files in the directory.
 */
 void* ls(void *arg) {
-    return 0;
+    // will eventually need args for ls-ing certain files
+    //char **args = (char **)arg;
+    
+    if (!is_mounted) {
+        P_ERRNO = P_FS_NOT_MOUNTED;
+        u_perror("ls");
+        return NULL;
+    }
+    
+    // read the root directory block (always block 1)
+    if (lseek(fs_fd, fat_size, SEEK_SET) == -1) {
+        P_ERRNO = P_LSEEK;
+        u_perror("ls");
+        return NULL;
+    }
+    
+    // read directory entries and print them
+    dir_entry_t dir_entry;
+    int offset = 0;
+    
+    while (offset < block_size) {
+        if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+            P_ERRNO = P_READ;
+            u_perror("ls");
+            break;
+        }
+        
+        // check if we've reached the end of directory
+        if (dir_entry.name[0] == 0) {
+            break;
+        }
+        
+        // skip deleted entries
+        if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
+            offset += sizeof(dir_entry);
+            continue;
+        }
+        
+        // format permission string 
+        // TODO: verify this formatting
+        char perm_str[4] = "---";
+        if (dir_entry.perm & PERM_READ) perm_str[0] = 'r';
+        if (dir_entry.perm & PERM_WRITE) perm_str[1] = 'w';
+        //if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // do we need x?
+        
+        // format time
+        struct tm *tm_info = localtime(&dir_entry.mtime);
+        char time_str[20];
+        strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);
+        
+        // print entry details
+        printf("%2d -%s- %6d %s %s\n", 
+               dir_entry.firstBlock, 
+               perm_str, 
+               dir_entry.size, 
+               time_str, 
+               dir_entry.name);
+        
+        offset += sizeof(dir_entry);
+    }
+    
+    return NULL;
 }
 
 void* touch(void *arg) {
@@ -220,33 +282,39 @@ void* cp(void *arg) {
 
     // check that we have enough arguments
     if (args[1] == NULL || args[2] == NULL) {
-        // set error --> not enough args
+        P_ERRNO = P_EINVAL;
+        u_perror("cp");
         return NULL;
     }
 
     // check if we're copying from host to PennFAT
     if (strcmp(args[1], "-h") == 0) {
         if (args[2] == NULL || args[3] == NULL) {
-            // set error --> not enough args
+            P_ERRNO = P_EINVAL;
+            u_perror("cp");
             return NULL;
         }
         
         if (copy_host_to_pennfat(args[2], args[3]) != 0) {
-            // set error
+            P_ERRNO = P_EFUNC;
+            u_perror("cp");
             return NULL;
         }
     } else if (args[2] != NULL && strcmp(args[2], "-h") == 0) {
         if (args[3] == NULL) {
-            // set error --> not enough args
+            P_ERRNO = P_EINVAL;
+            u_perror("cp");
             return NULL;
         }
         
         if (copy_pennfat_to_host(args[1], args[3]) != 0) {
-            // set error
+            P_ERRNO = P_EFUNC;
+            u_perror("cp");
             return NULL;
         }
     } else {
-        // set error
+        P_ERRNO = P_EUNKNOWN;
+        u_perror("cp");
         return NULL;
     }
     
