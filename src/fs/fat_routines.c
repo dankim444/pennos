@@ -27,7 +27,7 @@ extern int fat_size;
 extern uint16_t *fat;
 extern bool is_mounted;
 extern int MAX_FDS; // TODO: Figure out if we want more file descriptors
-static fd_entry_t fd_table[16]; // file decriptor table
+static fd_entry_t fd_table[16]; // file descriptor table
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -194,8 +194,40 @@ int unmount() {
     return 0;
 }
 
+/**
+* Concatenates and displays files.
+*/
 void* cat(void *arg) {
-    return 0;
+    char **args = (char **) arg;
+
+    // verify that the file system is mounted
+    if (!is_mounted) {
+        P_ERRNO = P_FS_NOT_MOUNTED;
+        u_perror("cat");
+        return NULL;
+    }
+
+    // early return if there is nothing after cat
+    if (args[1] == NULL) {
+        P_ERRNO = P_EINVAL;
+        u_perror("cat");
+        return NULL;
+    }
+
+    // overwrite: cat -w OUTPUT_FILE
+    if (strcmp(args[1], "-w") == 0 && args[2] != NULL) {
+        cat_overwrite(args, fd_table);
+    }
+
+    // append: cat -a OUTPUT_FILE
+    if (strcmp(args[1], "-a") == 0 && args[2] != NULL) {
+        // TODO: implement cat_append
+    }
+    
+    // other cat options not implemented yet
+    P_ERRNO = P_EUNKNOWN;
+    u_perror("cat");
+    return NULL;
 }
 
 /**
@@ -241,7 +273,6 @@ void* ls(void *arg) {
         }
         
         // format permission string 
-        // TODO: verify this formatting
         char perm_str[4] = "---";
         if (dir_entry.perm & PERM_READ) perm_str[0] = 'r';
         if (dir_entry.perm & PERM_WRITE) perm_str[1] = 'w';
@@ -253,23 +284,23 @@ void* ls(void *arg) {
         strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);
         
         // print entry details
-        printf("%2d -%s- %6d %s %s\n", 
-               dir_entry.firstBlock, 
-               perm_str, 
-               dir_entry.size, 
-               time_str, 
-               dir_entry.name);
-        
+        printf("%2d -%s- %6d %s %s\n", dir_entry.firstBlock, perm_str, dir_entry.size, time_str, dir_entry.name);
         offset += sizeof(dir_entry);
     }
     
     return NULL;
 }
 
+/**
+* Creates files or updates timestampes.
+*/
 void* touch(void *arg) {
     return 0;
 }
 
+/**
+* Renames files.
+*/
 void* mv(void *arg) {
     return 0;
 }
@@ -321,6 +352,9 @@ void* cp(void *arg) {
     return NULL;
 }
 
+/**
+* Removes files.
+*/
 void* rm(void *arg) {
     return 0;
 }
