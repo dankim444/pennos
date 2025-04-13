@@ -39,12 +39,14 @@ int det_priorities_arr[19] = {0, 1, 2, 0, 0, 1, 0, 1, 2, 0,
 //                         QUEUE MAINTENANCE FUNCTIONS //
 /////////////////////////////////////////////////////////////////////////////////
 
+// changed the deconstructors to NULL for most queues because when exiting
+// PennOS don't want to double free
 void initialize_scheduler_queues() {
-  zero_priority_queue = vec_new(0, free_pcb);
-  one_priority_queue = vec_new(0, free_pcb);
-  two_priority_queue = vec_new(0, free_pcb);
-  zombie_queue = vec_new(0, free_pcb);
-  sleep_blocked_queue = vec_new(0, free_pcb);
+  zero_priority_queue = vec_new(0, NULL);
+  one_priority_queue = vec_new(0, NULL);
+  two_priority_queue = vec_new(0, NULL);
+  zombie_queue = vec_new(0, NULL);
+  sleep_blocked_queue = vec_new(0, NULL);
   current_pcbs = vec_new(0, free_pcb);
 }
 
@@ -184,7 +186,7 @@ void handle_signal(pcb_t* pcb, int signal) {
       if (pcb->process_state != 'Z') {  // Don't terminate if already zombie
         pcb->process_state = 'Z';
         pcb->process_status = 22;  // TERM_BY_SIG
-        log_generic_event('S', pcb->pid, pcb->priority, pcb->cmd_str);
+        log_generic_event('Z', pcb->pid, pcb->priority, pcb->cmd_str);
         // Remove from current queue and add to zombie queue
         delete_process_from_all_queues(pcb);
         put_pcb_into_correct_queue(pcb);
@@ -199,6 +201,10 @@ void handle_signal(pcb_t* pcb, int signal) {
       pcb->signals[2] = false;
       break;
   }
+}
+
+void shutdown_pennos(void) {
+  scheduling_done = true;
 }
 
 // TODO --> this function needs a solid amt of work
@@ -233,6 +239,20 @@ void scheduler() {
   setitimer(ITIMER_REAL, &it, NULL);
 
   while (!scheduling_done) {
+    // Handle signals
+    if (current_running_pcb != NULL) {
+      for (int i = 0; i < 3; i++) {
+        if (current_running_pcb->signals[i]) {
+          handle_signal(current_running_pcb, i);
+          // If process was terminated, don't continue scheduling it
+          if (current_running_pcb->process_state != 'R') {
+            current_running_pcb = NULL;
+            break;
+          }
+        }
+      }
+    }
+
     // Check sleep/blocked queue to move processes back to scheduable queues
     // once ready
     for (int i = 0; i < vec_len(&sleep_blocked_queue); i++) {
@@ -251,19 +271,6 @@ void scheduler() {
       }
     }
 
-    // Handle signals
-    if (current_running_pcb != NULL) {
-      for (int i = 0; i < 3; i++) {
-        if (current_running_pcb->signals[i]) {
-          handle_signal(current_running_pcb, i);
-          // If process was terminated, don't continue scheduling it
-          if (current_running_pcb->process_state != 'R') {
-            current_running_pcb = NULL;
-            break;
-          }
-        }
-      }
-    }
     curr_priority_queue_num = generate_next_priority();
     current_running_pcb = get_next_pcb(curr_priority_queue_num);
 
