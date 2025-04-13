@@ -184,7 +184,6 @@ int copy_host_to_pennfat(const char* host_filename,
   }
 
   // open the host file
-  // TODO: REPLACE WITH K_OPEN
   int host_fd = open(host_filename, O_RDONLY);
   if (host_fd == -1) {
     P_ERRNO = P_ENOENT;
@@ -192,20 +191,16 @@ int copy_host_to_pennfat(const char* host_filename,
   }
 
   // determine file size by seeking to the end and getting position
-  // TODO: REPLACE WITH K_LSEEK
   off_t file_size = lseek(host_fd, 0, SEEK_END);
   if (file_size == -1) {
     P_ERRNO = P_EINVAL;
-    // TODO: REPLACE WITH K_CLOSE
     close(host_fd);
     return -1;
   }
 
   // go back to beginning of file for reading
-  // TODO: REPLACE WITH K_LSEEK
   if (lseek(host_fd, 0, SEEK_SET) == -1) {
     P_ERRNO = P_EINVAL;
-    // TODO: REPLACE WITH K_CLOSE
     close(host_fd);
     return -1;
   }
@@ -214,7 +209,6 @@ int copy_host_to_pennfat(const char* host_filename,
   uint16_t first_block = allocate_block();
   if (first_block == 0) {
     P_ERRNO = P_EFULL;
-    // TODO: REPLACE WITH K_CLOSE
     close(host_fd);
     return -1;
   }
@@ -223,7 +217,6 @@ int copy_host_to_pennfat(const char* host_filename,
   if (add_file_entry(pennfat_filename, file_size, first_block, TYPE_REGULAR,
                      PERM_READ_WRITE) == -1) {
     // TODO: deallocate the block if failed
-    // TODO: REPLACE WITH K_CLOSE
     close(host_fd);
     return -1;
   }
@@ -232,7 +225,6 @@ int copy_host_to_pennfat(const char* host_filename,
   uint8_t* buffer = (uint8_t*)malloc(block_size);
   if (!buffer) {
     P_ERRNO = P_EINVAL;
-    // TODO: REPLACE WITH K_CLOSE
     close(host_fd);
     return -1;
   }
@@ -242,24 +234,20 @@ int copy_host_to_pennfat(const char* host_filename,
 
   while (bytes_remaining > 0) {
     // read from host file
-    ssize_t bytes_to_read =
-        bytes_remaining < block_size ? bytes_remaining : block_size;
-    // TODO: REPLACE WITH K_READ
+    ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
     ssize_t bytes_read = read(host_fd, buffer, bytes_to_read);
 
     if (bytes_read <= 0) {
-      break;  // reached end of file or error
+      break;  // reached eof or error
     }
 
     // write to PennFAT
     // TODO: REPLACE WITH K_LSEEK
-    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
-            -1 ||
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1 ||
         // TODO: REPLACE WITH K_WRITE
         write(fs_fd, buffer, bytes_read) != bytes_read) {
       P_ERRNO = P_EINVAL;
       free(buffer);
-      // TODO: REPLACE WITH K_CLOSE
       close(host_fd);
       return -1;
     }
@@ -272,7 +260,6 @@ int copy_host_to_pennfat(const char* host_filename,
       if (next_block == 0) {
         P_ERRNO = P_EFULL;
         free(buffer);
-        // TODO: REPLACE WITH K_CLOSE
         close(host_fd);
         return -1;
       }
@@ -284,7 +271,6 @@ int copy_host_to_pennfat(const char* host_filename,
   }
 
   free(buffer);
-  // TODO: REPLACE WITH K_CLOSE
   close(host_fd);
   return 0;
 }
@@ -303,7 +289,6 @@ int copy_pennfat_to_host(const char* pennfat_filename,
   }
 
   // open the host file
-  // TODO: REPLACE WITH K_OPEN
   int host_fd = open(host_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (host_fd == -1) {
     return -1;
@@ -312,7 +297,6 @@ int copy_pennfat_to_host(const char* pennfat_filename,
   // copy the data into buffer
   uint8_t* buffer = (uint8_t*)malloc(block_size);
   if (!buffer) {
-    // TODO: REPLACE WITH K_CLOSE
     close(host_fd);
     return -1;
   }
@@ -326,7 +310,6 @@ int copy_pennfat_to_host(const char* pennfat_filename,
     if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
         -1) {
       free(buffer);
-      // TODO: REPLACE WITH K_CLOSE
       close(host_fd);
       return -1;
     }
@@ -341,10 +324,8 @@ int copy_pennfat_to_host(const char* pennfat_filename,
     }
 
     // write to host file
-    // TODO: REPLACE WITH K_WRITE
     if (write(host_fd, buffer, bytes_read) != bytes_read) {
       free(buffer);
-      // TODO: REPLACE WITH K_CLOSE
       close(host_fd);
       return -1;
     }
@@ -356,7 +337,6 @@ int copy_pennfat_to_host(const char* pennfat_filename,
   }
 
   free(buffer);
-  // TODO: REPLACE WITH K_CLOSE
   close(host_fd);
   return 0;
 }

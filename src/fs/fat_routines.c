@@ -44,7 +44,6 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   size_t filesystem_size = fat_size + (actual_block_size * num_data_blocks);
 
   // create the file for the filesystem
-  // MKFS INTERACTS WITH HOST OS, SYSCALLS OK
   int fd = open(fs_name, O_RDWR | O_CREAT | O_TRUNC, 0644);
   if (fd == -1) {
     return -1;
@@ -52,7 +51,6 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
 
   // extend the file to the required size
   if (ftruncate(fd, filesystem_size) == -1) {
-    // TODO: REPLACE WITH K_CLOSE
     close(fd);
     return -1;
   }
@@ -60,32 +58,27 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   // allocate the FAT
   uint16_t* temp_fat = (uint16_t*)calloc(fat_entries, sizeof(uint16_t));
   if (!temp_fat) {
-    // TODO: REPLACE WITH K_CLOSE
     close(fd);
     return -1;
   }
 
   // initialize the first two entries of FAT (metadata and root directory)
   temp_fat[0] = (num_blocks << 8) | block_size;
-  temp_fat[1] = FAT_EOF;
+  temp_fat[1] = FAT_EOF; // root directory is only stored in one block
 
   // write the FAT to the file
-  // TODO: REPLACE WITH K_WRITE
   if (write(fd, temp_fat, fat_size) != fat_size) {
     free(temp_fat);
     close(fd);
     return -1;
   }
 
-  // initialize the root directory with an empty entry
+  // initialize the root directory
   uint8_t* root_dir = (uint8_t*)calloc(actual_block_size, 1);
-  // write the root directory block
-  // TODO: REPLACE WITH K_LSEEK AND K_WRITE
   if (lseek(fd, fat_size, SEEK_SET) == -1 ||
       write(fd, root_dir, actual_block_size) != actual_block_size) {
     free(temp_fat);
     free(root_dir);
-    // TODO: REPLACE WITH K_CLOSE
     close(fd);
     return -1;
   }
@@ -93,7 +86,6 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   // clean up
   free(temp_fat);
   free(root_dir);
-  // TODO: REPLACE WITH K_CLOSE
   close(fd);
   return 0;
 }
@@ -105,11 +97,10 @@ int mount(const char* fs_name) {
   // check if a filesystem is already mounted
   if (is_mounted) {
     P_ERRNO = P_EBUSY;
-    return -1;  // another fs has already been mounted
+    return -1;
   }
 
   // open the file with fs_name + set the global fs_fd
-  // TODO: REPLACE WITH K_OPEN
   fs_fd = open(fs_name, O_RDWR);
   if (fs_fd == -1) {
     P_ERRNO = P_ENOENT;
@@ -118,18 +109,16 @@ int mount(const char* fs_name) {
 
   // read the first two bytes to get configuration
   uint16_t config;
-  // TODO: REPLACE WITH K_READ
   if (read(fs_fd, &config, sizeof(config)) != sizeof(config)) {
     P_ERRNO = P_READ;
-    // TODO: REPLACE WITH K_CLOSE
     close(fs_fd);
     fs_fd = -1;
     return -1;
   }
 
   // extract size information from first two bytes
-  num_fat_blocks = (config >> 8) & 0xFF;
-  int block_size_config = config & 0xFF;
+  num_fat_blocks = (config >> 8) & 0xFF; // MSB
+  int block_size_config = config & 0xFF; // LSB
 
   // determine actual block size from configuration
   int block_sizes[] = {256, 512, 1024, 2048, 4096};
@@ -137,10 +126,8 @@ int mount(const char* fs_name) {
   fat_size = num_fat_blocks * block_size;
 
   // map the FAT into memory
-  // TODO: REPLACE WITH K_LSEEK
   if (lseek(fs_fd, 0, SEEK_SET) == -1) {
     P_ERRNO = P_LSEEK;
-    // TODO: REPLACE WITH K_CLOSE
     close(fs_fd);
     fs_fd = -1;
     return -1;
@@ -149,7 +136,6 @@ int mount(const char* fs_name) {
   fat = mmap(NULL, fat_size, PROT_READ | PROT_WRITE, MAP_SHARED, fs_fd, 0);
   if (fat == MAP_FAILED) {
     P_ERRNO = P_MAP;
-    // TODO: REPLACE WITH K_CLOSE
     close(fs_fd);
     fs_fd = -1;
     return -1;
@@ -182,7 +168,6 @@ int unmount() {
 
   // close fs_fd
   if (fs_fd != -1) {
-    // TODO: REPLACE WITH K_CLOSE
     if (close(fs_fd) == -1) {
       P_ERRNO = P_EBADF;
       return -1;
@@ -238,6 +223,8 @@ void* cat(void* arg) {
 /**
  * List all files in the directory.
  */
+
+// TODO: address when there are no files
 void* ls(void* arg) {
   // will eventually need args for ls-ing certain files
   // char **args = (char **)arg;
@@ -289,9 +276,8 @@ void* ls(void* arg) {
 
     // format time
     struct tm* tm_info = localtime(&dir_entry.mtime);
-    char time_str[20];
-    strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y",
-             tm_info);  // TODO: check if we're allowed to use strftime
+    char time_str[50];
+    strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);  // TODO: check if we're allowed to use strftime
 
     // print entry details
     printf("%2d -%s- %6d %s %s\n", dir_entry.firstBlock, perm_str,
