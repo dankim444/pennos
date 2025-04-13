@@ -11,6 +11,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#ifndef PROMPT
+#define PROMPT "$ pennfat# "
+#endif
+
 // signal handler function
 static void signal_handler(int signum) {
     // do nothing for SIGINT and SIGTSTP - just ignore them
@@ -41,10 +45,14 @@ int main(int argc, char *argv[]) {
     
     while (true) {
         // print prompt
-        printf("pennfat# ");
+        if (write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
+            // set the error code
+            u_perror("prompt write error");
+            break;
+        }
         
         // read user input using k_read
-        int bytes_read = k_read(STDIN_FILENO, input_buffer, sizeof(input_buffer) - 1);
+        int bytes_read = read(STDIN_FILENO, input_buffer, sizeof(input_buffer) - 1); // might change this to k_read
         
         // check for EOF (ctrl-D)
         if (bytes_read <= 0) {
@@ -82,11 +90,15 @@ int main(int argc, char *argv[]) {
         // execute command
         if (strcmp(args[0], "mkfs") == 0) {
             if (args[1] == NULL || args[2] == NULL || args[3] == NULL) {
-                fprintf(stderr, "Usage: mkfs FS_NAME BLOCKS_IN_FAT BLOCK_SIZE_CONFIG\n");
+                // set error code --> invalid args
+                u_perror("Usage: mkfs FS_NAME BLOCKS_IN_FAT BLOCK_SIZE_CONFIG\n");
             } else {
                 int blocks_in_fat = atoi(args[2]);
                 int block_size = atoi(args[3]);
-                mkfs(args[1], blocks_in_fat, block_size); // make sure to error check this jawn
+                if (mkfs(args[1], blocks_in_fat, block_size) != 0) {
+                    // set error code --> failed command
+                    u_perror("mkfs");
+                }
             }
         } else if (strcmp(args[0], "mount") == 0) {
             if (args[1] == NULL) {
@@ -117,12 +129,15 @@ int main(int argc, char *argv[]) {
                 // set error code
                 u_perror("cat");
             }
-        } else if (strcmp(args[0], "chmod") == 0) {
-            if (chmod(args) != 0) {
-                // set error code
-                u_perror("chmod");
-            }
-        } else if (strcmp(args[0], "mv") == 0) {
+        } 
+        // implement after you figure out the chmod type issue
+        // else if (strcmp(args[0], "chmod") == 0) {
+        //     if (chmod(args) != 0) {
+        //         // set error code
+        //         u_perror("chmod");
+        //     }
+        // } 
+        else if (strcmp(args[0], "mv") == 0) {
             if (mv(args) != 0) {
                 // set error code
                 u_perror("mv");
@@ -140,6 +155,8 @@ int main(int argc, char *argv[]) {
         } else {
             fprintf(stderr, "pennfat: command not found: %s\n", args[0]);
         }
+
+        // free resource and re-prompt
         free(parsed_command);
     }
     // note any other resources we might need to free (?)
