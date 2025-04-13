@@ -12,7 +12,9 @@ extern int fat_size;
 extern uint16_t* fat;
 extern bool is_mounted;
 extern int MAX_FDS;  // TODO: Figure out if we want more file descriptors
-extern fd_entry_t fd_table[16];  // file descriptor table
+extern fd_entry_t fd_table[1024];  // file descriptor table
+
+// void print_fat_state(const char* label);
 
 /**
  * Initializes all entries in the file descriptor table to not in use
