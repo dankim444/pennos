@@ -8,6 +8,98 @@
 #include "fat_routines.h"
 #include "fs_helpers.h"
 #include "fs_syscalls.h"  // F_READ, F_WRITE, F_APPEND, STDIN_FILENO, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO
+
+int k_open(const char* fname, int mode) {
+  // Validate inputs
+  if (!is_mounted) {
+    P_ERRNO = P_FS_NOT_MOUNTED;
+    return -1;
+  }
+
+  if (fname == NULL) {
+    P_ERRNO = P_EINVAL;
+    return -1;
+  }
+
+  // Check that mode is valid
+  if (mode == 0 || (mode & ~(F_READ | F_WRITE | F_APPEND))) {
+    P_ERRNO = P_EINVAL;
+    return -1;
+  }
+
+  // Find a free file descriptor
+  int fd = get_free_fd(fd_table);
+  if (fd < 0) {
+    P_ERRNO = P_EFULL;
+    return -1;
+  }
+
+  // Check if file exists
+  dir_entry_t entry;
+  int entry_offset = find_file(fname, &entry);
+
+  // File doesn't exist
+  if (entry_offset < 0) {
+    // Can't open a non-existent file for read-only
+    if (mode == F_READ) {
+      P_ERRNO = P_ENOENT;
+      return -1;
+    }
+
+    // Create a new file (for F_WRITE or F_APPEND modes)
+    uint16_t first_block = allocate_block();
+    if (first_block == 0) {
+      P_ERRNO = P_EFULL;
+      return -1;
+    }
+
+    // Add file entry to directory
+    if (add_file_entry(fname, 0, first_block, TYPE_REGULAR, PERM_READ_WRITE) <
+        0) {
+      // Free the allocated block on failure
+      fat[first_block] = FAT_FREE;
+      return -1;  // P_ERRNO already set by add_file_entry
+    }
+
+    // Get the directory entry of the newly created file
+    if (find_file(fname, &entry) < 0) {
+      P_ERRNO = P_EUNKNOWN;
+      return -1;
+    }
+  } else {
+    // File exists, check if we can open it in the requested mode
+    // Check for exclusive write access
+    if ((mode & F_WRITE) || (mode & F_APPEND)) {
+      // Check if file is already open with write or append
+      for (int i = 0; i < MAX_FDS; i++) {
+        if (fd_table[i].in_use && strcmp(fd_table[i].filename, fname) == 0 &&
+            (fd_table[i].mode & (F_WRITE | F_APPEND))) {
+          P_ERRNO = P_EBUSY;
+          return -1;
+        }
+      }
+    }
+  }
+
+  // Set up the file descriptor entry
+  fd_table[fd].in_use = 1;
+  strncpy(fd_table[fd].filename, fname, sizeof(fd_table[fd].filename) - 1);
+  fd_table[fd].filename[sizeof(fd_table[fd].filename) - 1] =
+      '\0';  // Ensure null termination
+  fd_table[fd].size = entry.size;
+  fd_table[fd].first_block = entry.firstBlock;
+  fd_table[fd].mode = mode;
+
+  // Set initial position based on mode
+  if (mode & F_APPEND) {
+    fd_table[fd].position = entry.size;
+  } else {
+    fd_table[fd].position = 0;
+  }
+
+  return fd;
+}
+
 /************************* OLD BELOW  **************************/
 // // Global file descriptor table
 // sys_fd_entry_t sys_fd_table[MAX_GLOBAL_FD];
