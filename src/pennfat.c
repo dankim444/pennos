@@ -90,6 +90,7 @@ int main(int argc, char *argv[]) {
         // execute command
         if (strcmp(args[0], "mkfs") == 0) {
             if (args[1] == NULL || args[2] == NULL || args[3] == NULL) {
+                P_ERRNO = P_EINVAL;
                 u_perror("Usage: mkfs FS_NAME BLOCKS_IN_FAT BLOCK_SIZE_CONFIG\n");
             } else {
                 int blocks_in_fat = atoi(args[2]);
@@ -100,10 +101,11 @@ int main(int argc, char *argv[]) {
             }
         } else if (strcmp(args[0], "mount") == 0) {
             if (args[1] == NULL) {
-                fprintf(stderr, "Usage: mount FS_NAME\n");
+                P_ERRNO = P_EINVAL;
+                u_perror("Usage: mount FS_NAME\n");
             } else {
                 if (mount(args[1]) != 0) {
-                    u_perror("unexpected command");
+                    u_perror("mount");
                 }
             }
         } else if (strcmp(args[0], "unmount") == 0) {
@@ -111,17 +113,11 @@ int main(int argc, char *argv[]) {
                 u_perror("unmount");
             }
         } else if (strcmp(args[0], "ls") == 0) {
-            if (ls(args) != 0) {
-                u_perror("ls");
-            }
+            ls(args);
         } else if (strcmp(args[0], "touch") == 0) {
-            if (touch(args) != 0) {
-                u_perror("touch");
-            }
+            touch(args);
         } else if (strcmp(args[0], "cat") == 0) {
-            if (cat(args) != 0) {
-                u_perror("cat");
-            }
+            cat(args);
         } 
         // implement after you figure out the chmod type issue
         // else if (strcmp(args[0], "chmod") == 0) {
@@ -131,17 +127,11 @@ int main(int argc, char *argv[]) {
         //     }
         // } 
         else if (strcmp(args[0], "mv") == 0) {
-            if (mv(args) != 0) {
-                u_perror("mv");
-            }
+            mv(args);
         } else if (strcmp(args[0], "rm") == 0) {
-            if (rm(args) != 0) {
-                u_perror("rm");
-            }
+            rm(args);
         } else if (strcmp(args[0], "cp") == 0) {
-            if (cp(args) != 0) {
-                u_perror("cp");
-            }
+            cp(args);
         } else {
             fprintf(stderr, "pennfat: command not found: %s\n", args[0]);
         }

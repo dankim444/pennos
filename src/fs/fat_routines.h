@@ -121,7 +121,7 @@ void* cat(void *arg);
  * including block number, permissions, size, and name.
  * 
  * @param arg Arguments array (command line arguments)
- * @return void pointer (unused)
+ * @return 0 on success, -1 on error
  */
 void* ls(void *arg);
 
@@ -161,7 +161,7 @@ void* mv(void *arg);
  * - cp SOURCE -h DEST (copies from PennFAT to host OS)
  * 
  * @param arg Arguments array (command line arguments)
- * @return void pointer (unused)
+ * @return return 0 on success, -1 on error
  */
 void* cp(void *arg);
 
