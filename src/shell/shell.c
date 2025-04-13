@@ -200,6 +200,9 @@ void* shell_main(void*) {
       // TODO --> handle error via some valid print
       free(cmd);
       continue;
+    } else if (child_pid == 0) {
+      free(cmd);
+      continue;
     }
 
     // If background, add the process to the job list.

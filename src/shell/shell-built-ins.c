@@ -148,23 +148,23 @@ void* b_kill(void* arg) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void* b_nice(void* arg) {
-    // TODO --> implement b_nice
-    return NULL;
+  // TODO --> implement b_nice
+  return NULL;
 }
 
 void* nice_pid(void* arg) {
-    char* endptr;
-    int errno = 0; 
-    int new_priority = (int) strtol(((char**)arg)[1], &endptr, 10);
-    if (*endptr != '\0' || errno != 0) { // error catch
-        return NULL;
-    }
-    pid_t pid = (pid_t) strtol(((char**)arg)[2], &endptr, 10);
-    if (*endptr != '\0' || errno != 0) {
-        return NULL;
-    }
-    s_nice(pid, new_priority);
+  char* endptr;
+  int errno = 0;
+  int new_priority = (int)strtol(((char**)arg)[1], &endptr, 10);
+  if (*endptr != '\0' || errno != 0) {  // error catch
     return NULL;
+  }
+  pid_t pid = (pid_t)strtol(((char**)arg)[2], &endptr, 10);
+  if (*endptr != '\0' || errno != 0) {
+    return NULL;
+  }
+  s_nice(pid, new_priority);
+  return NULL;
 }
 
 void* man(void* arg) {
