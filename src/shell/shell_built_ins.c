@@ -1,4 +1,4 @@
-#include "shell-built-ins.h"
+#include "shell_built_ins.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -28,10 +28,10 @@ extern pcb_t* current_running_pcb; // DELETE
 ////////////////////////////////////////////////////////////////////////////////
 
 
-void* cat(void *arg) {
-    // TODO --> implement cat
-    return NULL;
-}
+// void* cat(void *arg) {
+//     // TODO --> implement cat
+//     return NULL;
+// }
 
 void* b_sleep(void *arg) {
     // TODO --> implement sleep
@@ -49,30 +49,30 @@ void* echo(void *arg) {
     return NULL;
 }
 
-void* ls(void *arg) {
-    // TODO --> implement ls
-    return NULL;
-}
+// void* ls(void *arg) {
+//     // TODO --> implement ls
+//     return NULL;
+// }
 
-void* touch(void *arg) {
-    // TODO --> implement touch
-    return NULL;
-}
+// void* touch(void *arg) {
+//     // TODO --> implement touch
+//     return NULL;
+// }
 
-void* mv(void *arg) {
-    // TODO --> implement mv
-    return NULL;
-}
+// void* mv(void *arg) {
+//     // TODO --> implement mv
+//     return NULL;
+// }
 
-void* cp(void *arg) {
-    // TODO --> implement cp
-    return NULL;
-}
+// void* cp(void *arg) {
+//     // TODO --> implement cp
+//     return NULL;
+// }
 
-void* rm(void *arg) {
-    // TODO --> implement rm
-    return NULL;
-}
+// void* rm(void *arg) {
+//     // TODO --> implement rm
+//     return NULL;
+// }
 
 void* chmod(void *arg) {
     // TODO --> implement chmod
