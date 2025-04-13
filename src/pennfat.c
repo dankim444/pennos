@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #ifndef PROMPT
 #define PROMPT "$ pennfat# "

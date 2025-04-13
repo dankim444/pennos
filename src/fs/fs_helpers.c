@@ -258,6 +258,68 @@ int copy_host_to_pennfat(const char *host_filename, const char *pennfat_filename
     return 0;
 }
 
+// helper function to copy data from PennFAT to host OS
 int copy_pennfat_to_host(const char *pennfat_filename, const char *host_filename) {
+    if (!is_mounted) {
+        P_ERRNO = P_FS_NOT_MOUNTED;
+        return -1;
+    }
+    
+    // find the file in PennFAT
+    dir_entry_t entry;
+    if (find_file(pennfat_filename, &entry) == -1) {
+        return -1;
+    }
+    
+    // open the host file
+    int host_fd = open(host_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (host_fd == -1) {
+        P_ERRNO = P_EINVAL;
+        return -1;
+    }
+    
+    // copy the data into buffer
+    uint8_t *buffer = (uint8_t *)malloc(block_size);
+    if (!buffer) {
+        P_ERRNO = P_EINVAL;
+        close(host_fd);
+        return -1;
+    }
+    
+    uint16_t current_block = entry.firstBlock;
+    uint32_t bytes_remaining = entry.size;
+    
+    while (bytes_remaining > 0 && current_block != 0 && current_block != 0xFFFF) {
+        // read from PennFAT
+        if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
+            P_ERRNO = P_EINVAL;
+            free(buffer);
+            close(host_fd);
+            return -1;
+        }
+        
+        ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+        ssize_t bytes_read = read(fs_fd, buffer, bytes_to_read);
+        
+        if (bytes_read <= 0) {
+            break;
+        }
+        
+        // write to host file
+        if (write(host_fd, buffer, bytes_read) != bytes_read) {
+            P_ERRNO = P_EINVAL;
+            free(buffer);
+            close(host_fd);
+            return -1;
+        }
+        
+        bytes_remaining -= bytes_read;
+        
+        // move to the next block
+        current_block = fat[current_block];
+    }
+    
+    free(buffer);
+    close(host_fd);
     return 0;
 }
