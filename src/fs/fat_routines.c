@@ -140,7 +140,6 @@ int mount(const char* fs_name) {
   // initialize the fd table
   init_fd_table(fd_table);
   is_mounted = true;
-  // print_fat_state("After mounting");
   return 0;
 }
 
@@ -219,6 +218,7 @@ void* cat(void* arg) {
 /**
 * List all files in the directory.
 */
+// TODO: REWORK --> need to use k_ functions or wrap entirely with k_ls
 void* ls(void* arg) {
   // will eventually need args for ls-ing certain files
   // char **args = (char **)arg;
@@ -267,10 +267,8 @@ void* ls(void* arg) {
 
       // format permission string
       char perm_str[4] = "---";
-      if (dir_entry.perm & PERM_READ)
-        perm_str[0] = 'r';
-      if (dir_entry.perm & PERM_WRITE)
-        perm_str[1] = 'w';
+      if (dir_entry.perm & PERM_READ) perm_str[0] = 'r';
+      if (dir_entry.perm & PERM_WRITE) perm_str[1] = 'w';
       // if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // do we need x?
 
     // format time
