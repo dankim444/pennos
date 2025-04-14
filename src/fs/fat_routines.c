@@ -16,16 +16,12 @@
 #include <unistd.h>
 
 ////////////////////////////////////////////////////////////////////////////////
-//                                 GLOBALS                                    //
-////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
 //                                 ROUTINES                                   //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Creates a PennFAT filesystem in the file named fs_name at the OS-level
- */
+* Creates a PennFAT filesystem in the file named fs_name at the OS-level
+*/
 int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   // validate arguments
   if (num_blocks < 1 || num_blocks > 32) {
@@ -91,8 +87,8 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
 }
 
 /**
- * Mounts a filesystem with name fs_name by loading its FAT into memory.
- */
+* Mounts a filesystem with name fs_name by loading its FAT into memory.
+*/
 int mount(const char* fs_name) {
   // check if a filesystem is already mounted
   if (is_mounted) {
@@ -148,8 +144,8 @@ int mount(const char* fs_name) {
 }
 
 /**
- * Unmounts the current filesystem and reset variables.
- */
+* Unmounts the current filesystem and reset variables.
+*/
 int unmount() {
   // first check that a file system is actually mounted
   if (!is_mounted) {
@@ -184,8 +180,8 @@ int unmount() {
 }
 
 /**
- * Concatenates and displays files.
- */
+* Concatenates and displays files.
+*/
 void* cat(void* arg) {
   char** args = (char**)arg;
 
@@ -221,10 +217,8 @@ void* cat(void* arg) {
 }
 
 /**
- * List all files in the directory.
- */
-
-// TODO: address when there are no files
+* List all files in the directory.
+*/
 void* ls(void* arg) {
   // will eventually need args for ls-ing certain files
   // char **args = (char **)arg;
@@ -289,22 +283,22 @@ void* ls(void* arg) {
 }
 
 /**
- * Creates files or updates timestampes.
- */
+* Creates files or updates timestampes.
+*/
 void* touch(void* arg) {
   return 0;
 }
 
 /**
- * Renames files.
- */
+* Renames files.
+*/
 void* mv(void* arg) {
   return 0;
 }
 
 /**
- * Copies the source file to the destination.
- */
+* Copies the source file to the destination.
+*/
 void* cp(void* arg) {
   char** args = (char**)arg;
 
@@ -322,9 +316,9 @@ void* cp(void* arg) {
       u_perror("cp");
       return NULL;
     }
-    // TODO: replace system calls
+
     if (copy_host_to_pennfat(args[2], args[3]) != 0) {
-      P_ERRNO = P_EFUNC;
+      // error should aready be set by the function
       u_perror("cp");
       return NULL;
     }
@@ -334,9 +328,9 @@ void* cp(void* arg) {
       u_perror("cp");
       return NULL;
     }
-    // TODO: replace system calls
+
     if (copy_pennfat_to_host(args[1], args[3]) != 0) {
-      P_ERRNO = P_EFUNC;
+      // error set by function
       u_perror("cp");
       return NULL;
     }
@@ -350,8 +344,8 @@ void* cp(void* arg) {
 }
 
 /**
- * Removes files.
- */
+* Removes files.
+*/
 void* rm(void* arg) {
   return 0;
 }

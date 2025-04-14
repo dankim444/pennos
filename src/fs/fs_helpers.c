@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 ////////////////////////////////////////////////////////////////////////////////
-//                                 HELPERS                                    //
+//                                 GLOBALS                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
 int fs_fd = -1;
@@ -25,8 +25,12 @@ int num_fat_blocks = 0;
 int fat_size = 0;
 uint16_t* fat = NULL;
 bool is_mounted = false;
-int MAX_FDS = 16;
-fd_entry_t fd_table[16];
+int MAX_FDS = 1024;
+fd_entry_t fd_table[1024];
+
+////////////////////////////////////////////////////////////////////////////////
+//                            FD TABLE HELPERS                                //
+////////////////////////////////////////////////////////////////////////////////
 
 // helper for initializing the fd table
 void init_fd_table(fd_entry_t* fd_table) {
@@ -47,14 +51,19 @@ int get_free_fd(fd_entry_t* fd_table) {
 
 // helper function to allocate a block
 uint16_t allocate_block() {
-  // start from block 2 (blocks 0 and 1 are reserved)
-  for (int i = 2; i < fat_size / 2; i++) {
-    if (fat[i] == FAT_FREE) {
-      fat[i] = FAT_EOF;
-      return i;
-    }
+  if (fat == NULL) {
+      P_ERRNO = P_FS_NOT_MOUNTED;
+      return 0;
   }
-  return 0;  // indicates error in uint16_t
+  
+  // blocks 0 and 1 are reserved
+  for (int i = 2; i < fat_size / 2; i++) {
+      if (fat[i] == FAT_FREE) {
+          fat[i] = FAT_EOF;
+          return i;
+      }
+  }
+  return 0;
 }
 
 // helper function to find a file in the root directory
@@ -175,9 +184,12 @@ int add_file_entry(const char* filename,
   return -1;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//                                CP HELPERS                                  //
+////////////////////////////////////////////////////////////////////////////////
+
 // helper function to copy data from host OS to PennFAT
-int copy_host_to_pennfat(const char* host_filename,
-                         const char* pennfat_filename) {
+int copy_host_to_pennfat(const char* host_filename, const char* pennfat_filename) {
   if (!is_mounted) {
     P_ERRNO = P_FS_NOT_MOUNTED;
     return -1;
@@ -186,37 +198,29 @@ int copy_host_to_pennfat(const char* host_filename,
   // open the host file
   int host_fd = open(host_filename, O_RDONLY);
   if (host_fd == -1) {
-    P_ERRNO = P_ENOENT;
+    P_ERRNO = P_EOPEN;
     return -1;
   }
 
   // determine file size by seeking to the end and getting position
   off_t file_size = lseek(host_fd, 0, SEEK_END);
   if (file_size == -1) {
-    P_ERRNO = P_EINVAL;
+    P_ERRNO = P_LSEEK;
     close(host_fd);
     return -1;
   }
 
   // go back to beginning of file for reading
   if (lseek(host_fd, 0, SEEK_SET) == -1) {
-    P_ERRNO = P_EINVAL;
+    P_ERRNO = P_LSEEK;
     close(host_fd);
     return -1;
   }
 
-  // allocate the first block
-  uint16_t first_block = allocate_block();
-  if (first_block == 0) {
-    P_ERRNO = P_EFULL;
-    close(host_fd);
-    return -1;
-  }
-
-  // create the file entry in the directory
-  if (add_file_entry(pennfat_filename, file_size, first_block, TYPE_REGULAR,
-                     PERM_READ_WRITE) == -1) {
-    // TODO: deallocate the block if failed
+  // open the destination file in PennFAT
+  int pennfat_fd = k_open(pennfat_filename, F_WRITE);
+  if (pennfat_fd < 0) {
+    // error is already set by k_open
     close(host_fd);
     return -1;
   }
@@ -224,12 +228,12 @@ int copy_host_to_pennfat(const char* host_filename,
   // copy the data into this buffer
   uint8_t* buffer = (uint8_t*)malloc(block_size);
   if (!buffer) {
-    P_ERRNO = P_EINVAL;
+    P_ERRNO = P_EMALLOC;
+    k_close(pennfat_fd);
     close(host_fd);
     return -1;
   }
 
-  uint16_t current_block = first_block;
   uint32_t bytes_remaining = file_size;
 
   while (bytes_remaining > 0) {
@@ -241,105 +245,77 @@ int copy_host_to_pennfat(const char* host_filename,
       break;  // reached eof or error
     }
 
-    // write to PennFAT
-    // TODO: REPLACE WITH K_LSEEK
-    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1 ||
-        // TODO: REPLACE WITH K_WRITE
-        write(fs_fd, buffer, bytes_read) != bytes_read) {
-      P_ERRNO = P_EINVAL;
+    // write to PennFAT using k_write
+    if (k_write(pennfat_fd, (const char*)buffer, bytes_read) != bytes_read) {
+      // errors are already set in the kernel functions
       free(buffer);
+      k_close(pennfat_fd);
       close(host_fd);
       return -1;
     }
 
     bytes_remaining -= bytes_read;
-
-    // if more data to write, allocate a new block
-    if (bytes_remaining > 0) {
-      uint16_t next_block = allocate_block();
-      if (next_block == 0) {
-        P_ERRNO = P_EFULL;
-        free(buffer);
-        close(host_fd);
-        return -1;
-      }
-
-      // update the FAT chain
-      fat[current_block] = next_block;
-      current_block = next_block;
-    }
   }
 
   free(buffer);
+  k_close(pennfat_fd);
   close(host_fd);
   return 0;
 }
 
 // helper function to copy data from PennFAT to host OS
-int copy_pennfat_to_host(const char* pennfat_filename,
-                         const char* host_filename) {
+int copy_pennfat_to_host(const char* pennfat_filename, const char* host_filename) {
   if (!is_mounted) {
-    return -1;
+      P_ERRNO = P_FS_NOT_MOUNTED;
+      return -1;
   }
-
-  // find the file in PennFAT
-  dir_entry_t entry;
-  if (find_file(pennfat_filename, &entry) == -1) {
-    return -1;
+  
+  // open the PennFAT file
+  int pennfat_fd = k_open(pennfat_filename, F_READ);
+  if (pennfat_fd < 0) {
+      // error already set by k_open
+      return -1;
   }
-
+  
   // open the host file
   int host_fd = open(host_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (host_fd == -1) {
-    return -1;
-  }
-
-  // copy the data into buffer
-  uint8_t* buffer = (uint8_t*)malloc(block_size);
-  if (!buffer) {
-    close(host_fd);
-    return -1;
-  }
-
-  uint16_t current_block = entry.firstBlock;
-  uint32_t bytes_remaining = entry.size;
-
-  while (bytes_remaining > 0 && current_block != 0 && current_block != 0xFFFF) {
-    // read from PennFAT
-    // TODO: REPLACE WITH K_LSEEK
-    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
-        -1) {
-      free(buffer);
-      close(host_fd);
+      P_ERRNO = P_EINVAL;
+      k_close(pennfat_fd);
       return -1;
-    }
-
-    ssize_t bytes_to_read =
-        bytes_remaining < block_size ? bytes_remaining : block_size;
-    // TODO: REPLACE WITH K_READ
-    ssize_t bytes_read = read(fs_fd, buffer, bytes_to_read);
-
-    if (bytes_read <= 0) {
-      break;
-    }
-
-    // write to host file
-    if (write(host_fd, buffer, bytes_read) != bytes_read) {
-      free(buffer);
-      close(host_fd);
-      return -1;
-    }
-
-    bytes_remaining -= bytes_read;
-
-    // move to the next block
-    current_block = fat[current_block];
   }
-
-  free(buffer);
+  
+  // allocate buffer for data transfer
+  char buffer[4096]; // TODO: might want to malloc for buffer
+  ssize_t bytes_read;
+  
+  // read from PennFAT file and write to host file
+  while ((bytes_read = k_read(pennfat_fd, sizeof(buffer), buffer)) > 0) {
+      if (write(host_fd, buffer, bytes_read) != bytes_read) {
+          P_ERRNO = P_EINVAL;
+          close(host_fd);
+          k_close(pennfat_fd);
+          return -1;
+      }
+  }
+  
+  // check for read error
+  if (bytes_read < 0) {
+      // error already set by k_read
+      close(host_fd);
+      k_close(pennfat_fd);
+      return -1;
+  }
+  
+  // cleanup
   close(host_fd);
+  k_close(pennfat_fd);
   return 0;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//                                CAT HELPERS                                 //
+////////////////////////////////////////////////////////////////////////////////
 
 // helper function to update the size of a file in the directory entry
 int update_file_size(const char* filename, uint32_t new_size) {

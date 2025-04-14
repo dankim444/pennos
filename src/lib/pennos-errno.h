@@ -20,6 +20,8 @@ extern int P_ERRNO; // Global errno variable that is set to different
 #define P_LSEEK 11 // Interrupted LSEEK call
 #define P_MAP 12 // Interrupted MAP call
 #define P_EFUNC 13 // Error comes from a custom function
+#define P_EOPEN 14 // Error when trying to open a file
+#define P_EMALLOC 15 // Error when trying to malloc
 #define P_EUNKNOWN 99 // Catch-all unknown error
 
 #endif

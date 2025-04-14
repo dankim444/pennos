@@ -4,6 +4,10 @@
 #include <stdint.h>  // For uint8_t, uint16_t, uint32_t types
 #include "fat_routines.h"
 
+////////////////////////////////////////////////////////////////////////////////
+//                                 GLOBALS                                    //
+////////////////////////////////////////////////////////////////////////////////
+
 // Global variables to track the current mounted filesystem
 extern int fs_fd;
 extern int block_size;
@@ -12,7 +16,11 @@ extern int fat_size;
 extern uint16_t* fat;
 extern bool is_mounted;
 extern int MAX_FDS;  // TODO: Figure out if we want more file descriptors
-extern fd_entry_t fd_table[16];  // file descriptor table
+extern fd_entry_t fd_table[1024];  // file descriptor table
+
+////////////////////////////////////////////////////////////////////////////////
+//                            FD TABLE HELPERS                                //
+////////////////////////////////////////////////////////////////////////////////
 
 /**
  * Initializes all entries in the file descriptor table to not in use
@@ -61,6 +69,10 @@ int add_file_entry(const char* filename,
                    uint8_t type,
                    uint8_t perm);
 
+////////////////////////////////////////////////////////////////////////////////
+//                                CP HELPERS                                  //
+////////////////////////////////////////////////////////////////////////////////
+
 /**
  * Copies a file from the host OS to the PennFAT filesystem
  *
@@ -80,6 +92,11 @@ int copy_host_to_pennfat(const char* host_filename,
  */
 int copy_pennfat_to_host(const char* pennfat_filename,
                          const char* host_filename);
+
+
+////////////////////////////////////////////////////////////////////////////////
+//                                CAT HELPERS                                 //
+////////////////////////////////////////////////////////////////////////////////
 
 /**
  * Updates the size of a file.
