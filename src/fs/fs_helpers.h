@@ -79,8 +79,9 @@ int add_file_entry(const char* filename,
 *
 * @param entry the entry struct of the file to mark as deleted.
 * @param offset the offset of the entry in the directory
+* @returns 0 on success, -1 on error
 */
-void* mark_entry_as_deleted(dir_entry_t* entry, int offset);
+int mark_entry_as_deleted(dir_entry_t* entry, int offset);
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                CP HELPERS                                  //
