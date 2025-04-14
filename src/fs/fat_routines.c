@@ -203,7 +203,7 @@ void* cat(void* arg) {
   // overwrite: cat -w OUTPUT_FILE
   if (strcmp(args[1], "-w") == 0 && args[2] != NULL) {
     // TODO: REPLACE SYSTEM CALLS WITH KERNEL IMPLEMENTATIONS
-    cat_overwrite(args, fd_table);
+    return cat_overwrite(args, fd_table);
   }
 
   // append: cat -a OUTPUT_FILE

@@ -49,25 +49,6 @@ int get_free_fd(fd_entry_t* fd_table) {
   return -1;
 }
 
-// void print_fat_state(const char* label) {
-//   printf("\n--- FAT STATE: %s ---\n", label);
-
-//   printf("First 10 entries:\n");
-//   for (int i = 0; i < 10 && i < fat_size / 2; i++) {
-//     printf("FAT[%d] = 0x%04x\n", i, fat[i]);
-//   }
-
-//   int free_count = 0;
-//   for (int i = 2; i < fat_size / 2; i++) {
-//     if (fat[i] == FAT_FREE)
-//       free_count++;
-//   }
-
-//   printf("Total free blocks: %d\n", free_count);
-//   printf("Total usable blocks: %d\n", fat_size / 2 - 2);
-//   printf("------------------------\n\n");
-// }
-
 // helper function to allocate a block
 uint16_t allocate_block() {
   // print_fat_state("Before allocating block");
@@ -402,170 +383,37 @@ int copy_pennfat_to_host(const char* pennfat_filename, const char* host_filename
 //                                CAT HELPERS                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// helper function to update the size of a file in the directory entry
-int update_file_size(const char* filename, uint32_t new_size) {
-  if (!is_mounted) {
-    P_ERRNO = P_FS_NOT_MOUNTED;
-    return -1;
-  }
-
-  // find the file
-  dir_entry_t entry;
-  int offset = find_file(filename, &entry);
-  if (offset == -1) {
-    // error is set by find_file
-    return -1;
-  }
-
-  // update the size field
-  entry.size = new_size;
-  entry.mtime = time(NULL);
-
-  // write the updated entry back to the directory
-  // TODO: REPLACE WITH K_LSEEK
-  if (lseek(fs_fd, fat_size + offset, SEEK_SET) == -1) {
-    P_ERRNO = P_LSEEK;
-    return -1;
-  }
-
-  // TODO: REPLACE WITH K_WRITE
-  if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
-    P_ERRNO = P_EINVAL;
-    return -1;
-  }
-
-  return 0;
-}
-
 // helper for cat -w OUTPUT_FILE
 void* cat_overwrite(char** args, fd_entry_t* fd_table) {
-  dir_entry_t existing;
-  if (find_file(args[2], &existing) >= 0) {
-    // first check if anyone has the file open
-    for (int i = 0; i < MAX_FDS; i++) {
-      if (fd_table[i].in_use && strcmp(fd_table[i].filename, args[2]) == 0) {
-        P_ERRNO = P_EBUSY;
-        u_perror("cat");
-        return NULL;
-      }
-    }
-
-    // TODO: we should add a proper k_unlink function to handle this
-    // for now, just mark the file entry as deleted
-    // TODO: REPLACE WITH K_LSEEK
-    if (lseek(fs_fd, fat_size + find_file(args[2], NULL), SEEK_SET) == -1) {
-      P_ERRNO = P_LSEEK;
+  // open the output file with write mode
+  int fd = k_open(args[2], F_WRITE);
+  if (fd < 0) {
+      // k_open already sets P_ERRNO
       u_perror("cat");
       return NULL;
-    }
-
-    char deleted = 1;  // mark as deleted
-                       // TODO: REPLACE WITH K_WRITE
-    if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
-      P_ERRNO = P_EINVAL;
-      u_perror("cat");
-      return NULL;
-    }
-
-    // free the FAT chain for this file
-    uint16_t block = existing.firstBlock;
-    while (block != 0 && block != FAT_EOF) {
-      uint16_t next_block = fat[block];
-      fat[block] = FAT_FREE;
-      block = next_block;
-    }
   }
-
-  // allocate first block for the new file
-  uint16_t first_block = allocate_block();
-  if (first_block == 0) {
-    P_ERRNO = P_EFULL;
-    u_perror("cat");
-    return NULL;
-  }
-
-  // create a new file entry with zero size initially
-  if (add_file_entry(args[2], 0, first_block, TYPE_REGULAR, PERM_READ_WRITE) ==
-      -1) {
-    // error is set by add_file_entry
-    u_perror("cat");
-    fat[first_block] = FAT_FREE;  // clean up allocated block
-    return NULL;
-  }
-
+  
   // read from stdin and write to the file
   char buffer[1024];
-  uint16_t current_block = first_block;
-  uint32_t total_bytes = 0;
-  uint32_t block_offset = 0;
-
+  
   while (1) {
-    // TODO: REPLACE WITH K_READ
-    ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
-
-    if (bytes_read <= 0) {  // eof or ctrl-d
-      break;
-    }
-
-    // we may need multiple blocks to store the data
-    size_t bytes_to_write = bytes_read;
-    size_t buffer_offset = 0;
-
-    while (bytes_to_write > 0) {
-      // calculate how many bytes we can write to the current block
-      size_t space_in_block = block_size - block_offset;
-      size_t write_now =
-          bytes_to_write < space_in_block ? bytes_to_write : space_in_block;
-
-      // seek to the correct position in the current block
-      // TODO: REPLACE WITH K_LSEEK
-      if (lseek(fs_fd,
-                fat_size + (current_block - 1) * block_size + block_offset,
-                SEEK_SET) == -1) {
-        P_ERRNO = P_LSEEK;
-        u_perror("cat");
-        update_file_size(
-            args[2],
-            total_bytes);  // update the file size in the directory entry
-        return NULL;
+      // read from stdin
+      ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
+      
+      if (bytes_read <= 0) { // EOF or error
+          break;
       }
-
-      // write the data
-      // TODO: REPLACE WITH K_WRITE
-      if (write(fs_fd, buffer + buffer_offset, write_now) != write_now) {
-        P_ERRNO = P_EINVAL;
-        update_file_size(args[2], total_bytes);
-        return NULL;
-      }
-
-      total_bytes += write_now;
-      buffer_offset += write_now;
-      bytes_to_write -= write_now;
-      block_offset += write_now;
-
-      // if the current block is full and we have more data, allocate a new
-      // block
-      if (block_offset == block_size && bytes_to_write > 0) {
-        uint16_t next_block = allocate_block();
-        if (next_block == 0) {
-          P_ERRNO = P_EFULL;
-          update_file_size(args[2], total_bytes);
+      
+      // write to the output file using k_write
+      if (k_write(fd, buffer, bytes_read) != bytes_read) {
+          // k_write already sets P_ERRNO
+          u_perror("cat");
+          k_close(fd);
           return NULL;
-        }
-
-        // update the FAT chain
-        fat[current_block] = next_block;
-        current_block = next_block;
-        block_offset = 0;
       }
-    }
   }
-
-  // update the file size in the directory entry
-  if (update_file_size(args[2], total_bytes) == -1) {
-    // error is set by update_file_size
-    return NULL;
-  }
-
+  
+  // close the file
+  k_close(fd);
   return NULL;
 }
