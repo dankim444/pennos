@@ -12,7 +12,7 @@ void u_perror(const char *msg) {
 
     switch (P_ERRNO) {
         case P_ENOENT: 
-            error_msg = "no such file or directory"; 
+            error_msg = "cannot open the file"; 
             break;
         case P_EBADF: 
             error_msg = "bad file descriptor"; 
