@@ -74,8 +74,6 @@ int find_file(const char* filename, dir_entry_t* entry) {
   int absolute_offset = 0;
   dir_entry_t dir_entry;
 
-  printf("DEBUG: Looking for file: %s\n", filename);
-
   while (1) {
     // Position at the start of current block
     if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
@@ -101,8 +99,6 @@ int find_file(const char* filename, dir_entry_t* entry) {
         break;
       }
 
-      printf("DEBUG: In find_file, entry: %s, first byte: %d\n", dir_entry.name, (int)dir_entry.name[0]);
-
       // check if this is a deleted entry
       if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
         offset_in_block += sizeof(dir_entry);
@@ -112,7 +108,6 @@ int find_file(const char* filename, dir_entry_t* entry) {
 
       // check if we found the file
       if (strcmp(dir_entry.name, filename) == 0) {
-        printf("DEBUG: Found file %s at offset %d\n", filename, absolute_offset);
         if (entry) {
           memcpy(entry, &dir_entry, sizeof(dir_entry));
         }
@@ -286,8 +281,6 @@ int mark_entry_as_deleted(dir_entry_t* entry, int absolute_offset) {
   
   // mark the passed entry as deleted
   entry->name[0] = 1;
-
-  printf("DEBUG: Marked file at offset %d as deleted\n", absolute_offset);
   return 0;
 }
 

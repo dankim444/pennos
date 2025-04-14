@@ -353,12 +353,8 @@ void* ls(void* arg) {
         break;
       }
 
-      // Debug output - print the first byte of each entry
-      printf("DEBUG: Entry %s has first byte: %d\n", dir_entry.name, (int)dir_entry.name[0]);
-
       // skip deleted entries
       if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
-        printf("DEBUG: Skipping deleted entry: %s\n", dir_entry.name);
         offset += sizeof(dir_entry);
         continue;
       }
@@ -523,8 +519,6 @@ void* mv(void* arg) {
           return NULL;
         }
     }
-
-    printf("DEBUG: About to delete destination file at offset %d\n", dest_offset);
     
     // if destination file exists, delete it
     if (mark_entry_as_deleted(&dest_entry, dest_offset) != 0) {
