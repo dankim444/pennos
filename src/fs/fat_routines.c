@@ -473,70 +473,80 @@ void* touch(void* arg) {
 * Renames files.
 */
 void* mv(void* arg) {
-    char** args = (char**)arg;
+  char** args = (char**)arg;
 
-    // verify that the file system is mounted
-    if (!is_mounted) {
-        P_ERRNO = P_FS_NOT_MOUNTED;
-        u_perror("mv");
-        return NULL;
+  // verify that the file system is mounted
+  if (!is_mounted) {
+      P_ERRNO = P_FS_NOT_MOUNTED;
+      u_perror("mv");
+      return NULL;
+  }
+
+  // check if we have both source and destination arguments
+  if (args[1] == NULL || args[2] == NULL) {
+      P_ERRNO = P_EINVAL;
+      u_perror("mv");
+      return NULL;
+  }
+
+  char *source = args[1];
+  char *dest = args[2];
+
+  // check if source file exists
+  dir_entry_t source_entry;
+  int source_offset = find_file(source, &source_entry);
+  if (source_offset < 0) {
+      // set error code
+      // TODO: replace printf with u_perror
+      printf("mv: cannot rename %s to %s\n", source, dest);
+      return NULL;
+  }
+  
+  // check if the destination file already exists
+  dir_entry_t dest_entry;
+  int dest_offset = find_file(dest, &dest_entry);
+  if (dest_offset >= 0) {
+    // check if the destination file is currently open by any process
+    for (int i = 0; i < MAX_FDS; i++) {
+        if (fd_table[i].in_use && strcmp(fd_table[i].filename, dest) == 0) {
+          P_ERRNO = P_EBUSY;
+          u_perror("mv");
+          return NULL;
+        }
     }
+    
+    // if destination file exists, delete it
+    mark_entry_as_deleted(&dest_entry, dest_offset);
+  }
 
-    // check if we have both source and destination arguments
-    if (args[1] == NULL || args[2] == NULL) {
-        P_ERRNO = P_EINVAL;
-        u_perror("mv");
-        return NULL;
-    }
+  // create new directory entry with destination name
+  dir_entry_t new_entry = source_entry;  // copy all attributes
+  strncpy(new_entry.name, dest, sizeof(new_entry.name) - 1);
+  new_entry.name[sizeof(new_entry.name) - 1] = '\0';  // ensure null termination
 
-    char *source = args[1];
-    char *dest = args[2];
-
-    // check if source file exists
-    dir_entry_t source_entry;
-    int source_offset = find_file(source, &source_entry);
-    if (source_offset < 0) {
-        printf("mv: cannot rename %s to %s\n", source, dest); // TODO: not allowed to use this
-        return NULL;
-    }
-
-    // check if destination already exists
-    dir_entry_t dest_entry;
-    if (find_file(dest, &dest_entry) >= 0) {
-        P_ERRNO = P_EEXIST;
-        u_perror("mv");
-        return NULL;
-    }
-
-    // create new directory entry with destination name
-    dir_entry_t new_entry = source_entry;  // copy all attributes
-    strncpy(new_entry.name, dest, sizeof(new_entry.name) - 1);
-    new_entry.name[sizeof(new_entry.name) - 1] = '\0';  // ensure null termination
-
-    // add the new entry
-    if (add_file_entry(dest, new_entry.size, new_entry.firstBlock, 
-                       new_entry.type, new_entry.perm) < 0) {
-        P_ERRNO = P_EFULL;
-        u_perror("mv");
-        return NULL;
-    }
-
-    // mark old entry as deleted
-    // TODO: REPLACE WITH K_LSEEK
-    if (lseek(fs_fd, fat_size + source_offset, SEEK_SET) == -1) {
-        P_ERRNO = P_LSEEK;
-        u_perror("mv");
-        return NULL;
-    }
-
-    char deleted = 1;  // mark as deleted
-    if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
-        P_ERRNO = P_EINVAL;
-        u_perror("mv");
-        return NULL;
-    }
-
+  // add the new entry
+  if (add_file_entry(dest, new_entry.size, new_entry.firstBlock, 
+                    new_entry.type, new_entry.perm) < 0) {
+    P_ERRNO = P_EFULL;
+    u_perror("mv");
     return NULL;
+  }
+
+  // mark the source entry as deleted
+  if (lseek(fs_fd, fat_size + source_offset, SEEK_SET) == -1) {
+    P_ERRNO = P_LSEEK;
+    u_perror("mv");
+    return NULL;
+  }
+  
+  char deleted = 1;  // mark as deleted
+  if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
+    P_ERRNO = P_EINVAL;
+    u_perror("mv");
+    return NULL;
+  }
+
+  return NULL;
 }
 
 /**

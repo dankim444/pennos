@@ -51,12 +51,9 @@ int get_free_fd(fd_entry_t* fd_table) {
 
 // helper function to allocate a block
 uint16_t allocate_block() {
-  // print_fat_state("Before allocating block");
-  //  start from block 2 (blocks 0 and 1 are reserved)
   for (int i = 2; i < fat_size / 2; i++) {
     if (fat[i] == FAT_FREE) {
       fat[i] = FAT_EOF;
-      // print_fat_state("After allocating block");
       return i;
     }
   }
@@ -248,6 +245,31 @@ int add_file_entry(const char* filename,
 
     return 0;
   }
+}
+
+void* mark_entry_as_deleted(dir_entry_t* entry, int offset) {
+  // free the blocks
+  uint16_t block = entry->firstBlock;
+  while (block != 0 && block != FAT_EOF) {
+    uint16_t next_block = fat[block];
+    fat[block] = FAT_FREE;
+    block = next_block;
+  }
+  
+  // mark the destination entry as deleted
+  if (lseek(fs_fd, fat_size + offset, SEEK_SET) == -1) {
+    P_ERRNO = P_LSEEK;
+    u_perror("mv");
+    return NULL;
+  }
+  
+  char deleted = 1; 
+  if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
+    P_ERRNO = P_EINVAL;
+    u_perror("mv");
+    return NULL;
+  }
+  return NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
