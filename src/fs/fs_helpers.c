@@ -417,3 +417,36 @@ void* cat_overwrite(char** args, fd_entry_t* fd_table) {
   k_close(fd);
   return NULL;
 }
+
+// helper for cat -a OUTPUT_FILE
+void* cat_append(char** args, fd_entry_t* fd_table) {
+  // open the output file in append mode
+  int fd = k_open(args[2], F_APPEND);
+  if (fd < 0) {
+      // k_open already sets P_ERRNO
+      u_perror("cat");
+      return NULL;
+  }
+
+  // continuously read from stdin and write to the file
+  char buffer[1024];
+  while (1) {
+      ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
+      if (bytes_read <= 0) { 
+          // EOF or error
+          break;
+      }
+
+      // write to the file using k_write
+      if (k_write(fd, buffer, bytes_read) != bytes_read) {
+          // k_write sets P_ERRNO
+          u_perror("cat");
+          k_close(fd);
+          return NULL;
+      }
+  }
+
+  k_close(fd);
+  return NULL;
+}
+
