@@ -19,7 +19,6 @@ extern int MAX_FDS;  // TODO: Figure out if we want more file descriptors
 extern fd_entry_t fd_table[1024];  // file descriptor table
 
 // void print_fat_state(const char* label);
-extern fd_entry_t fd_table[1024];  // file descriptor table
 
 ////////////////////////////////////////////////////////////////////////////////
 //                            FD TABLE HELPERS                                //
