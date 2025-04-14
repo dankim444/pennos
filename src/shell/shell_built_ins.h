@@ -1,13 +1,10 @@
 #ifndef SHELL_BUILT_INS_H_
 #define SHELL_BUILT_INS_H_
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
 //        independently scheduled PennOS processes.                           //
 ////////////////////////////////////////////////////////////////////////////////
-
 
 /**
  * @brief The ususal `cat` program.
@@ -16,10 +13,10 @@
  * If `files` arg is *not* provided, read from stdin and print back to stdout
  *
  * Example Usage: cat f1 f2 (concatenates f1 and f2 and print to stdout)
- * Example Usage: cat f1 f2 < f3 (concatenates f1 and f2 and prints to stdout, ignores f3)
- * Example Usage: cat < f3 (concatenates f3, prints to stdout)
+ * Example Usage: cat f1 f2 < f3 (concatenates f1 and f2 and prints to stdout,
+ * ignores f3) Example Usage: cat < f3 (concatenates f3, prints to stdout)
  */
-//void* cat(void *arg);
+// void* cat(void *arg);
 
 /**
  * @brief Sleep for `n` seconds.
@@ -29,7 +26,7 @@
  *
  * Example Usage: sleep 10
  */
-void* b_sleep(void *arg);
+void* b_sleep(void* arg);
 
 /**
  * @brief Busy wait indefinitely.
@@ -37,14 +34,14 @@ void* b_sleep(void *arg);
  *
  * Example Usage: busy
  */
-void* busy(void *arg);
+void* busy(void* arg);
 
 /**
  * @brief Echo back an input string.
  *
  * Example Usage: echo Hello World
  */
-void* echo(void *arg);
+void* echo(void* arg);
 
 /**
  * @brief Lists all files in the working directory.
@@ -53,14 +50,15 @@ void* echo(void *arg);
  * Example Usage: ls (regular credit)
  * Example Usage: ls ../../foo/./bar/sample (only for EC)
  */
-//void* ls(void *arg);
+// void* ls(void *arg);
 
 /**
- * @brief For each file, create an empty file if it doesn't exist, else update its timestamp.
+ * @brief For each file, create an empty file if it doesn't exist, else update
+ * its timestamp.
  *
  * Example Usage: touch f1 f2 f3 f4 f5
  */
-//void* touch(void *arg);
+// void* touch(void *arg);
 
 /**
  * @brief Rename a file. If the `dst_file` file already exists, overwrite it.
@@ -72,7 +70,7 @@ void* echo(void *arg);
  *
  * Example Usage: mv src_file dst_file
  */
-//void* mv(void *arg);
+// void* mv(void *arg);
 
 /**
  * Copy a file. If the `dst_file` file already exists, overwrite it.
@@ -84,7 +82,7 @@ void* echo(void *arg);
  *
  * Example Usage: cp src_file dst_file
  */
-//void* cp(void *arg);
+// void* cp(void *arg);
 
 /**
  * @brief Remove a list of files.
@@ -96,7 +94,7 @@ void* echo(void *arg);
  *
  * Example Usage: rm f1 f2 f3 f4 f5
  */
-//void* rm(void *arg);
+// void* rm(void *arg);
 
 /**
  * @brief Change permissions of a file.
@@ -109,9 +107,10 @@ void* echo(void *arg);
  *
  * Example Usage: chmod +x file (adds executable permission to file)
  * Example Usage: chmod +rw file (adds read + write permissions to file)
- * Example Usage: chmod -wx file (removes write + executable permissions from file)
+ * Example Usage: chmod -wx file (removes write + executable permissions from
+ * file)
  */
-void* chmod(void *arg);
+void* chmod(void* arg);
 
 /**
  * @brief List all processes on PennOS, displaying PID, PPID, priority, status,
@@ -119,7 +118,7 @@ void* chmod(void *arg);
  *
  * Example Usage: ps
  */
-void* ps(void *arg);
+void* ps(void* arg);
 
 /**
  * @brief Sends a specified signal to a list of processes.
@@ -131,17 +130,13 @@ void* ps(void *arg);
  * Example Usage: kill -stop 1 2 (sends stop to processes 1 and 2)
  * Example Usage: kill -cont 1 (sends cont to process 1)
  */
-void* kill(void *arg);
-
-
+void* b_kill(void* arg);
 
 ////////////////////////////////////////////////////////////////////////////////
-//     The following shell built-ins should be run as the shell; that is,     //         
+//     The following shell built-ins should be run as the shell; that is,     //
 //     they should each execute as a shell sub-routine directly rather        //
 //     than as an independent process.                                        //
 ////////////////////////////////////////////////////////////////////////////////
-
-
 
 /**
  * @brief Spawn a new process for `command` and set its priority to `priority`.
@@ -197,13 +192,10 @@ void* jobs(void* arg);
  */
 void* logout(void* arg);
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 //     Zombie and orphan testing functions                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
-  
 /**
  * @brief Used to test zombifying functionality of your kernel.
  *
@@ -217,6 +209,5 @@ void* zombify(void* arg);
  * Example Usage: orphanify
  */
 void* orphanify(void* arg);
-
 
 #endif
