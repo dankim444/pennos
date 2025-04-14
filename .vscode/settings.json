@@ -1,5 +1,7 @@
 {
     "files.associations": {
-        "vec.h": "c"
+        "vec.h": "c",
+        "fs_helpers.h": "c",
+        "builtins.h": "c"
     }
 }
