@@ -52,8 +52,8 @@ int main(int argc, char *argv[]) {
             break;
         }
         
-        // read user input using k_read
-        int bytes_read = read(STDIN_FILENO, input_buffer, sizeof(input_buffer) - 1); // might change this to k_read
+        // read user input
+        int bytes_read = read(STDIN_FILENO, input_buffer, sizeof(input_buffer) - 1);
         
         // check for EOF (ctrl-D)
         if (bytes_read <= 0) {
