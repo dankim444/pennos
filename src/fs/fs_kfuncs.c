@@ -520,7 +520,56 @@ int k_close(int fd) {
  * Kernel-level call to remove a file.
  */
 int k_unlink(const char* fname) {
-  return 0;
+    if (fname == NULL || *fname == '\0') {
+        P_ERRNO = P_EINVAL;
+        return -1;
+    }
+
+    if (!is_mounted) {
+        P_ERRNO = P_FS_NOT_MOUNTED;
+        return -1;
+    }
+
+    // check if file is currently open by any process
+    for (int i = 0; i < MAX_FDS; i++) {
+        if (fd_table[i].in_use && strcmp(fd_table[i].filename, fname) == 0) {
+            P_ERRNO = P_EBUSY;
+            return -1;
+        }
+    }
+
+    // find the file in directory
+    dir_entry_t entry;
+    int file_offset = find_file(fname, &entry);
+    if (file_offset < 0) {
+        P_ERRNO = P_ENOENT;
+        return -1;
+    }
+
+    // mark the directory entry as deleted (set first byte to 1)
+    entry.name[0] = 1;
+
+    // write the modified directory entry back
+    if (lseek(fs_fd, fat_size + file_offset, SEEK_SET) == -1) {
+        P_ERRNO = P_LSEEK;
+        return -1;
+    }
+    if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
+        P_ERRNO = P_EUNKNOWN;
+        return -1;
+    }
+
+    // free all blocks in the file chain
+    uint16_t current_block = entry.firstBlock;
+    uint16_t next_block;
+
+    while (current_block != 0 && current_block != FAT_EOF) {
+        next_block = fat[current_block];
+        fat[current_block] = FAT_FREE;
+        current_block = next_block;
+    }
+
+    return 0;
 }
 
 /**
@@ -563,9 +612,102 @@ int k_lseek(int fd, int offset, int whence) {
     return new_position;
 }
 
+
+// helper function to format file information into a string
+void format_file_info(dir_entry_t* entry, char* buffer) {
+    // convert permissions to string
+    char perms[4] = "---";
+    if (entry->perm & PERM_READ) perms[0] = 'r';
+    if (entry->perm & PERM_WRITE) perms[1] = 'w';
+    if (entry->perm & PERM_READ_EXEC & ~PERM_READ) perms[2] = 'x';
+
+    // convert time to string
+    char time_str[20];
+    struct tm* tm = localtime(&entry->mtime);
+    strftime(time_str, sizeof(time_str), "%b %d %H:%M", tm);
+
+    // format the output string
+    snprintf(buffer, 256, "%4d %s %6d %s %s\n",
+             entry->firstBlock,
+             perms,
+             entry->size,
+             time_str,
+             entry->name);
+}
+
 /**
 * Kernel-level call to list files.
 */
 int k_ls(const char* filename) {
-  return 0;
+    if (!is_mounted) {
+        P_ERRNO = P_FS_NOT_MOUNTED;
+        return -1;
+    }
+
+    // start with root directory block  
+    uint16_t current_block = 1;
+    dir_entry_t entry;
+    uint32_t offset_in_block = 0;
+    
+    if (filename == NULL) {
+        // list all files in root directory
+        while (current_block != FAT_EOF) {
+            // calculate absolute offset in filesystem
+            off_t abs_offset = fat_size + (current_block - 1) * block_size + offset_in_block;
+            
+            // read directory entry
+            if (lseek(fs_fd, abs_offset, SEEK_SET) == -1) {
+                P_ERRNO = P_LSEEK;
+                return -1;
+            }
+            if (read(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
+                P_ERRNO = P_READ;
+                return -1;
+            }
+
+            // check for end of directory
+            if (entry.name[0] == 0) break;
+
+            // skip deleted entries
+            if (entry.name[0] == 1 || entry.name[0] == 2) {
+                offset_in_block += sizeof(entry);
+                // check if we need to move to next block
+                if (offset_in_block + sizeof(entry) > block_size) {
+                    current_block = fat[current_block];
+                    offset_in_block = 0;
+                }
+                continue;
+            }
+
+            // format and write entry information
+            char output_buffer[256];
+            format_file_info(&entry, output_buffer);
+            if (k_write(STDOUT_FILENO, output_buffer, strlen(output_buffer)) < 0) {
+                return -1;
+            }
+
+            // move to next entry
+            offset_in_block += sizeof(entry);
+            // check if we need to move to next block
+            if (offset_in_block + sizeof(entry) > block_size) {
+                current_block = fat[current_block];
+                offset_in_block = 0;
+            }
+        }
+    } else {
+        // find and display specific file
+        int file_offset = find_file(filename, &entry);
+        if (file_offset < 0) {
+            P_ERRNO = P_ENOENT;
+            return -1;
+        }
+
+        char output_buffer[256];
+        format_file_info(&entry, output_buffer);
+        if (k_write(STDOUT_FILENO, output_buffer, strlen(output_buffer)) < 0) {
+            return -1;
+        }
+    }
+
+    return 0;
 }
