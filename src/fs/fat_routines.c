@@ -180,38 +180,132 @@ int unmount() {
 }
 
 /**
-* Concatenates and displays files.
-*/
-void* cat(void* arg) {
+ * Concatenates and displays files.
+ */
+ void* cat(void* arg) {
   char** args = (char**)arg;
 
   // verify that the file system is mounted
   if (!is_mounted) {
-    P_ERRNO = P_FS_NOT_MOUNTED;
-    u_perror("cat");
-    return NULL;
+      P_ERRNO = P_FS_NOT_MOUNTED;
+      u_perror("cat");
+      return NULL;
   }
 
   // early return if there is nothing after cat
   if (args[1] == NULL) {
-    P_ERRNO = P_EINVAL;
-    u_perror("cat");
-    return NULL;
+      P_ERRNO = P_EINVAL;
+      u_perror("cat");
+      return NULL;
   }
 
-  // overwrite: cat -w OUTPUT_FILE
-  if (strcmp(args[1], "-w") == 0 && args[2] != NULL) {
-    return cat_overwrite(args, fd_table);
+  // check for output file with -w or -a flag
+  int out_fd = -1;
+  int out_mode = 0;
+  int i;
+  
+  // search for output redirection
+  // handles cat -w/-a OUTPUT_FILE and cat FILE ... -w/-a OUTPUT_FILE
+  for (i = 1; args[i] != NULL; i++) {
+      if (strcmp(args[i], "-w") == 0 && args[i+1] != NULL) {
+          out_mode = F_WRITE;
+          out_fd = k_open(args[i+1], F_WRITE);
+          if (out_fd < 0) {
+              // error set by k_open
+              u_perror("cat");
+              return NULL;
+          }
+          break;
+      } else if (strcmp(args[i], "-a") == 0 && args[i+1] != NULL) {
+          out_mode = F_APPEND;
+          out_fd = k_open(args[i+1], F_APPEND);
+          if (out_fd < 0) {
+              u_perror("cat");
+              return NULL;
+          }
+          break;
+      }
+  }
+  
+  // if no output redirection found, use STDOUT
+  if (out_fd < 0) {
+      out_fd = STDOUT_FILENO;
   }
 
-  // append: cat -a OUTPUT_FILE
-  if (strcmp(args[1], "-a") == 0 && args[2] != NULL) {
-    return cat_append(args, fd_table);
+  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from stdin)
+  if ((strcmp(args[1], "-w") == 0 || strcmp(args[1], "-a") == 0) && args[2] != NULL && args[3] == NULL) {
+      char buffer[1024];
+      while (1) {
+          ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
+          if (bytes_read <= 0) {
+              break; // eof or error
+          }
+          
+          if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
+              u_perror("cat");
+              if (out_fd != STDOUT_FILENO) {
+                k_close(out_fd);
+              }
+              return NULL;
+          }
+      }
+      
+      if (out_fd != STDOUT_FILENO) {
+        k_close(out_fd);
+      }
+      return NULL;
   }
 
-  // other cat options not implemented yet
-  P_ERRNO = P_EUNKNOWN;
-  u_perror("cat");
+  // handle concatenating one or more files: cat FILE ... [-w/-a OUTPUT_FILE]
+  int start = 1;
+  int end = i - 1;
+  
+  if (out_mode != 0) {
+      // skip the output redirection arguments
+      end = i - 1;
+  }
+  
+  // process each input file
+  for (i = start; i <= end; i++) {
+      // skip the redirection flags and their arguments
+      if (strcmp(args[i], "-w") == 0 || strcmp(args[i], "-a") == 0) {
+          i++; // skip the next argument too (the output file)
+          continue;
+      }
+      
+      int in_fd = k_open(args[i], F_READ);
+      if (in_fd < 0) {
+          char error_msg[64];
+          snprintf(error_msg, sizeof(error_msg), "cat: %s", args[i]);
+          u_perror(error_msg);
+          continue; // try the next file
+      }
+      
+      // copy file content to output
+      char buffer[1024];
+      int bytes_read;
+      
+      while ((bytes_read = k_read(in_fd, sizeof(buffer), buffer)) > 0) {
+          if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
+              u_perror("cat");
+              k_close(in_fd);
+              if (out_fd != STDOUT_FILENO) k_close(out_fd);
+              return NULL;
+          }
+      }
+      
+      if (bytes_read < 0) {
+          u_perror("cat");
+      }
+      
+      k_close(in_fd);
+  }
+  
+  // close output file if not stdout
+  if (out_fd != STDOUT_FILENO) {
+      k_close(out_fd);
+  }
+  
   return NULL;
 }
 

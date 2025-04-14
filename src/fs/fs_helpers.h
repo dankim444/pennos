@@ -96,24 +96,5 @@ int copy_pennfat_to_host(const char* pennfat_filename,
                          const char* host_filename);
 
 
-////////////////////////////////////////////////////////////////////////////////
-//                                CAT HELPERS                                 //
-////////////////////////////////////////////////////////////////////////////////
-
-/**
-* Implements cat -w OUTPUT_FILE
-*
-* @param args the arguments to the cat command
-* @param fd_table the file descriptor table
-*/
-void* cat_overwrite(char** args, fd_entry_t* fd_table);
-
-/**
-* Implements cat -a OUTPUT_FILE
-*
-* @param args the arguments to the cat command
-* @param fd_table the file descriptor table
-*/
- void* cat_append(char** args, fd_entry_t* fd_table);
 
 #endif
