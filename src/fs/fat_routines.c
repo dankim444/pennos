@@ -402,7 +402,70 @@ void* touch(void* arg) {
  * Renames files.
  */
 void* mv(void* arg) {
-  return 0;
+    char** args = (char**)arg;
+
+    // verify that the file system is mounted
+    if (!is_mounted) {
+        P_ERRNO = P_FS_NOT_MOUNTED;
+        u_perror("mv");
+        return NULL;
+    }
+
+    // check if we have both source and destination arguments
+    if (args[1] == NULL || args[2] == NULL) {
+        P_ERRNO = P_EINVAL;
+        u_perror("mv");
+        return NULL;
+    }
+
+    char *source = args[1];
+    char *dest = args[2];
+
+    // check if source file exists
+    dir_entry_t source_entry;
+    int source_offset = find_file(source, &source_entry);
+    if (source_offset < 0) {
+        printf("mv: cannot rename %s to %s\n", source, dest);
+        return NULL;
+    }
+
+    // check if destination already exists
+    dir_entry_t dest_entry;
+    if (find_file(dest, &dest_entry) >= 0) {
+        P_ERRNO = P_EEXIST;
+        u_perror("mv");
+        return NULL;
+    }
+
+    // create new directory entry with destination name
+    dir_entry_t new_entry = source_entry;  // copy all attributes
+    strncpy(new_entry.name, dest, sizeof(new_entry.name) - 1);
+    new_entry.name[sizeof(new_entry.name) - 1] = '\0';  // ensure null termination
+
+    // add the new entry
+    if (add_file_entry(dest, new_entry.size, new_entry.firstBlock, 
+                       new_entry.type, new_entry.perm) < 0) {
+        P_ERRNO = P_EFULL;
+        u_perror("mv");
+        return NULL;
+    }
+
+    // mark old entry as deleted
+    // TODO: REPLACE WITH K_LSEEK
+    if (lseek(fs_fd, fat_size + source_offset, SEEK_SET) == -1) {
+        P_ERRNO = P_LSEEK;
+        u_perror("mv");
+        return NULL;
+    }
+
+    char deleted = 1;  // mark as deleted
+    if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
+        P_ERRNO = P_EINVAL;
+        u_perror("mv");
+        return NULL;
+    }
+
+    return NULL;
 }
 
 /**
