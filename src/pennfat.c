@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
         // skip empty commands
         if (parsed_command->num_commands == 0) {
             free(parsed_command);
-            continue; // re-prompt
+            continue;
         }
         
         // extract command and arguments

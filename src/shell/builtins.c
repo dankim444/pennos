@@ -53,6 +53,12 @@ void u_perror(const char *msg) {
         case P_EFUNC:
             error_msg = "interrupted custom call";
             break;
+        case P_EOPEN:
+            error_msg = "interrupted open call";
+            break;
+        case P_EMALLOC:
+            error_msg = "error when trying to malloc";
+            break;
         default: 
             error_msg = "Unknown error"; 
             break;
