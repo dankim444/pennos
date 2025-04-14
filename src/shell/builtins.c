@@ -59,6 +59,9 @@ void u_perror(const char *msg) {
         case P_EMALLOC:
             error_msg = "error when trying to malloc";
             break;
+        case P_FS_NOT_MOUNTED:
+            error_msg = "file system not mounted yet";
+            break;
         default: 
             error_msg = "Unknown error"; 
             break;
