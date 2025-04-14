@@ -71,6 +71,17 @@ int add_file_entry(const char* filename,
                    uint8_t type,
                    uint8_t perm);
 
+/**
+* Marks a file entry as deleted and frees its blocks in the FAT.
+*
+* This function takes a directory entry and its offset in the directory,
+* marks it as deleted in the directory, and frees all blocks in its FAT chain.
+*
+* @param entry the entry struct of the file to mark as deleted.
+* @param offset the offset of the entry in the directory
+*/
+void* mark_entry_as_deleted(dir_entry_t* entry, int offset);
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                CP HELPERS                                  //
 ////////////////////////////////////////////////////////////////////////////////
