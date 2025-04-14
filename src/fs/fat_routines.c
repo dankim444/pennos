@@ -202,10 +202,10 @@ int unmount() {
   // check for output file with -w or -a flag
   int out_fd = -1;
   int out_mode = 0;
-  int i;
   
   // search for output redirection
   // handles cat -w/-a OUTPUT_FILE and cat FILE ... -w/-a OUTPUT_FILE
+  int i;
   for (i = 1; args[i] != NULL; i++) {
       if (strcmp(args[i], "-w") == 0 && args[i+1] != NULL) {
           out_mode = F_WRITE;
@@ -261,24 +261,22 @@ int unmount() {
   int end = i - 1;
   
   if (out_mode != 0) {
-      // skip the output redirection arguments
-      end = i - 1;
+      end = i - 1; // skip the output redirection arguments
   }
   
   // process each input file
   for (i = start; i <= end; i++) {
       // skip the redirection flags and their arguments
       if (strcmp(args[i], "-w") == 0 || strcmp(args[i], "-a") == 0) {
-          i++; // skip the next argument too (the output file)
+          i++;
           continue;
       }
       
       int in_fd = k_open(args[i], F_READ);
       if (in_fd < 0) {
-          char error_msg[64];
-          snprintf(error_msg, sizeof(error_msg), "cat: %s", args[i]);
-          u_perror(error_msg);
-          continue; // try the next file
+          // set error code
+          u_perror("cat");
+          continue;
       }
       
       // copy file content to output
@@ -289,7 +287,9 @@ int unmount() {
           if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
               u_perror("cat");
               k_close(in_fd);
-              if (out_fd != STDOUT_FILENO) k_close(out_fd);
+              if (out_fd != STDOUT_FILENO) {
+                k_close(out_fd);
+              }
               return NULL;
           }
       }
@@ -552,7 +552,7 @@ void* cp(void* arg) {
     return NULL;
   }
 
-  // check if we're copying from host to PennFAT
+  // cp -h SOURCE DEST
   if (strcmp(args[1], "-h") == 0) {
     if (args[2] == NULL || args[3] == NULL) {
       P_ERRNO = P_EINVAL;
@@ -565,7 +565,11 @@ void* cp(void* arg) {
       u_perror("cp");
       return NULL;
     }
-  } else if (args[2] != NULL && strcmp(args[2], "-h") == 0) {
+    return NULL;
+  } 
+  
+  // cp SOURCE -h DEST
+  if (args[2] != NULL && strcmp(args[2], "-h") == 0) {
     if (args[3] == NULL) {
       P_ERRNO = P_EINVAL;
       u_perror("cp");
@@ -577,12 +581,23 @@ void* cp(void* arg) {
       u_perror("cp");
       return NULL;
     }
-  } else {
-    P_ERRNO = P_EUNKNOWN;
-    u_perror("cp");
+    return NULL;
+  } 
+  
+  // cp SOURCE DEST
+  if ((args[1] != NULL && strcmp(args[1], "-h") != 0) && 
+      (args[2] != NULL && strcmp(args[2], "-h") != 0) && 
+      args[3] == NULL) {
+    if (copy_source_to_dest(args[1], args[2]) != 0) {
+      // error set by functions
+      u_perror("cp");
+      return NULL;
+    }
     return NULL;
   }
 
+  P_ERRNO = P_EUNKNOWN;
+  u_perror("cp");
   return NULL;
 }
 

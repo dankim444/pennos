@@ -82,8 +82,7 @@ int add_file_entry(const char* filename,
 * @param pennfat_filename name to give the file in PennFAT
 * @return 0 on success, -1 on error
 */
-int copy_host_to_pennfat(const char* host_filename,
-                         const char* pennfat_filename);
+int copy_host_to_pennfat(const char* host_filename, const char* pennfat_filename);
 
 /**
 * Copies a file from the PennFAT filesystem to the host OS
@@ -92,9 +91,16 @@ int copy_host_to_pennfat(const char* host_filename,
 * @param host_filename path to save the file on the host OS
 * @return 0 on success, -1 on error
 */
-int copy_pennfat_to_host(const char* pennfat_filename,
-                         const char* host_filename);
+int copy_pennfat_to_host(const char* pennfat_filename, const char* host_filename);
 
+/**
+* Copies a file from a source file to a destination file
+*
+* @param source_filename name of the source filename
+* @param dest_filename name of the destination filename
+* @return 0 on success, -1 on error
+*/
+int copy_source_to_dest(const char* source_filename, const char* dest_filename);
 
 
 #endif

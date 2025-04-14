@@ -379,3 +379,45 @@ int copy_pennfat_to_host(const char* pennfat_filename, const char* host_filename
   return 0;
 }
 
+int copy_source_to_dest(const char* source_filename, const char* dest_filename) {
+  if (!is_mounted) {
+    P_ERRNO = P_FS_NOT_MOUNTED;
+    return -1;
+  }
+
+  // open the source file
+  int source_fd = k_open(source_filename, F_READ);
+  if (source_fd < 0) {
+    return -1;
+  }
+
+  // open the destination file
+  int dest_fd = k_open(dest_filename, F_WRITE);
+  if (dest_fd < 0) {
+    k_close(source_fd);
+    return -1;
+  }
+
+  // read from source to destination
+  char buffer[4096];
+  ssize_t bytes_read;
+  while ((bytes_read = k_read(source_fd, sizeof(buffer), buffer)) > 0) {
+      if (k_write(dest_fd, buffer, bytes_read) != bytes_read) {
+          k_close(source_fd);
+          k_close(dest_fd);
+          return -1;
+      }
+  }
+
+  // check for read error
+  if (bytes_read < 0) {
+      k_close(source_fd);
+      k_close(dest_fd);
+      return -1;
+  }
+
+  // cleanup
+  k_close(source_fd);
+  k_close(dest_fd);
+  return 0;
+}
