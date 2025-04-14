@@ -70,21 +70,27 @@ int find_file(const char* filename, dir_entry_t* entry) {
   // Start with root directory block (block 1)
   // TODO: REPLACE WITH K_LSEEK
   uint16_t current_block = 1;
-  int offset = 0;
+  int offset_in_block = 0;
+  int absolute_offset = 0;
   dir_entry_t dir_entry;
+
+  printf("DEBUG: Looking for file: %s\n", filename);
 
   while (1) {
     // Position at the start of current block
-    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
-        -1) {
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
       P_ERRNO = P_EINVAL;
       return -1;
     }
 
-    // Search current block
-    offset = 0;
-    while (offset < block_size) {
-      // TODO: REPLACE WITH K_READ
+    // reset offset for new block
+    offset_in_block = 0;
+    
+    // calculate the absolute offset in the directory structure
+    absolute_offset = fat_size + (current_block - 1) * block_size;
+
+    // search current block
+    while (offset_in_block < block_size) {
       if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
         P_ERRNO = P_EINVAL;
         return -1;
@@ -95,25 +101,29 @@ int find_file(const char* filename, dir_entry_t* entry) {
         break;
       }
 
+      printf("DEBUG: In find_file, entry: %s, first byte: %d\n", dir_entry.name, (int)dir_entry.name[0]);
+
       // check if this is a deleted entry
       if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
-        offset += sizeof(dir_entry);
+        offset_in_block += sizeof(dir_entry);
+        absolute_offset += sizeof(dir_entry);
         continue;
       }
 
       // check if we found the file
       if (strcmp(dir_entry.name, filename) == 0) {
+        printf("DEBUG: Found file %s at offset %d\n", filename, absolute_offset);
         if (entry) {
           memcpy(entry, &dir_entry, sizeof(dir_entry));
         }
-        return offset;
+        return absolute_offset; // Return the absolute file offset
       }
 
-      offset += sizeof(dir_entry);
+      offset_in_block += sizeof(dir_entry);
+      absolute_offset += sizeof(dir_entry);
     }
 
-    // If we've reached the end of the current block, check if there's a next
-    // block
+    // If we've reached the end of the current block, check if there's a next block
     if (fat[current_block] != FAT_EOF) {
       current_block = fat[current_block];
       continue;
@@ -247,7 +257,12 @@ int add_file_entry(const char* filename,
   }
 }
 
-void* mark_entry_as_deleted(dir_entry_t* entry, int offset) {
+int mark_entry_as_deleted(dir_entry_t* entry, int absolute_offset) {
+  if (!is_mounted || entry == NULL || absolute_offset < 0) {
+    P_ERRNO = P_EINVAL;
+    return -1;
+  }
+
   // free the blocks
   uint16_t block = entry->firstBlock;
   while (block != 0 && block != FAT_EOF) {
@@ -256,20 +271,24 @@ void* mark_entry_as_deleted(dir_entry_t* entry, int offset) {
     block = next_block;
   }
   
-  // mark the destination entry as deleted
-  if (lseek(fs_fd, fat_size + offset, SEEK_SET) == -1) {
+  dir_entry_t deleted_entry = *entry;
+  deleted_entry.name[0] = 1;
+  
+  // update the file system
+  if (lseek(fs_fd, absolute_offset, SEEK_SET) == -1) {
     P_ERRNO = P_LSEEK;
-    u_perror("mv");
-    return NULL;
+    return -1;
+  }
+  if (write(fs_fd, &deleted_entry, sizeof(deleted_entry)) != sizeof(deleted_entry)) {
+    P_ERRNO = P_EINVAL;
+    return -1;
   }
   
-  char deleted = 1; 
-  if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
-    P_ERRNO = P_EINVAL;
-    u_perror("mv");
-    return NULL;
-  }
-  return NULL;
+  // mark the passed entry as deleted
+  entry->name[0] = 1;
+
+  printf("DEBUG: Marked file at offset %d as deleted\n", absolute_offset);
+  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -353,8 +353,12 @@ void* ls(void* arg) {
         break;
       }
 
+      // Debug output - print the first byte of each entry
+      printf("DEBUG: Entry %s has first byte: %d\n", dir_entry.name, (int)dir_entry.name[0]);
+
       // skip deleted entries
       if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
+        printf("DEBUG: Skipping deleted entry: %s\n", dir_entry.name);
         offset += sizeof(dir_entry);
         continue;
       }
@@ -492,6 +496,11 @@ void* mv(void* arg) {
   char *source = args[1];
   char *dest = args[2];
 
+  // check if they're trying to rename to the same name
+  if (strcmp(source, dest) == 0) {
+    return NULL;
+  }
+
   // check if source file exists
   dir_entry_t source_entry;
   int source_offset = find_file(source, &source_entry);
@@ -514,33 +523,28 @@ void* mv(void* arg) {
           return NULL;
         }
     }
+
+    printf("DEBUG: About to delete destination file at offset %d\n", dest_offset);
     
     // if destination file exists, delete it
-    mark_entry_as_deleted(&dest_entry, dest_offset);
+    if (mark_entry_as_deleted(&dest_entry, dest_offset) != 0) {
+      u_perror("mv");
+      return NULL;
+    }
   }
 
-  // create new directory entry with destination name
-  dir_entry_t new_entry = source_entry;  // copy all attributes
-  strncpy(new_entry.name, dest, sizeof(new_entry.name) - 1);
-  new_entry.name[sizeof(new_entry.name) - 1] = '\0';  // ensure null termination
+  // rename file
+  strncpy(source_entry.name, dest, sizeof(source_entry.name) - 1);
+  source_entry.name[sizeof(source_entry.name) - 1] = '\0'; // ensure null termination
 
-  // add the new entry
-  if (add_file_entry(dest, new_entry.size, new_entry.firstBlock, 
-                    new_entry.type, new_entry.perm) < 0) {
-    P_ERRNO = P_EFULL;
-    u_perror("mv");
-    return NULL;
-  }
-
-  // mark the source entry as deleted
-  if (lseek(fs_fd, fat_size + source_offset, SEEK_SET) == -1) {
+  // write the updated entry back to disk
+  if (lseek(fs_fd, source_offset, SEEK_SET) == -1) {
     P_ERRNO = P_LSEEK;
     u_perror("mv");
     return NULL;
   }
-  
-  char deleted = 1;  // mark as deleted
-  if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
+
+  if (write(fs_fd, &source_entry, sizeof(source_entry)) != sizeof(source_entry)) {
     P_ERRNO = P_EINVAL;
     u_perror("mv");
     return NULL;
