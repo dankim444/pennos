@@ -496,7 +496,7 @@ void* mv(void* arg) {
     dir_entry_t source_entry;
     int source_offset = find_file(source, &source_entry);
     if (source_offset < 0) {
-        printf("mv: cannot rename %s to %s\n", source, dest);
+        printf("mv: cannot rename %s to %s\n", source, dest); // TODO: not allowed to use this
         return NULL;
     }
 
