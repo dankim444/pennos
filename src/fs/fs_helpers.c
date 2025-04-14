@@ -49,19 +49,35 @@ int get_free_fd(fd_entry_t* fd_table) {
   return -1;
 }
 
+// void print_fat_state(const char* label) {
+//   printf("\n--- FAT STATE: %s ---\n", label);
+
+//   printf("First 10 entries:\n");
+//   for (int i = 0; i < 10 && i < fat_size / 2; i++) {
+//     printf("FAT[%d] = 0x%04x\n", i, fat[i]);
+//   }
+
+//   int free_count = 0;
+//   for (int i = 2; i < fat_size / 2; i++) {
+//     if (fat[i] == FAT_FREE)
+//       free_count++;
+//   }
+
+//   printf("Total free blocks: %d\n", free_count);
+//   printf("Total usable blocks: %d\n", fat_size / 2 - 2);
+//   printf("------------------------\n\n");
+// }
+
 // helper function to allocate a block
 uint16_t allocate_block() {
-  if (fat == NULL) {
-      P_ERRNO = P_FS_NOT_MOUNTED;
-      return 0;
-  }
-  
-  // blocks 0 and 1 are reserved
+  // print_fat_state("Before allocating block");
+  //  start from block 2 (blocks 0 and 1 are reserved)
   for (int i = 2; i < fat_size / 2; i++) {
-      if (fat[i] == FAT_FREE) {
-          fat[i] = FAT_EOF;
-          return i;
-      }
+    if (fat[i] == FAT_FREE) {
+      fat[i] = FAT_EOF;
+      // print_fat_state("After allocating block");
+      return i;
+    }
   }
   return 0;
 }
@@ -73,44 +89,60 @@ int find_file(const char* filename, dir_entry_t* entry) {
     return -1;
   }
 
-  // read the root directory block (always block 1)
+  // Start with root directory block (block 1)
   // TODO: REPLACE WITH K_LSEEK
-  if (lseek(fs_fd, fat_size, SEEK_SET) == -1) {
-    P_ERRNO = P_EINVAL;
-    return -1;
-  }
-
-  // read directory entries until we find a match or end of directory
-  dir_entry_t dir_entry;
+  uint16_t current_block = 1;
   int offset = 0;
+  dir_entry_t dir_entry;
 
-  while (offset < block_size) {
-    // TODO: REPLACE WITH K_READ
-    if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+  while (1) {
+    // Position at the start of current block
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
+        -1) {
       P_ERRNO = P_EINVAL;
       return -1;
     }
 
-    // check if we've reached the end of directory
-    if (dir_entry.name[0] == 0) {
-      break;
+    // Search current block
+    offset = 0;
+    while (offset < block_size) {
+      // TODO: REPLACE WITH K_READ
+      if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+        P_ERRNO = P_EINVAL;
+        return -1;
+      }
+
+      // check if we've reached the end of directory
+      if (dir_entry.name[0] == 0) {
+        break;
+      }
+
+      // check if this is a deleted entry
+      if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
+        offset += sizeof(dir_entry);
+        continue;
+      }
+
+      // check if we found the file
+      if (strcmp(dir_entry.name, filename) == 0) {
+        if (entry) {
+          memcpy(entry, &dir_entry, sizeof(dir_entry));
+        }
+        return offset;
+      }
+
+      offset += sizeof(dir_entry);
     }
 
-    // check if this is a deleted entry
-    if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
-      offset += sizeof(dir_entry);
+    // If we've reached the end of the current block, check if there's a next
+    // block
+    if (fat[current_block] != FAT_EOF) {
+      current_block = fat[current_block];
       continue;
     }
 
-    // check if we found the file
-    if (strcmp(dir_entry.name, filename) == 0) {
-      if (entry) {
-        memcpy(entry, &dir_entry, sizeof(dir_entry));
-      }
-      return offset;
-    }
-
-    offset += sizeof(dir_entry);
+    // No more blocks to search
+    break;
   }
 
   // file not found
@@ -136,52 +168,105 @@ int add_file_entry(const char* filename,
     return -1;
   }
 
-  // read the root directory block (always block 1)
-  // TODO: REPLACE WITH K_LSEEK
-  if (lseek(fs_fd, fat_size, SEEK_SET) == -1) {
-    P_ERRNO = P_EINVAL;
-    return -1;
-  }
-
-  // look for a free slot (deleted entry or end of directory)
-  dir_entry_t dir_entry;
+  // Start with root directory block (block 1)
+  uint16_t current_block = 1;
   int offset = 0;
+  dir_entry_t dir_entry;
 
-  while (offset < block_size) {
-    // TODO: REPLACE WITH K_READ
-    if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+  while (1) {
+    // Position at the start of current block
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
+        -1) {
       P_ERRNO = P_EINVAL;
       return -1;
     }
 
-    // check if this slot is free
-    if (dir_entry.name[0] == 0 || dir_entry.name[0] == 1) {
-      memset(&dir_entry, 0, sizeof(dir_entry));
-      strncpy(dir_entry.name, filename, 31);
-      dir_entry.size = size;
-      dir_entry.firstBlock = first_block;
-      dir_entry.type = type;
-      dir_entry.perm = perm;
-      dir_entry.mtime = time(NULL);  // TODO: check if this is how this is done
+    // Reset offset for new block
+    offset = 0;
 
-      // write the entry back
-      // TODO: REPLACE WITH K_LSEEK
-      if (lseek(fs_fd, fat_size + offset, SEEK_SET) == -1 ||
-          // TODO: REPLACE WITH K_WRITE
-          write(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+    // Search current block for free slot
+    while (offset < block_size) {
+      if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
         P_ERRNO = P_EINVAL;
         return -1;
       }
 
-      return offset;
-    }
+      // Found a free slot
+      if (dir_entry.name[0] == 0 || dir_entry.name[0] == 1) {
+        // Prepare new entry
+        memset(&dir_entry, 0, sizeof(dir_entry));
+        strncpy(dir_entry.name, filename, 31);
+        dir_entry.size = size;
+        dir_entry.firstBlock = first_block;
+        dir_entry.type = type;
+        dir_entry.perm = perm;
+        dir_entry.mtime = time(NULL);
+
+        // Write the entry
+        if (lseek(fs_fd, fat_size + (current_block - 1) * block_size + offset,
+                  SEEK_SET) == -1 ||
+            write(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+          P_ERRNO = P_EINVAL;
+          return -1;
+        }
+
+        return offset;
+      }
 
     offset += sizeof(dir_entry);
   }
 
-  // no free slots found
-  P_ERRNO = P_EFULL;
-  return -1;
+    // Current block is full, check if there's a next block
+    if (fat[current_block] != FAT_EOF) {
+      // Follow the chain to next block
+      current_block = fat[current_block];
+      continue;
+    }
+
+    // Need to allocate a new block
+    uint16_t new_block = allocate_block();
+    if (new_block == 0) {
+      P_ERRNO = P_EFULL;
+      return -1;
+    }
+
+    // Chain the new block
+    fat[current_block] = new_block;
+    fat[new_block] = FAT_EOF;
+
+    // Initialize new block with zeros
+    uint8_t* zero_block = calloc(block_size, 1);
+    if (!zero_block) {
+      P_ERRNO = P_EINVAL;
+      return -1;
+    }
+
+    if (lseek(fs_fd, fat_size + (new_block - 1) * block_size, SEEK_SET) == -1 ||
+        write(fs_fd, zero_block, block_size) != block_size) {
+      free(zero_block);
+      P_ERRNO = P_EINVAL;
+      return -1;
+    }
+
+    free(zero_block);
+
+    // Write the new entry at the start of the new block
+    memset(&dir_entry, 0, sizeof(dir_entry));
+    strncpy(dir_entry.name, filename, 31);
+    dir_entry.size = size;
+    dir_entry.firstBlock = first_block;
+    dir_entry.type = type;
+    dir_entry.perm = perm;
+    dir_entry.mtime = time(NULL);
+
+    if (lseek(fs_fd, fat_size + (new_block - 1) * block_size, SEEK_SET) == -1 ||
+        write(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+      P_ERRNO = P_EINVAL;
+      return -1;
+    }
+
+    return 0;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

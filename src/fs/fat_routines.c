@@ -140,6 +140,7 @@ int mount(const char* fs_name) {
   // initialize the fd table
   init_fd_table(fd_table);
   is_mounted = true;
+  // print_fat_state("After mounting");
   return 0;
 }
 
@@ -229,71 +230,222 @@ void* ls(void* arg) {
     return NULL;
   }
 
-  // read the root directory block (always block 1)
-  // TODO: REPLACE WITH K_LSEEK
-  if (lseek(fs_fd, fat_size, SEEK_SET) == -1) {
-    P_ERRNO = P_LSEEK;
-    u_perror("ls");
-    return NULL;
-  }
-
-  // read directory entries and print them
-  dir_entry_t dir_entry;
+  // Start with root directory block (block 1)
+  uint16_t current_block = 1;
   int offset = 0;
+  dir_entry_t dir_entry;
 
-  while (offset < block_size) {
-    // TODO: REPLACE WITH K_READ
-    if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
-      P_ERRNO = P_READ;
+  while (1) {
+    // Position at the start of current block
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
+        -1) {
+      P_ERRNO = P_LSEEK;
       u_perror("ls");
-      break;
+      return NULL;
     }
 
-    // check if we've reached the end of directory
-    if (dir_entry.name[0] == 0) {
-      break;
-    }
+    // Reset offset for new block
+    offset = 0;
 
-    // skip deleted entries
-    if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
-      offset += sizeof(dir_entry);
-      continue;
-    }
+    // Search current block
+    while (offset < block_size) {
+      if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+        P_ERRNO = P_READ;
+        u_perror("ls");
+        return NULL;
+      }
 
-    // format permission string
-    char perm_str[4] = "---";
-    if (dir_entry.perm & PERM_READ)
-      perm_str[0] = 'r';
-    if (dir_entry.perm & PERM_WRITE)
-      perm_str[1] = 'w';
-    // if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // do we need x?
+      // check if we've reached the end of directory
+      if (dir_entry.name[0] == 0) {
+        break;
+      }
+
+      // skip deleted entries
+      if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
+        offset += sizeof(dir_entry);
+        continue;
+      }
+
+      // format permission string
+      char perm_str[4] = "---";
+      if (dir_entry.perm & PERM_READ)
+        perm_str[0] = 'r';
+      if (dir_entry.perm & PERM_WRITE)
+        perm_str[1] = 'w';
+      // if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // do we need x?
 
     // format time
     struct tm* tm_info = localtime(&dir_entry.mtime);
     char time_str[50];
     strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);  // TODO: check if we're allowed to use strftime
 
-    // print entry details
-    printf("%2d -%s- %6d %s %s\n", dir_entry.firstBlock, perm_str,
-           dir_entry.size, time_str, dir_entry.name);  // TODO: replace printf
-    offset += sizeof(dir_entry);
+      // print entry details
+      printf("%2d -%s- %6d %s %s\n", dir_entry.firstBlock, perm_str,
+             dir_entry.size, time_str, dir_entry.name);  // TODO: replace printf
+      offset += sizeof(dir_entry);
+    }
+
+    // If we've reached the end of the current block, check if there's a next
+    // block
+    if (fat[current_block] != FAT_EOF) {
+      current_block = fat[current_block];
+      continue;
+    }
+
+    // No more blocks to search
+    break;
   }
 
   return NULL;
 }
 
 /**
-* Creates files or updates timestampes.
-*/
+ * Creates files or updates timestamps.
+ *
+ * For each file argument, creates the file if it doesn't exist,
+ * or updates its timestamp if it already exists.
+ */
 void* touch(void* arg) {
-  return 0;
+  char** args = (char**)arg;
+
+  // verify that the file system is mounted
+  if (!is_mounted) {
+    P_ERRNO = P_FS_NOT_MOUNTED;
+    u_perror("touch");
+    return NULL;
+  }
+
+  // check if we have any arguments
+  if (args[1] == NULL) {
+    P_ERRNO = P_EINVAL;
+    u_perror("touch: missing file operand");
+    return NULL;
+  }
+
+  // process each file argument
+  for (int i = 1; args[i] != NULL; i++) {
+    // print_fat_state("Before touching file");
+    dir_entry_t entry;
+    int entry_offset = find_file(args[i], &entry);
+
+    if (entry_offset >= 0) {
+      // file exists, just update the timestamp
+      entry.mtime = time(NULL);
+
+      // write the updated entry back to the directory
+      // REPLACE WITH K_LSEEK
+      if (lseek(fs_fd, fat_size + entry_offset, SEEK_SET) == -1) {
+        P_ERRNO = P_LSEEK;
+        u_perror("touch");
+        continue;
+      }
+
+      // REPLACE WITH K_WRITE
+      if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
+        P_ERRNO = P_EINVAL;
+        u_perror("touch");
+        continue;
+      }
+    } else {
+      // file doesn't exist, create a new empty file
+
+      // first check if directory is full
+      if (P_ERRNO == P_EFULL) {
+        u_perror("touch");
+        continue;
+      }
+
+      // allocate a block for the file (even though it's empty)
+      uint16_t first_block = allocate_block();
+      if (first_block == 0) {
+        P_ERRNO = P_EFULL;
+        u_perror("touch");
+        continue;
+      }
+
+      // add the file entry to the directory
+      if (add_file_entry(args[i], 0, first_block, TYPE_REGULAR,
+                         PERM_READ_WRITE) == -1) {
+        // clean up the allocated block
+        fat[first_block] = FAT_FREE;
+        u_perror("touch");
+        continue;
+      }
+    }
+    // print_fat_state("After touching file");
+  }
+
+  return NULL;
 }
 
 /**
 * Renames files.
 */
 void* mv(void* arg) {
-  return 0;
+    char** args = (char**)arg;
+
+    // verify that the file system is mounted
+    if (!is_mounted) {
+        P_ERRNO = P_FS_NOT_MOUNTED;
+        u_perror("mv");
+        return NULL;
+    }
+
+    // check if we have both source and destination arguments
+    if (args[1] == NULL || args[2] == NULL) {
+        P_ERRNO = P_EINVAL;
+        u_perror("mv");
+        return NULL;
+    }
+
+    char *source = args[1];
+    char *dest = args[2];
+
+    // check if source file exists
+    dir_entry_t source_entry;
+    int source_offset = find_file(source, &source_entry);
+    if (source_offset < 0) {
+        printf("mv: cannot rename %s to %s\n", source, dest);
+        return NULL;
+    }
+
+    // check if destination already exists
+    dir_entry_t dest_entry;
+    if (find_file(dest, &dest_entry) >= 0) {
+        P_ERRNO = P_EEXIST;
+        u_perror("mv");
+        return NULL;
+    }
+
+    // create new directory entry with destination name
+    dir_entry_t new_entry = source_entry;  // copy all attributes
+    strncpy(new_entry.name, dest, sizeof(new_entry.name) - 1);
+    new_entry.name[sizeof(new_entry.name) - 1] = '\0';  // ensure null termination
+
+    // add the new entry
+    if (add_file_entry(dest, new_entry.size, new_entry.firstBlock, 
+                       new_entry.type, new_entry.perm) < 0) {
+        P_ERRNO = P_EFULL;
+        u_perror("mv");
+        return NULL;
+    }
+
+    // mark old entry as deleted
+    // TODO: REPLACE WITH K_LSEEK
+    if (lseek(fs_fd, fat_size + source_offset, SEEK_SET) == -1) {
+        P_ERRNO = P_LSEEK;
+        u_perror("mv");
+        return NULL;
+    }
+
+    char deleted = 1;  // mark as deleted
+    if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
+        P_ERRNO = P_EINVAL;
+        u_perror("mv");
+        return NULL;
+    }
+
+    return NULL;
 }
 
 /**
@@ -347,7 +499,70 @@ void* cp(void* arg) {
 * Removes files.
 */
 void* rm(void* arg) {
-  return 0;
+  char** args = (char**)arg;
+
+  // verify that the file system is mounted
+  if (!is_mounted) {
+    P_ERRNO = P_FS_NOT_MOUNTED;
+    u_perror("rm");
+    return NULL;
+  }
+
+  // check if we have any arguments
+  if (args[1] == NULL) {
+    P_ERRNO = P_EINVAL;
+    u_perror("rm: missing file operand");
+    return NULL;
+  }
+
+  // process each file argument
+  for (int i = 1; args[i] != NULL; i++) {
+    // find the file in the directory
+    dir_entry_t entry;
+    int entry_offset = find_file(args[i], &entry);
+
+    if (entry_offset < 0) {
+      // file doesn't exist
+      P_ERRNO = P_ENOENT;
+      u_perror("rm");
+      continue;
+    }
+
+    // check if file is currently open
+    for (int j = 0; j < MAX_FDS; j++) {
+      if (fd_table[j].in_use && strcmp(fd_table[j].filename, args[i]) == 0) {
+        P_ERRNO = P_EBUSY;
+        u_perror("rm");
+        continue;
+      }
+    }
+
+    // mark the directory entry as deleted
+    // TODO: REPLACE WITH K_LSEEK
+    if (lseek(fs_fd, fat_size + entry_offset, SEEK_SET) == -1) {
+      P_ERRNO = P_LSEEK;
+      u_perror("rm");
+      continue;
+    }
+
+    char deleted = 1;  // mark as deleted
+    // TODO: REPLACE WITH K_WRITE
+    if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
+      P_ERRNO = P_EINVAL;
+      u_perror("rm");
+      continue;
+    }
+
+    // free the FAT chain for this file
+    uint16_t block = entry.firstBlock;
+    while (block != 0 && block != FAT_EOF) {
+      uint16_t next_block = fat[block];
+      fat[block] = FAT_FREE;
+      block = next_block;
+    }
+  }
+
+  return NULL;
 }
 
 // void* chmod(void *arg) {
