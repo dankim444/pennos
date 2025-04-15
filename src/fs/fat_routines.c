@@ -36,8 +36,8 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   int actual_block_size = block_sizes[blk_size];
   int fat_size = num_blocks * actual_block_size;
   int fat_entries = fat_size / 2;
-  int num_data_blocks = (num_blocks == 32) ? fat_entries - 2 : fat_entries - 1;
-  size_t filesystem_size = fat_size + (actual_block_size * num_data_blocks);
+  int data_blocks = fat_entries - 2;
+  size_t filesystem_size = fat_size + (actual_block_size * data_blocks);
 
   // create the file for the filesystem
   int fd = open(fs_name, O_RDWR | O_CREAT | O_TRUNC, 0644);
@@ -58,8 +58,13 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
     return -1;
   }
 
+  // initialize all FAT entries to free
+  for (int i = 0; i < fat_entries; i++) {
+    temp_fat[i] = FAT_FREE;
+  }
+
   // initialize the first two entries of FAT (metadata and root directory)
-  temp_fat[0] = (num_blocks << 8) | block_size;
+  temp_fat[0] = (num_blocks << 8) | blk_size;
   temp_fat[1] = FAT_EOF; // root directory is only stored in one block
 
   // write the FAT to the file
