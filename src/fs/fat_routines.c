@@ -20,8 +20,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
-* Creates a PennFAT filesystem in the file named fs_name at the OS-level
-*/
+ * Creates a PennFAT filesystem in the file named fs_name at the OS-level
+ */
 int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   // validate arguments
   if (num_blocks < 1 || num_blocks > 32) {
@@ -92,8 +92,8 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
 }
 
 /**
-* Mounts a filesystem with name fs_name by loading its FAT into memory.
-*/
+ * Mounts a filesystem with name fs_name by loading its FAT into memory.
+ */
 int mount(const char* fs_name) {
   // check if a filesystem is already mounted
   if (is_mounted) {
@@ -118,8 +118,8 @@ int mount(const char* fs_name) {
   }
 
   // extract size information from first two bytes
-  num_fat_blocks = (config >> 8) & 0xFF; // MSB
-  int block_size_config = config & 0xFF; // LSB
+  num_fat_blocks = (config >> 8) & 0xFF;  // MSB
+  int block_size_config = config & 0xFF;  // LSB
 
   // determine actual block size from configuration
   int block_sizes[] = {256, 512, 1024, 2048, 4096};
@@ -149,8 +149,8 @@ int mount(const char* fs_name) {
 }
 
 /**
-* Unmounts the current filesystem and reset variables.
-*/
+ * Unmounts the current filesystem and reset variables.
+ */
 int unmount() {
   // first check that a file system is actually mounted
   if (!is_mounted) {
@@ -187,136 +187,138 @@ int unmount() {
 /**
  * Concatenates and displays files.
  */
- void* cat(void* arg) {
+void* cat(void* arg) {
   char** args = (char**)arg;
 
   // verify that the file system is mounted
   if (!is_mounted) {
-      P_ERRNO = P_FS_NOT_MOUNTED;
-      u_perror("cat");
-      return NULL;
+    P_ERRNO = P_FS_NOT_MOUNTED;
+    u_perror("cat");
+    return NULL;
   }
 
   // early return if there is nothing after cat
   if (args[1] == NULL) {
-      P_ERRNO = P_EINVAL;
-      u_perror("cat");
-      return NULL;
+    P_ERRNO = P_EINVAL;
+    u_perror("cat");
+    return NULL;
   }
 
   // check for output file with -w or -a flag
   int out_fd = -1;
   int out_mode = 0;
-  
+
   // search for output redirection
   // handles cat -w/-a OUTPUT_FILE and cat FILE ... -w/-a OUTPUT_FILE
   int i;
   for (i = 1; args[i] != NULL; i++) {
-      if (strcmp(args[i], "-w") == 0 && args[i+1] != NULL) {
-          out_mode = F_WRITE;
-          out_fd = k_open(args[i+1], F_WRITE);
-          if (out_fd < 0) {
-              // error set by k_open
-              u_perror("cat");
-              return NULL;
-          }
-          break;
-      } else if (strcmp(args[i], "-a") == 0 && args[i+1] != NULL) {
-          out_mode = F_APPEND;
-          out_fd = k_open(args[i+1], F_APPEND);
-          if (out_fd < 0) {
-              u_perror("cat");
-              return NULL;
-          }
-          break;
+    if (strcmp(args[i], "-w") == 0 && args[i + 1] != NULL) {
+      out_mode = F_WRITE;
+      out_fd = k_open(args[i + 1], F_WRITE);
+      if (out_fd < 0) {
+        // error set by k_open
+        u_perror("cat");
+        return NULL;
       }
-  }
-  
-  // if no output redirection found, use STDOUT
-  if (out_fd < 0) {
-      out_fd = STDOUT_FILENO;
+      break;
+    } else if (strcmp(args[i], "-a") == 0 && args[i + 1] != NULL) {
+      out_mode = F_APPEND;
+      out_fd = k_open(args[i + 1], F_APPEND);
+      if (out_fd < 0) {
+        u_perror("cat");
+        return NULL;
+      }
+      break;
+    }
   }
 
-  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from stdin)
-  if ((strcmp(args[1], "-w") == 0 || strcmp(args[1], "-a") == 0) && args[2] != NULL && args[3] == NULL) {
-      char buffer[1024];
-      while (1) {
-          ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
-          if (bytes_read <= 0) {
-              break; // eof or error
-          }
-          
-          if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
-              u_perror("cat");
-              if (out_fd != STDOUT_FILENO) {
-                k_close(out_fd);
-              }
-              return NULL;
-          }
+  // if no output redirection found, use STDOUT
+  if (out_fd < 0) {
+    out_fd = STDOUT_FILENO;
+  }
+
+  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from
+  // stdin)
+  if ((strcmp(args[1], "-w") == 0 || strcmp(args[1], "-a") == 0) &&
+      args[2] != NULL && args[3] == NULL) {
+    char buffer[1024];
+    while (1) {
+      ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
+      if (bytes_read <= 0) {
+        break;  // eof or error
       }
-      
-      if (out_fd != STDOUT_FILENO) {
-        k_close(out_fd);
+
+      if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
+        u_perror("cat");
+        if (out_fd != STDOUT_FILENO) {
+          k_close(out_fd);
+        }
+        return NULL;
       }
-      return NULL;
+    }
+
+    if (out_fd != STDOUT_FILENO) {
+      k_close(out_fd);
+    }
+    return NULL;
   }
 
   // handle concatenating one or more files: cat FILE ... [-w/-a OUTPUT_FILE]
   int start = 1;
   int end = i - 1;
-  
+
   if (out_mode != 0) {
-      end = i - 1; // skip the output redirection arguments
+    end = i - 1;  // skip the output redirection arguments
   }
-  
+
   // process each input file
   for (i = start; i <= end; i++) {
-      // skip the redirection flags and their arguments
-      if (strcmp(args[i], "-w") == 0 || strcmp(args[i], "-a") == 0) {
-          i++;
-          continue;
+    // skip the redirection flags and their arguments
+    if (strcmp(args[i], "-w") == 0 || strcmp(args[i], "-a") == 0) {
+      i++;
+      continue;
+    }
+
+    int in_fd = k_open(args[i], F_READ);
+    if (in_fd < 0) {
+      // set error code
+      u_perror("cat");
+      continue;
+    }
+
+    // copy file content to output
+    char buffer[1024];
+    int bytes_read;
+
+    while ((bytes_read = k_read(in_fd, sizeof(buffer), buffer)) > 0) {
+      if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
+        u_perror("cat");
+        k_close(in_fd);
+        if (out_fd != STDOUT_FILENO) {
+          k_close(out_fd);
+        }
+        return NULL;
       }
-      
-      int in_fd = k_open(args[i], F_READ);
-      if (in_fd < 0) {
-          // set error code
-          u_perror("cat");
-          continue;
-      }
-      
-      // copy file content to output
-      char buffer[1024];
-      int bytes_read;
-      
-      while ((bytes_read = k_read(in_fd, sizeof(buffer), buffer)) > 0) {
-          if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
-              u_perror("cat");
-              k_close(in_fd);
-              if (out_fd != STDOUT_FILENO) {
-                k_close(out_fd);
-              }
-              return NULL;
-          }
-      }
-      
-      if (bytes_read < 0) {
-          u_perror("cat");
-      }
-      
-      k_close(in_fd);
+    }
+
+    if (bytes_read < 0) {
+      u_perror("cat");
+    }
+
+    k_close(in_fd);
   }
-  
+
   // close output file if not stdout
   if (out_fd != STDOUT_FILENO) {
-      k_close(out_fd);
+    k_close(out_fd);
   }
-  
+
   return NULL;
 }
 
 /**
-* List all files in the directory.
-*/
+ * List all files in the directory.
+ */
 // TODO: REWORK --> need to use k_ functions or wrap entirely with k_ls
 void* ls(void* arg) {
   // will eventually need args for ls-ing certain files
@@ -366,14 +368,17 @@ void* ls(void* arg) {
 
       // format permission string
       char perm_str[4] = "---";
-      if (dir_entry.perm & PERM_READ) perm_str[0] = 'r';
-      if (dir_entry.perm & PERM_WRITE) perm_str[1] = 'w';
+      if (dir_entry.perm & PERM_READ)
+        perm_str[0] = 'r';
+      if (dir_entry.perm & PERM_WRITE)
+        perm_str[1] = 'w';
       // if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // do we need x?
 
-    // format time
-    struct tm* tm_info = localtime(&dir_entry.mtime);
-    char time_str[50];
-    strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);  // TODO: check if we're allowed to use strftime
+      // format time
+      struct tm* tm_info = localtime(&dir_entry.mtime);
+      char time_str[50];
+      strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y",
+               tm_info);  // TODO: check if we're allowed to use strftime
 
       // print entry details
       printf("%2d -%s- %6d %s %s\n", dir_entry.firstBlock, perm_str,
@@ -451,19 +456,10 @@ void* touch(void* arg) {
         continue;
       }
 
-      // allocate a block for the file (even though it's empty)
-      uint16_t first_block = allocate_block();
-      if (first_block == 0) {
-        P_ERRNO = P_EFULL;
-        u_perror("touch");
-        continue;
-      }
-
-      // add the file entry to the directory
-      if (add_file_entry(args[i], 0, first_block, TYPE_REGULAR,
+      // add the file entry to the directory with first_block = 0
+      // blocks will be allocated when data is written
+      if (add_file_entry(args[i], 0, 0, TYPE_REGULAR,
                          PERM_READ_WRITE) == -1) {
-        // clean up the allocated block
-        fat[first_block] = FAT_FREE;
         u_perror("touch");
         continue;
       }
@@ -475,27 +471,27 @@ void* touch(void* arg) {
 }
 
 /**
-* Renames files.
-*/
+ * Renames files.
+ */
 void* mv(void* arg) {
   char** args = (char**)arg;
 
   // verify that the file system is mounted
   if (!is_mounted) {
-      P_ERRNO = P_FS_NOT_MOUNTED;
-      u_perror("mv");
-      return NULL;
+    P_ERRNO = P_FS_NOT_MOUNTED;
+    u_perror("mv");
+    return NULL;
   }
 
   // check if we have both source and destination arguments
   if (args[1] == NULL || args[2] == NULL) {
-      P_ERRNO = P_EINVAL;
-      u_perror("mv");
-      return NULL;
+    P_ERRNO = P_EINVAL;
+    u_perror("mv");
+    return NULL;
   }
 
-  char *source = args[1];
-  char *dest = args[2];
+  char* source = args[1];
+  char* dest = args[2];
 
   // check if they're trying to rename to the same name
   if (strcmp(source, dest) == 0) {
@@ -506,25 +502,25 @@ void* mv(void* arg) {
   dir_entry_t source_entry;
   int source_offset = find_file(source, &source_entry);
   if (source_offset < 0) {
-      // set error code
-      // TODO: replace printf with u_perror
-      printf("mv: cannot rename %s to %s\n", source, dest);
-      return NULL;
+    // set error code
+    // TODO: replace printf with u_perror
+    printf("mv: cannot rename %s to %s\n", source, dest);
+    return NULL;
   }
-  
+
   // check if the destination file already exists
   dir_entry_t dest_entry;
   int dest_offset = find_file(dest, &dest_entry);
   if (dest_offset >= 0) {
     // check if the destination file is currently open by any process
     for (int i = 0; i < MAX_FDS; i++) {
-        if (fd_table[i].in_use && strcmp(fd_table[i].filename, dest) == 0) {
-          P_ERRNO = P_EBUSY;
-          u_perror("mv");
-          return NULL;
-        }
+      if (fd_table[i].in_use && strcmp(fd_table[i].filename, dest) == 0) {
+        P_ERRNO = P_EBUSY;
+        u_perror("mv");
+        return NULL;
+      }
     }
-    
+
     // if destination file exists, delete it
     if (mark_entry_as_deleted(&dest_entry, dest_offset) != 0) {
       u_perror("mv");
@@ -534,7 +530,8 @@ void* mv(void* arg) {
 
   // rename file
   strncpy(source_entry.name, dest, sizeof(source_entry.name) - 1);
-  source_entry.name[sizeof(source_entry.name) - 1] = '\0'; // ensure null termination
+  source_entry.name[sizeof(source_entry.name) - 1] =
+      '\0';  // ensure null termination
 
   // write the updated entry back to disk
   if (lseek(fs_fd, source_offset, SEEK_SET) == -1) {
@@ -543,7 +540,8 @@ void* mv(void* arg) {
     return NULL;
   }
 
-  if (write(fs_fd, &source_entry, sizeof(source_entry)) != sizeof(source_entry)) {
+  if (write(fs_fd, &source_entry, sizeof(source_entry)) !=
+      sizeof(source_entry)) {
     P_ERRNO = P_EINVAL;
     u_perror("mv");
     return NULL;
@@ -553,8 +551,8 @@ void* mv(void* arg) {
 }
 
 /**
-* Copies the source file to the destination.
-*/
+ * Copies the source file to the destination.
+ */
 void* cp(void* arg) {
   char** args = (char**)arg;
 
@@ -579,8 +577,8 @@ void* cp(void* arg) {
       return NULL;
     }
     return NULL;
-  } 
-  
+  }
+
   // cp SOURCE -h DEST
   if (args[2] != NULL && strcmp(args[2], "-h") == 0) {
     if (args[3] == NULL) {
@@ -595,12 +593,11 @@ void* cp(void* arg) {
       return NULL;
     }
     return NULL;
-  } 
-  
+  }
+
   // cp SOURCE DEST
-  if ((args[1] != NULL && strcmp(args[1], "-h") != 0) && 
-      (args[2] != NULL && strcmp(args[2], "-h") != 0) && 
-      args[3] == NULL) {
+  if ((args[1] != NULL && strcmp(args[1], "-h") != 0) &&
+      (args[2] != NULL && strcmp(args[2], "-h") != 0) && args[3] == NULL) {
     if (copy_source_to_dest(args[1], args[2]) != 0) {
       // error set by functions
       u_perror("cp");
@@ -615,8 +612,8 @@ void* cp(void* arg) {
 }
 
 /**
-* Removes files.
-*/
+ * Removes files.
+ */
 void* rm(void* arg) {
   char** args = (char**)arg;
 
