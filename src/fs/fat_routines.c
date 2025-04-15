@@ -36,8 +36,8 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   int actual_block_size = block_sizes[blk_size];
   int fat_size = num_blocks * actual_block_size;
   int fat_entries = fat_size / 2;
-  int data_blocks = fat_entries - 1;  // subtract 1 for the root directory block
-  size_t filesystem_size = fat_size + (actual_block_size * data_blocks);
+  int num_data_blocks = (num_blocks == 32) ? fat_entries - 2 : fat_entries - 1;
+  size_t filesystem_size = fat_size + (actual_block_size * num_data_blocks);
 
   // create the file for the filesystem
   int fd = open(fs_name, O_RDWR | O_CREAT | O_TRUNC, 0644);
