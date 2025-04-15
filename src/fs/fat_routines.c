@@ -425,7 +425,7 @@ void* touch(void* arg) {
 
       // write the updated entry back to the directory
       // REPLACE WITH K_LSEEK
-      if (lseek(fs_fd, fat_size + entry_offset, SEEK_SET) == -1) {
+      if (lseek(fs_fd, entry_offset, SEEK_SET) == -1) {
         P_ERRNO = P_LSEEK;
         u_perror("touch");
         continue;
@@ -653,7 +653,7 @@ void* rm(void* arg) {
 
     // mark the directory entry as deleted
     // TODO: REPLACE WITH K_LSEEK
-    if (lseek(fs_fd, fat_size + entry_offset, SEEK_SET) == -1) {
+    if (lseek(fs_fd, entry_offset, SEEK_SET) == -1) {
       P_ERRNO = P_LSEEK;
       u_perror("rm");
       continue;

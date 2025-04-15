@@ -109,7 +109,7 @@ int k_open(const char* fname, int mode) {
             entry.size = 0;
             entry.mtime = time(NULL);
             
-            if (lseek(fs_fd, fat_size + file_offset, SEEK_SET) != -1) {
+            if (lseek(fs_fd, file_offset, SEEK_SET) != -1) {
                 write(fs_fd, &entry, sizeof(entry));
             }
         }
@@ -474,7 +474,7 @@ int k_read(int fd, int n, char *buf) {
             entry.size = fd_table[fd].size;
             entry.mtime = time(NULL);
             
-            if (lseek(fs_fd, fat_size + dir_offset, SEEK_SET) != -1) {
+            if (lseek(fs_fd, dir_offset, SEEK_SET) != -1) {
                 write(fs_fd, &entry, sizeof(entry));
             }
         }
@@ -504,7 +504,7 @@ int k_close(int fd) {
             entry.size = fd_table[fd].size;
             entry.mtime = time(NULL);
             
-            if (lseek(fs_fd, fat_size + file_offset, SEEK_SET) != -1) {
+            if (lseek(fs_fd, file_offset, SEEK_SET) != -1) {
                 write(fs_fd, &entry, sizeof(entry));
             }
         }
@@ -550,7 +550,7 @@ int k_unlink(const char* fname) {
     entry.name[0] = 1;
 
     // write the modified directory entry back
-    if (lseek(fs_fd, fat_size + file_offset, SEEK_SET) == -1) {
+    if (lseek(fs_fd, file_offset, SEEK_SET) == -1) {
         P_ERRNO = P_LSEEK;
         return -1;
     }

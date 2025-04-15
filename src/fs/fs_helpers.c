@@ -111,7 +111,7 @@ int find_file(const char* filename, dir_entry_t* entry) {
         if (entry) {
           memcpy(entry, &dir_entry, sizeof(dir_entry));
         }
-        return absolute_offset; // Return the absolute file offset
+        return absolute_offset; // return the absolute file offset
       }
 
       offset_in_block += sizeof(dir_entry);
