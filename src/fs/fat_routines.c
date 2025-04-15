@@ -36,8 +36,8 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   int actual_block_size = block_sizes[blk_size];
   int fat_size = num_blocks * actual_block_size;
   int fat_entries = fat_size / 2;
-  int num_data_blocks = (num_blocks == 32) ? fat_entries - 2 : fat_entries - 1;
-  size_t filesystem_size = fat_size + (actual_block_size * num_data_blocks);
+  int data_blocks = fat_entries - 2;
+  size_t filesystem_size = fat_size + (actual_block_size * data_blocks);
 
   // create the file for the filesystem
   int fd = open(fs_name, O_RDWR | O_CREAT | O_TRUNC, 0644);
@@ -58,8 +58,13 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
     return -1;
   }
 
+  // initialize all FAT entries to free
+  for (int i = 0; i < fat_entries; i++) {
+    temp_fat[i] = FAT_FREE;
+  }
+
   // initialize the first two entries of FAT (metadata and root directory)
-  temp_fat[0] = (num_blocks << 8) | block_size;
+  temp_fat[0] = (num_blocks << 8) | blk_size;
   temp_fat[1] = FAT_EOF; // root directory is only stored in one block
 
   // write the FAT to the file
@@ -140,7 +145,6 @@ int mount(const char* fs_name) {
   // initialize the fd table
   init_fd_table(fd_table);
   is_mounted = true;
-  // print_fat_state("After mounting");
   return 0;
 }
 
@@ -181,44 +185,139 @@ int unmount() {
 }
 
 /**
-* Concatenates and displays files.
-*/
-void* cat(void* arg) {
+ * Concatenates and displays files.
+ */
+ void* cat(void* arg) {
   char** args = (char**)arg;
 
   // verify that the file system is mounted
   if (!is_mounted) {
-    P_ERRNO = P_FS_NOT_MOUNTED;
-    u_perror("cat");
-    return NULL;
+      P_ERRNO = P_FS_NOT_MOUNTED;
+      u_perror("cat");
+      return NULL;
   }
 
   // early return if there is nothing after cat
   if (args[1] == NULL) {
-    P_ERRNO = P_EINVAL;
-    u_perror("cat");
-    return NULL;
+      P_ERRNO = P_EINVAL;
+      u_perror("cat");
+      return NULL;
   }
 
-  // overwrite: cat -w OUTPUT_FILE
-  if (strcmp(args[1], "-w") == 0 && args[2] != NULL) {
-    return cat_overwrite(args, fd_table);
+  // check for output file with -w or -a flag
+  int out_fd = -1;
+  int out_mode = 0;
+  
+  // search for output redirection
+  // handles cat -w/-a OUTPUT_FILE and cat FILE ... -w/-a OUTPUT_FILE
+  int i;
+  for (i = 1; args[i] != NULL; i++) {
+      if (strcmp(args[i], "-w") == 0 && args[i+1] != NULL) {
+          out_mode = F_WRITE;
+          out_fd = k_open(args[i+1], F_WRITE);
+          if (out_fd < 0) {
+              // error set by k_open
+              u_perror("cat");
+              return NULL;
+          }
+          break;
+      } else if (strcmp(args[i], "-a") == 0 && args[i+1] != NULL) {
+          out_mode = F_APPEND;
+          out_fd = k_open(args[i+1], F_APPEND);
+          if (out_fd < 0) {
+              u_perror("cat");
+              return NULL;
+          }
+          break;
+      }
+  }
+  
+  // if no output redirection found, use STDOUT
+  if (out_fd < 0) {
+      out_fd = STDOUT_FILENO;
   }
 
-  // append: cat -a OUTPUT_FILE
-  if (strcmp(args[1], "-a") == 0 && args[2] != NULL) {
-    return cat_append(args, fd_table);
+  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from stdin)
+  if ((strcmp(args[1], "-w") == 0 || strcmp(args[1], "-a") == 0) && args[2] != NULL && args[3] == NULL) {
+      char buffer[1024];
+      while (1) {
+          ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
+          if (bytes_read <= 0) {
+              break; // eof or error
+          }
+          
+          if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
+              u_perror("cat");
+              if (out_fd != STDOUT_FILENO) {
+                k_close(out_fd);
+              }
+              return NULL;
+          }
+      }
+      
+      if (out_fd != STDOUT_FILENO) {
+        k_close(out_fd);
+      }
+      return NULL;
   }
 
-  // other cat options not implemented yet
-  P_ERRNO = P_EUNKNOWN;
-  u_perror("cat");
+  // handle concatenating one or more files: cat FILE ... [-w/-a OUTPUT_FILE]
+  int start = 1;
+  int end = i - 1;
+  
+  if (out_mode != 0) {
+      end = i - 1; // skip the output redirection arguments
+  }
+  
+  // process each input file
+  for (i = start; i <= end; i++) {
+      // skip the redirection flags and their arguments
+      if (strcmp(args[i], "-w") == 0 || strcmp(args[i], "-a") == 0) {
+          i++;
+          continue;
+      }
+      
+      int in_fd = k_open(args[i], F_READ);
+      if (in_fd < 0) {
+          // set error code
+          u_perror("cat");
+          continue;
+      }
+      
+      // copy file content to output
+      char buffer[1024];
+      int bytes_read;
+      
+      while ((bytes_read = k_read(in_fd, sizeof(buffer), buffer)) > 0) {
+          if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
+              u_perror("cat");
+              k_close(in_fd);
+              if (out_fd != STDOUT_FILENO) {
+                k_close(out_fd);
+              }
+              return NULL;
+          }
+      }
+      
+      if (bytes_read < 0) {
+          u_perror("cat");
+      }
+      
+      k_close(in_fd);
+  }
+  
+  // close output file if not stdout
+  if (out_fd != STDOUT_FILENO) {
+      k_close(out_fd);
+  }
+  
   return NULL;
 }
 
 /**
 * List all files in the directory.
 */
+// TODO: REWORK --> need to use k_ functions or wrap entirely with k_ls
 void* ls(void* arg) {
   // will eventually need args for ls-ing certain files
   // char **args = (char **)arg;
@@ -267,10 +366,8 @@ void* ls(void* arg) {
 
       // format permission string
       char perm_str[4] = "---";
-      if (dir_entry.perm & PERM_READ)
-        perm_str[0] = 'r';
-      if (dir_entry.perm & PERM_WRITE)
-        perm_str[1] = 'w';
+      if (dir_entry.perm & PERM_READ) perm_str[0] = 'r';
+      if (dir_entry.perm & PERM_WRITE) perm_str[1] = 'w';
       // if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // do we need x?
 
     // format time
@@ -333,7 +430,7 @@ void* touch(void* arg) {
 
       // write the updated entry back to the directory
       // REPLACE WITH K_LSEEK
-      if (lseek(fs_fd, fat_size + entry_offset, SEEK_SET) == -1) {
+      if (lseek(fs_fd, entry_offset, SEEK_SET) == -1) {
         P_ERRNO = P_LSEEK;
         u_perror("touch");
         continue;
@@ -381,70 +478,78 @@ void* touch(void* arg) {
 * Renames files.
 */
 void* mv(void* arg) {
-    char** args = (char**)arg;
+  char** args = (char**)arg;
 
-    // verify that the file system is mounted
-    if (!is_mounted) {
-        P_ERRNO = P_FS_NOT_MOUNTED;
-        u_perror("mv");
-        return NULL;
-    }
+  // verify that the file system is mounted
+  if (!is_mounted) {
+      P_ERRNO = P_FS_NOT_MOUNTED;
+      u_perror("mv");
+      return NULL;
+  }
 
-    // check if we have both source and destination arguments
-    if (args[1] == NULL || args[2] == NULL) {
-        P_ERRNO = P_EINVAL;
-        u_perror("mv");
-        return NULL;
-    }
+  // check if we have both source and destination arguments
+  if (args[1] == NULL || args[2] == NULL) {
+      P_ERRNO = P_EINVAL;
+      u_perror("mv");
+      return NULL;
+  }
 
-    char *source = args[1];
-    char *dest = args[2];
+  char *source = args[1];
+  char *dest = args[2];
 
-    // check if source file exists
-    dir_entry_t source_entry;
-    int source_offset = find_file(source, &source_entry);
-    if (source_offset < 0) {
-        printf("mv: cannot rename %s to %s\n", source, dest);
-        return NULL;
-    }
-
-    // check if destination already exists
-    dir_entry_t dest_entry;
-    if (find_file(dest, &dest_entry) >= 0) {
-        P_ERRNO = P_EEXIST;
-        u_perror("mv");
-        return NULL;
-    }
-
-    // create new directory entry with destination name
-    dir_entry_t new_entry = source_entry;  // copy all attributes
-    strncpy(new_entry.name, dest, sizeof(new_entry.name) - 1);
-    new_entry.name[sizeof(new_entry.name) - 1] = '\0';  // ensure null termination
-
-    // add the new entry
-    if (add_file_entry(dest, new_entry.size, new_entry.firstBlock, 
-                       new_entry.type, new_entry.perm) < 0) {
-        P_ERRNO = P_EFULL;
-        u_perror("mv");
-        return NULL;
-    }
-
-    // mark old entry as deleted
-    // TODO: REPLACE WITH K_LSEEK
-    if (lseek(fs_fd, fat_size + source_offset, SEEK_SET) == -1) {
-        P_ERRNO = P_LSEEK;
-        u_perror("mv");
-        return NULL;
-    }
-
-    char deleted = 1;  // mark as deleted
-    if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
-        P_ERRNO = P_EINVAL;
-        u_perror("mv");
-        return NULL;
-    }
-
+  // check if they're trying to rename to the same name
+  if (strcmp(source, dest) == 0) {
     return NULL;
+  }
+
+  // check if source file exists
+  dir_entry_t source_entry;
+  int source_offset = find_file(source, &source_entry);
+  if (source_offset < 0) {
+      // set error code
+      // TODO: replace printf with u_perror
+      printf("mv: cannot rename %s to %s\n", source, dest);
+      return NULL;
+  }
+  
+  // check if the destination file already exists
+  dir_entry_t dest_entry;
+  int dest_offset = find_file(dest, &dest_entry);
+  if (dest_offset >= 0) {
+    // check if the destination file is currently open by any process
+    for (int i = 0; i < MAX_FDS; i++) {
+        if (fd_table[i].in_use && strcmp(fd_table[i].filename, dest) == 0) {
+          P_ERRNO = P_EBUSY;
+          u_perror("mv");
+          return NULL;
+        }
+    }
+    
+    // if destination file exists, delete it
+    if (mark_entry_as_deleted(&dest_entry, dest_offset) != 0) {
+      u_perror("mv");
+      return NULL;
+    }
+  }
+
+  // rename file
+  strncpy(source_entry.name, dest, sizeof(source_entry.name) - 1);
+  source_entry.name[sizeof(source_entry.name) - 1] = '\0'; // ensure null termination
+
+  // write the updated entry back to disk
+  if (lseek(fs_fd, source_offset, SEEK_SET) == -1) {
+    P_ERRNO = P_LSEEK;
+    u_perror("mv");
+    return NULL;
+  }
+
+  if (write(fs_fd, &source_entry, sizeof(source_entry)) != sizeof(source_entry)) {
+    P_ERRNO = P_EINVAL;
+    u_perror("mv");
+    return NULL;
+  }
+
+  return NULL;
 }
 
 /**
@@ -460,7 +565,7 @@ void* cp(void* arg) {
     return NULL;
   }
 
-  // check if we're copying from host to PennFAT
+  // cp -h SOURCE DEST
   if (strcmp(args[1], "-h") == 0) {
     if (args[2] == NULL || args[3] == NULL) {
       P_ERRNO = P_EINVAL;
@@ -473,7 +578,11 @@ void* cp(void* arg) {
       u_perror("cp");
       return NULL;
     }
-  } else if (args[2] != NULL && strcmp(args[2], "-h") == 0) {
+    return NULL;
+  } 
+  
+  // cp SOURCE -h DEST
+  if (args[2] != NULL && strcmp(args[2], "-h") == 0) {
     if (args[3] == NULL) {
       P_ERRNO = P_EINVAL;
       u_perror("cp");
@@ -485,12 +594,23 @@ void* cp(void* arg) {
       u_perror("cp");
       return NULL;
     }
-  } else {
-    P_ERRNO = P_EUNKNOWN;
-    u_perror("cp");
+    return NULL;
+  } 
+  
+  // cp SOURCE DEST
+  if ((args[1] != NULL && strcmp(args[1], "-h") != 0) && 
+      (args[2] != NULL && strcmp(args[2], "-h") != 0) && 
+      args[3] == NULL) {
+    if (copy_source_to_dest(args[1], args[2]) != 0) {
+      // error set by functions
+      u_perror("cp");
+      return NULL;
+    }
     return NULL;
   }
 
+  P_ERRNO = P_EUNKNOWN;
+  u_perror("cp");
   return NULL;
 }
 
@@ -538,7 +658,7 @@ void* rm(void* arg) {
 
     // mark the directory entry as deleted
     // TODO: REPLACE WITH K_LSEEK
-    if (lseek(fs_fd, fat_size + entry_offset, SEEK_SET) == -1) {
+    if (lseek(fs_fd, entry_offset, SEEK_SET) == -1) {
       P_ERRNO = P_LSEEK;
       u_perror("rm");
       continue;

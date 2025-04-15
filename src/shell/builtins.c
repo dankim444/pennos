@@ -12,7 +12,7 @@ void u_perror(const char *msg) {
 
     switch (P_ERRNO) {
         case P_ENOENT: 
-            error_msg = "no such file or directory"; 
+            error_msg = "cannot open the file"; 
             break;
         case P_EBADF: 
             error_msg = "bad file descriptor"; 
@@ -58,6 +58,9 @@ void u_perror(const char *msg) {
             break;
         case P_EMALLOC:
             error_msg = "error when trying to malloc";
+            break;
+        case P_FS_NOT_MOUNTED:
+            error_msg = "file system not mounted yet";
             break;
         default: 
             error_msg = "Unknown error"; 

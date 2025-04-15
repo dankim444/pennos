@@ -71,6 +71,18 @@ int add_file_entry(const char* filename,
                    uint8_t type,
                    uint8_t perm);
 
+/**
+* Marks a file entry as deleted and frees its blocks in the FAT.
+*
+* This function takes a directory entry and its offset in the directory,
+* marks it as deleted in the directory, and frees all blocks in its FAT chain.
+*
+* @param entry the entry struct of the file to mark as deleted.
+* @param offset the offset of the entry in the directory
+* @returns 0 on success, -1 on error
+*/
+int mark_entry_as_deleted(dir_entry_t* entry, int offset);
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                CP HELPERS                                  //
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,8 +94,7 @@ int add_file_entry(const char* filename,
 * @param pennfat_filename name to give the file in PennFAT
 * @return 0 on success, -1 on error
 */
-int copy_host_to_pennfat(const char* host_filename,
-                         const char* pennfat_filename);
+int copy_host_to_pennfat(const char* host_filename, const char* pennfat_filename);
 
 /**
 * Copies a file from the PennFAT filesystem to the host OS
@@ -92,28 +103,16 @@ int copy_host_to_pennfat(const char* host_filename,
 * @param host_filename path to save the file on the host OS
 * @return 0 on success, -1 on error
 */
-int copy_pennfat_to_host(const char* pennfat_filename,
-                         const char* host_filename);
-
-
-////////////////////////////////////////////////////////////////////////////////
-//                                CAT HELPERS                                 //
-////////////////////////////////////////////////////////////////////////////////
+int copy_pennfat_to_host(const char* pennfat_filename, const char* host_filename);
 
 /**
-* Implements cat -w OUTPUT_FILE
+* Copies a file from a source file to a destination file
 *
-* @param args the arguments to the cat command
-* @param fd_table the file descriptor table
+* @param source_filename name of the source filename
+* @param dest_filename name of the destination filename
+* @return 0 on success, -1 on error
 */
-void* cat_overwrite(char** args, fd_entry_t* fd_table);
+int copy_source_to_dest(const char* source_filename, const char* dest_filename);
 
-/**
-* Implements cat -a OUTPUT_FILE
-*
-* @param args the arguments to the cat command
-* @param fd_table the file descriptor table
-*/
- void* cat_append(char** args, fd_entry_t* fd_table);
 
 #endif
