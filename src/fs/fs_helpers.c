@@ -84,14 +84,15 @@ int find_file(const char* filename, dir_entry_t* entry) {
 
   while (1) {
     // Position at the start of current block
-    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
+        -1) {
       P_ERRNO = P_EINVAL;
       return -1;
     }
 
     // reset offset for new block
     offset_in_block = 0;
-    
+
     // calculate the absolute offset in the directory structure
     absolute_offset = fat_size + (current_block - 1) * block_size;
 
@@ -126,7 +127,8 @@ int find_file(const char* filename, dir_entry_t* entry) {
       absolute_offset += sizeof(dir_entry);
     }
 
-    // If we've reached the end of the current block, check if there's a next block
+    // If we've reached the end of the current block, check if there's a next
+    // block
     if (fat[current_block] != FAT_EOF) {
       current_block = fat[current_block];
       continue;
@@ -188,7 +190,9 @@ int add_file_entry(const char* filename,
         memset(&dir_entry, 0, sizeof(dir_entry));
         strncpy(dir_entry.name, filename, 31);
         dir_entry.size = size;
-        dir_entry.firstBlock = first_block;
+        dir_entry.firstBlock = first_block;  // when creating file with no data,
+                                             // it should have no block.
+        // files get blocks when written into the first time
         dir_entry.type = type;
         dir_entry.perm = perm;
         dir_entry.mtime = time(NULL);
@@ -204,8 +208,8 @@ int add_file_entry(const char* filename,
         return offset;
       }
 
-    offset += sizeof(dir_entry);
-  }
+      offset += sizeof(dir_entry);
+    }
 
     // Current block is full, check if there's a next block
     if (fat[current_block] != FAT_EOF) {
@@ -273,20 +277,21 @@ int mark_entry_as_deleted(dir_entry_t* entry, int absolute_offset) {
     fat[block] = FAT_FREE;
     block = next_block;
   }
-  
+
   dir_entry_t deleted_entry = *entry;
   deleted_entry.name[0] = 1;
-  
+
   // update the file system
   if (lseek(fs_fd, absolute_offset, SEEK_SET) == -1) {
     P_ERRNO = P_LSEEK;
     return -1;
   }
-  if (write(fs_fd, &deleted_entry, sizeof(deleted_entry)) != sizeof(deleted_entry)) {
+  if (write(fs_fd, &deleted_entry, sizeof(deleted_entry)) !=
+      sizeof(deleted_entry)) {
     P_ERRNO = P_EINVAL;
     return -1;
   }
-  
+
   // mark the passed entry as deleted
   entry->name[0] = 1;
   return 0;
@@ -297,7 +302,8 @@ int mark_entry_as_deleted(dir_entry_t* entry, int absolute_offset) {
 ////////////////////////////////////////////////////////////////////////////////
 
 // helper function to copy data from host OS to PennFAT
-int copy_host_to_pennfat(const char* host_filename, const char* pennfat_filename) {
+int copy_host_to_pennfat(const char* host_filename,
+                         const char* pennfat_filename) {
   if (!is_mounted) {
     P_ERRNO = P_FS_NOT_MOUNTED;
     return -1;
@@ -346,7 +352,8 @@ int copy_host_to_pennfat(const char* host_filename, const char* pennfat_filename
 
   while (bytes_remaining > 0) {
     // read from host file
-    ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+    ssize_t bytes_to_read =
+        bytes_remaining < block_size ? bytes_remaining : block_size;
     ssize_t bytes_read = read(host_fd, buffer, bytes_to_read);
 
     if (bytes_read <= 0) {
@@ -372,56 +379,58 @@ int copy_host_to_pennfat(const char* host_filename, const char* pennfat_filename
 }
 
 // helper function to copy data from PennFAT to host OS
-int copy_pennfat_to_host(const char* pennfat_filename, const char* host_filename) {
+int copy_pennfat_to_host(const char* pennfat_filename,
+                         const char* host_filename) {
   if (!is_mounted) {
-      P_ERRNO = P_FS_NOT_MOUNTED;
-      return -1;
+    P_ERRNO = P_FS_NOT_MOUNTED;
+    return -1;
   }
-  
+
   // open the PennFAT file
   int pennfat_fd = k_open(pennfat_filename, F_READ);
   if (pennfat_fd < 0) {
-      // error already set by k_open
-      return -1;
+    // error already set by k_open
+    return -1;
   }
-  
+
   // open the host file
   int host_fd = open(host_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (host_fd == -1) {
-      P_ERRNO = P_EINVAL;
-      k_close(pennfat_fd);
-      return -1;
+    P_ERRNO = P_EINVAL;
+    k_close(pennfat_fd);
+    return -1;
   }
-  
+
   // allocate buffer for data transfer
-  char buffer[4096]; // TODO: might want to malloc for buffer
+  char buffer[4096];  // TODO: might want to malloc for buffer
   ssize_t bytes_read;
-  
+
   // read from PennFAT file and write to host file
   while ((bytes_read = k_read(pennfat_fd, sizeof(buffer), buffer)) > 0) {
-      if (write(host_fd, buffer, bytes_read) != bytes_read) {
-          P_ERRNO = P_EINVAL;
-          close(host_fd);
-          k_close(pennfat_fd);
-          return -1;
-      }
-  }
-  
-  // check for read error
-  if (bytes_read < 0) {
-      // error already set by k_read
+    if (write(host_fd, buffer, bytes_read) != bytes_read) {
+      P_ERRNO = P_EINVAL;
       close(host_fd);
       k_close(pennfat_fd);
       return -1;
+    }
   }
-  
+
+  // check for read error
+  if (bytes_read < 0) {
+    // error already set by k_read
+    close(host_fd);
+    k_close(pennfat_fd);
+    return -1;
+  }
+
   // cleanup
   close(host_fd);
   k_close(pennfat_fd);
   return 0;
 }
 
-int copy_source_to_dest(const char* source_filename, const char* dest_filename) {
+int copy_source_to_dest(const char* source_filename,
+                        const char* dest_filename) {
   if (!is_mounted) {
     P_ERRNO = P_FS_NOT_MOUNTED;
     return -1;
@@ -444,18 +453,18 @@ int copy_source_to_dest(const char* source_filename, const char* dest_filename) 
   char buffer[4096];
   ssize_t bytes_read;
   while ((bytes_read = k_read(source_fd, sizeof(buffer), buffer)) > 0) {
-      if (k_write(dest_fd, buffer, bytes_read) != bytes_read) {
-          k_close(source_fd);
-          k_close(dest_fd);
-          return -1;
-      }
+    if (k_write(dest_fd, buffer, bytes_read) != bytes_read) {
+      k_close(source_fd);
+      k_close(dest_fd);
+      return -1;
+    }
   }
 
   // check for read error
   if (bytes_read < 0) {
-      k_close(source_fd);
-      k_close(dest_fd);
-      return -1;
+    k_close(source_fd);
+    k_close(dest_fd);
+    return -1;
   }
 
   // cleanup
