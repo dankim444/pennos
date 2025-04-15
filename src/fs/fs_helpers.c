@@ -51,6 +51,14 @@ int get_free_fd(fd_entry_t* fd_table) {
 
 // helper function to allocate a block
 uint16_t allocate_block() {
+  // int free_blocks = 0;
+  // for (int i = 2; i < fat_size / 2; i++) {
+  //   if (fat[i] == FAT_FREE) {
+  //     free_blocks++;
+  //   }
+  // }
+  // printf("DEBUG: %d free blocks available out of %d total\n", free_blocks, fat_size / 2 - 2);
+  
   for (int i = 2; i < fat_size / 2; i++) {
     if (fat[i] == FAT_FREE) {
       fat[i] = FAT_EOF;
