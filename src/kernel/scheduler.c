@@ -60,7 +60,7 @@ void free_scheduler_queues() {
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-//                         SCHEDULING FUNCTIONS //
+//                         SCHEDULING FUNCTIONS                                //
 /////////////////////////////////////////////////////////////////////////////////
 
 int generate_next_priority() {
@@ -207,11 +207,9 @@ void shutdown_pennos(void) {
   scheduling_done = true;
 }
 
-// TODO --> this function needs a solid amt of work
 void scheduler() {
-  // TODO --> insert code somewhere to prevent busy waiting via sigsuspend
-  // Is init always running? Need to figure this out
 
+  // TODO --> insert code somewhere to prevent busy waiting via sigsuspend
   int curr_priority_queue_num;
 
   // mask for while scheduler is waiting for alarm

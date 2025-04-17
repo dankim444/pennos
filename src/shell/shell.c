@@ -34,7 +34,7 @@ void shell_sigint_handler(int sig) {
     s_kill(current_fg_pid, 2);  // P_SIGTERM
   }
   // Write a new line to prompt
-  write(STDERR_FILENO, "\n", 1);
+  write(STDERR_FILENO, "\n", 1); // TODO --> integrate with FS calls
   write(STDOUT_FILENO, PROMPT, strlen(PROMPT));
 }
 
@@ -52,7 +52,7 @@ void setup_terminal_signal_handlers(void) {
 void free_job_ptr(void* ptr) {
   job* job_ptr = (job*)ptr;
   free(job_ptr->pids);
-  free(job_ptr->cmd);
+  free(job_ptr->cmd); // TODO: check if this will double free w/ spawned processes
   free(job_ptr);
 }
 
@@ -134,11 +134,7 @@ pid_t execute_command(struct parsed_command* cmd) {
 }
 
 void* shell_main(void*) {
-  // TODO --> determine if we need more here
-  // add in the jobs, bg, fg stuff as needed
-  // cross-check against penn-shell.c file once we
-  // get answers on this
-
+ 
   job_list = vec_new(0, free_job_ptr);
 
   setup_terminal_signal_handlers();
@@ -194,8 +190,6 @@ void* shell_main(void*) {
       continue;
     }
 
-    // TODO --> handle builtins/bg as needed (if needed)
-
     child_pid = execute_command(cmd);
     if (child_pid < 0) {
       // TODO --> handle error via some valid print
@@ -211,7 +205,7 @@ void* shell_main(void*) {
       // Create a new job entry.
       job* new_job = malloc(sizeof(job));
       if (new_job == NULL) {
-        u_perror("malloc new_job");
+        perror("Error: mallocing new_job failed");
         free(cmd);
         continue;
       }
@@ -220,7 +214,7 @@ void* shell_main(void*) {
       new_job->num_pids = 1;
       new_job->pids = malloc(sizeof(pid_t));
       if (new_job->pids == NULL) {
-        u_perror("malloc job->pids");
+        perror("Error: mallocing new_job->pids failed"); 
         free(new_job);
         free(cmd);
         continue;
@@ -235,7 +229,7 @@ void* shell_main(void*) {
       char msg[128];
       snprintf(msg, sizeof(msg), "[%lu] %d\n", (unsigned long)new_job->id,
                child_pid);
-      write(STDOUT_FILENO, msg, strlen(msg));
+      write(STDOUT_FILENO, msg, strlen(msg)); // TODO-->change once integrated?
     } else {
       // Foreground execution.
       current_fg_pid = child_pid;
@@ -243,7 +237,7 @@ void* shell_main(void*) {
       s_waitpid(child_pid, &status, false);
       current_fg_pid = 2;
       // Free cmd memory for foreground commands.
-      free(cmd);
+      free(cmd); // TODO --> check if this is already freed, it may be
     }
   }
   vec_destroy(&job_list);

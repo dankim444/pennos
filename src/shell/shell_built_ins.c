@@ -128,12 +128,12 @@ void* b_kill(void* arg) {
     long pid_long = strtol(argv[i], &endptr, 10);
     if (*endptr != '\0' || pid_long <= 0) {
       snprintf(err_buf, 128, "Invalid PID: %s\n", argv[i]);
-      write(STDERR_FILENO, err_buf, strlen(err_buf));
+      write(STDERR_FILENO, err_buf, strlen(err_buf)); // TODO--> replace w/ s_write or not? maybe uperror
       continue;
     }
     pid_t pid = (pid_t)pid_long;
     if (s_kill(pid, sig) < 0) {
-      snprintf(err_buf, 128, "b_kill error on PID %d\n", pid);
+      snprintf(err_buf, 128, "b_kill error on PID %d\n", pid); // TODO--> ditto above
       write(STDERR_FILENO, err_buf, strlen(err_buf));
     }
   }
