@@ -62,6 +62,17 @@ void put_pcb_into_correct_queue(pcb_t* pcb);
 void delete_process_from_particular_queue(pcb_t* pcb, Vec* queue);
 
 /**
+ * @brief Searches through all of the scheduler's queues except the one 
+ *        containing all of the current processes and deletes the given 
+ *        pcb from all of them Notably, it does not free the pcb via 
+ *        calling vec_erase_no_deletor instead of vec_erase. If
+ *        a particular queue does not contain the pcb, nothing occurs.
+ *
+ * @param pcb a pointer to the pcb with the pid to delete
+ */
+void delete_process_from_all_queues_except_current(pcb_t* pcb);
+
+/**
  * @brief Searches through all of the scheduler's queues and deletes the
  *        the given pcb from all of them. Notably, it does not free the
  *        pcb via calling vec_erase_no_deletor instead of vec_erase. If
@@ -70,6 +81,7 @@ void delete_process_from_particular_queue(pcb_t* pcb, Vec* queue);
  * @param pcb a pointer to the pcb with the pid to delete
  */
 void delete_process_from_all_queues(pcb_t* pcb);
+
 
 /**
  * @brief Given a queue, searches for a particular pid inside that queue

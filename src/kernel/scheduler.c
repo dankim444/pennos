@@ -12,7 +12,7 @@
 #include <string.h>
 
 /////////////////////////////////////////////////////////////////////////////////
-//                       QUEUES AND SCHEDULER DATA //
+//                       QUEUES AND SCHEDULER DATA                             //
 /////////////////////////////////////////////////////////////////////////////////
 
 Vec zero_priority_queue;  // lower index = more recent
@@ -36,7 +36,7 @@ int det_priorities_arr[19] = {0, 1, 2, 0, 0, 1, 0, 1, 2, 0,
                               0, 1, 2, 0, 1, 0, 0, 1, 2};
 
 /////////////////////////////////////////////////////////////////////////////////
-//                         QUEUE MAINTENANCE FUNCTIONS //
+//                         QUEUE MAINTENANCE FUNCTIONS                         //
 /////////////////////////////////////////////////////////////////////////////////
 
 // changed the deconstructors to NULL for most queues because when exiting
@@ -59,8 +59,12 @@ void free_scheduler_queues() {
   vec_destroy(&current_pcbs);
 }
 
-// DELETE THIS FUNCTION LATER
-// make a debug function to print all of the global queues and their name
+
+
+/////////////////////////////////////////////////////////////////////////////////
+//                       DEBUGGING FUNCTIONS  (DELETE THEM!)                   // 
+/////////////////////////////////////////////////////////////////////////////////
+
 void print_all_queues() {
   fprintf(stderr, "Zero Priority Queue:\n");
   for (int i = 0; i < vec_len(&zero_priority_queue); i++) {
@@ -170,12 +174,16 @@ void delete_process_from_particular_queue(pcb_t* pcb, Vec* queue) {
   }
 }
 
-void delete_process_from_all_queues(pcb_t* pcb) {
+void delete_process_from_all_queues_except_current(pcb_t* pcb) {
   delete_process_from_particular_queue(pcb, &zero_priority_queue);
   delete_process_from_particular_queue(pcb, &one_priority_queue);
   delete_process_from_particular_queue(pcb, &two_priority_queue);
   delete_process_from_particular_queue(pcb, &zombie_queue);
   delete_process_from_particular_queue(pcb, &sleep_blocked_queue);
+}
+
+void delete_process_from_all_queues(pcb_t* pcb) {
+  delete_process_from_all_queues_except_current(pcb);
   delete_process_from_particular_queue(pcb, &current_pcbs);
 }
 
@@ -210,8 +218,7 @@ void handle_signal(pcb_t* pcb, int signal) {
       if (pcb->process_state == 'R') {  // Only stop if running
         pcb->process_state = 'S';
         log_generic_event('s', pcb->pid, pcb->priority, pcb->cmd_str);
-        // Remove from current queue and add to blocked queue
-        delete_process_from_all_queues(pcb);
+        delete_process_from_all_queues_except_current(pcb);
         put_pcb_into_correct_queue(pcb);
       }
       pcb->signals[0] = false;
@@ -220,8 +227,7 @@ void handle_signal(pcb_t* pcb, int signal) {
       if (pcb->process_state == 'S') {  // Only continue if stopped
         pcb->process_state = 'R';
         log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
-        // Remove from blocked queue and add to appropriate priority queue
-        delete_process_from_all_queues(pcb);
+        delete_process_from_all_queues_except_current(pcb);
         put_pcb_into_correct_queue(pcb);
       }
       pcb->signals[1] = false;
@@ -231,8 +237,7 @@ void handle_signal(pcb_t* pcb, int signal) {
         pcb->process_state = 'Z';
         pcb->process_status = 22;  // TERM_BY_SIG
         log_generic_event('Z', pcb->pid, pcb->priority, pcb->cmd_str);
-        // Remove from current queue and add to zombie queue
-        delete_process_from_all_queues(pcb);
+        delete_process_from_all_queues_except_current(pcb);
         put_pcb_into_correct_queue(pcb);
 
         // Handle orphaned children
@@ -333,7 +338,9 @@ void scheduler() {
 
     spthread_continue(current_running_pcb->thread_handle);
     sigsuspend(&suspend_set);
-    put_pcb_into_correct_queue(current_running_pcb);
+    if (current_running_pcb->process_state == 'R') { // prob will change back, just want to see if it fixes
+      put_pcb_into_correct_queue(current_running_pcb);
+    }
     spthread_suspend(current_running_pcb->thread_handle);
   }
 }
