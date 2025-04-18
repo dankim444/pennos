@@ -280,6 +280,9 @@ void scheduler() {
     spthread_continue(current_running_pcb->thread_handle);
     sigsuspend(&suspend_set);
     put_pcb_into_correct_queue(current_running_pcb);
+    if (current_running_pcb->process_state == 'Z') {
+      fprintf(stderr, "Added to zombie queue\n");
+    }
     spthread_suspend(current_running_pcb->thread_handle);
   }
 }
