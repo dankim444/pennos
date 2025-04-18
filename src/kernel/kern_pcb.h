@@ -40,6 +40,9 @@ typedef struct pcb_st {
                              // TERM_BY_SIG 22
                              // 0 otherwise
 
+    bool is_sleeping;
+    int time_to_wake; // time to wake up if sleeping, -1 if not sleeping
+
 
     // TODO --> file descriptor table
 } pcb_t;
