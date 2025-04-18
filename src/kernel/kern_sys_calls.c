@@ -114,6 +114,8 @@ void delete_from_queue(int queue_id, int pid) {
   }
 }
 
+
+
 ////////////////////////////////////////////////////////////////////////////////
 //        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
 ////////////////////////////////////////////////////////////////////////////////
@@ -302,13 +304,13 @@ void s_sleep(unsigned int ticks) {
     return;
   }
 
-  // calling process should be blocked, scheduler will put into correct queue
-
-
-
-  int orig_ticks = tick_counter;
-  while (tick_counter < orig_ticks + ticks) {
-    
-  }
+  // block current process, set state to sleep
+  current_running_pcb->process_state = 'B';
+  current_running_pcb->is_sleeping = true;
+  current_running_pcb->time_to_wake = tick_counter + ticks;
+  log_generic_event('B', current_running_pcb->pid,
+                    current_running_pcb->priority,
+                    current_running_pcb->cmd_str);
+  // TODO check whether we need queue management here, does it happen in scheduler?
   return;
 }

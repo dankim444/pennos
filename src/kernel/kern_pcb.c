@@ -57,6 +57,9 @@ pcb_t* create_pcb(pid_t pid,
     ret_pcb->signals[i] = false;
   }
 
+  ret_pcb->is_sleeping = false;
+  ret_pcb->time_to_wake = -1;  // default to not sleeping
+
   return ret_pcb;
 }
 
