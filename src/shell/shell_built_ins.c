@@ -30,7 +30,18 @@ extern pcb_t* current_running_pcb;  // DELETE
 // }
 
 void* b_sleep(void* arg) {
-  // TODO --> implement sleep
+  char* endptr;
+  int errno = 0;
+  int sleep_secs = (int)strtol(((char**)arg)[1], &endptr, 10);
+  if (*endptr != '\0' || errno != 0) {  
+    return NULL;
+  }
+
+  int sleep_ticks = sleep_secs * 10; 
+  fprintf(stderr, "About to sleep for %d ticks\n", sleep_ticks);  // TODO --> delete
+  s_sleep(sleep_ticks);
+  fprintf(stderr, "Woke up from sleep\n");  // TODO --> delete
+  s_exit();
   return NULL;
 }
 

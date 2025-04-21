@@ -132,8 +132,16 @@ int generate_next_priority() {
 }
 
 pcb_t* get_next_pcb(int priority) {
-  pcb_t* next_pcb = NULL;
 
+  // check if that queue is empty initially
+  if ((priority == 0 && vec_is_empty(&zero_priority_queue)) || (priority == 1 
+      && vec_is_empty(&one_priority_queue)) || (priority == 2 && 
+      vec_is_empty(&two_priority_queue))) {
+    fprintf(stderr, "Queue %d is empty\n", priority);
+    return NULL;
+  }
+
+  pcb_t* next_pcb = NULL; 
   if (priority == 0) {
     next_pcb = vec_get(&zero_priority_queue, 0);
     vec_erase_no_deletor(&zero_priority_queue, 0);
@@ -303,23 +311,30 @@ void scheduler() {
     // once ready
     for (int i = 0; i < vec_len(&sleep_blocked_queue); i++) {
       pcb_t* blocked_proc = vec_get(&sleep_blocked_queue, i);
-      bool update_it = false;
+      bool make_runnable = false;
       if (blocked_proc->is_sleeping && blocked_proc->time_to_wake == tick_counter) {
         blocked_proc->is_sleeping = false;
         blocked_proc->time_to_wake = -1;
         blocked_proc->signals[2] = false;  // Unlikely, but reset signal
+        make_runnable = true;
       } else if (blocked_proc->is_sleeping &&
                  blocked_proc->signals[2]) {  // P_SIGTERM received 
         blocked_proc->is_sleeping = false;
-        blocked_proc->time_to_wake = -1;
-        blocked_proc->signals[2] = false;  // Reset signal
+        blocked_proc->process_state = 'Z';
+        blocked_proc->process_status = 22;  // TERM_BY_SIG
+        delete_process_from_all_queues_except_current(blocked_proc);
+        put_pcb_into_correct_queue(blocked_proc);
+        log_generic_event('Z', blocked_proc->pid, blocked_proc->priority,
+                          blocked_proc->cmd_str);
+        i--;
       } else if (child_in_zombie_queue(blocked_proc)) {
-        update_it = true;
+        make_runnable = true;
       }
 
-      if (update_it) {
+      if (make_runnable) {
         blocked_proc->process_state = 'R';
         vec_erase_no_deletor(&sleep_blocked_queue, i);
+        delete_process_from_all_queues_except_current(blocked_proc);
         put_pcb_into_correct_queue(blocked_proc);
         log_generic_event('U', blocked_proc->pid, blocked_proc->priority,
                           blocked_proc->cmd_str);
