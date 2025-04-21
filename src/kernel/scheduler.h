@@ -33,14 +33,13 @@ void free_scheduler_queues();
 int generate_next_priority();
 
 /**
- * @brief Returns the next PCB in the queue of the specified priority.
- *        Assumes that the queue is not empty and consequently should
- *        never be called when the queue is empty. Notably, it removes
- *        the PCB from the queue.
- *
- * @pre assumes the queue associated with the priority value is nonempty
+ * @brief Returns the next PCB in the queue of the specified priority. 
+ *        or NULL if that queue is empty. Notably, it removes the PCB
+ *        from the queue.
+ * 
  * @param priority queue priority to get next PCB from
- * @return         a ptr to the next pcb struct in queue
+ * @return         a ptr to the next pcb struct in queue or NULL
+ *                 if the queue is empty
  */
 pcb_t* get_next_pcb(int priority);
 
