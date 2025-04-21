@@ -338,9 +338,6 @@ void scheduler() {
     spthread_continue(current_running_pcb->thread_handle);
     sigsuspend(&suspend_set);
     put_pcb_into_correct_queue(current_running_pcb);
-    if (tick_counter % 100 == 0) {
-      print_all_queues();
-    }
     spthread_suspend(current_running_pcb->thread_handle);
   }
 }
