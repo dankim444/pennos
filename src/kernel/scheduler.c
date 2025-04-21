@@ -96,7 +96,7 @@ void print_all_queues() {
     pcb_t* curr_pcb = vec_get(&current_pcbs, i);
     fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
   }
-  fprintf(stderr, "Current Running PCB:\n");
+  fprintf(stderr,"Current Running PCB:\n");
   if (current_running_pcb != NULL) {
     fprintf(stderr, "PID: %d, CMD: %s\n", current_running_pcb->pid,
             current_running_pcb->cmd_str);
@@ -228,7 +228,6 @@ void handle_signal(pcb_t* pcb, int signal) {
         pcb->process_state = 'R';
         log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
         delete_process_from_all_queues_except_current(pcb);
-        put_pcb_into_correct_queue(pcb);
       }
       pcb->signals[1] = false;
       break;
@@ -338,8 +337,9 @@ void scheduler() {
 
     spthread_continue(current_running_pcb->thread_handle);
     sigsuspend(&suspend_set);
-    if (current_running_pcb->process_state == 'R') { // prob will change back, just want to see if it fixes
-      put_pcb_into_correct_queue(current_running_pcb);
+    put_pcb_into_correct_queue(current_running_pcb);
+    if (tick_counter % 100 == 0) {
+      print_all_queues();
     }
     spthread_suspend(current_running_pcb->thread_handle);
   }
