@@ -22,13 +22,12 @@ void free_scheduler_queues();
  * @brief Deterministically chooses an integer from 0, 1, 2 at the prescribed
  *        probabilites. In particular, 0 is output 1.5x more than
  *        1, which is output 1.5x more than 2. Notably, it accounts
- *        for cases where some of the queues are empty. As a result,
- *        all output integers are guaranteed to be references to
- *        non-empty queues. This function should never be called when
- *        all queues are empty consequently.
+ *        for cases where some of the queues are empty. If all queues are empty,
+ *        it'll return -1.
  *
  * @pre assumes that at least one of the scheduler queues in non-empty
- * @return int 0, 1, or 2
+ * @return int 0, 1, or 2 for priority or -1 to signify that all queues 
+ *         are empty
  */
 int generate_next_priority();
 
@@ -37,7 +36,7 @@ int generate_next_priority();
  *        or NULL if that queue is empty. Notably, it removes the PCB
  *        from the queue.
  * 
- * @param priority queue priority to get next PCB from
+ * @param priority queue priority to get next PCB from, or -1 if none
  * @return         a ptr to the next pcb struct in queue or NULL
  *                 if the queue is empty
  */

@@ -112,31 +112,34 @@ void print_all_queues() {
 /////////////////////////////////////////////////////////////////////////////////
 
 int generate_next_priority() {
-  bool priority_found = false;
-  while (!priority_found) {
+  // check if all queues are empty
+  if (vec_is_empty(&zero_priority_queue) && vec_is_empty(&one_priority_queue) &&
+      vec_is_empty(&two_priority_queue)) {
+    return -1; 
+  }
+
+  int priorities_attempted = 0;
+  while (priorities_attempted < 19) {
     int curr_pri = det_priorities_arr[curr_priority_arr_index];
     curr_priority_arr_index = (curr_priority_arr_index + 1) % 19;
     if (curr_pri == 0 && !vec_is_empty(&zero_priority_queue)) {
-      priority_found = true;
+      priorities_attempted++;
       return 0;
     } else if (curr_pri == 1 && !vec_is_empty(&one_priority_queue)) {
-      priority_found = true;
+      priorities_attempted++;
       return 1;
     } else if (curr_pri == 2 && !vec_is_empty(&two_priority_queue)) {
-      priority_found = true;
+      priorities_attempted++;
       return 2;
     }
   }
 
-  return -1;  // should never reach here by assumption
+  return -1; // should never reach
 }
 
 pcb_t* get_next_pcb(int priority) {
 
-  // check if that queue is empty initially
-  if ((priority == 0 && vec_is_empty(&zero_priority_queue)) || (priority == 1 
-      && vec_is_empty(&one_priority_queue)) || (priority == 2 && 
-      vec_is_empty(&two_priority_queue))) {
+  if (priority == -1) { // all queues empty
     return NULL;
   }
 
@@ -340,6 +343,7 @@ void scheduler() {
         i--;
       }
     }
+
 
     curr_priority_queue_num = generate_next_priority();
 
