@@ -21,6 +21,8 @@ extern Vec sleep_blocked_queue;
 extern Vec current_pcbs;
 extern pcb_t* current_running_pcb;  // currently running process
 
+extern int tick_counter;
+
 ////////////////////////////////////////////////////////////////////////////////
 //                         GENERAL HELPER FUNCTIONS                           //
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,6 +114,8 @@ void delete_from_queue(int queue_id, int pid) {
   }
 }
 
+
+
 ////////////////////////////////////////////////////////////////////////////////
 //        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
 ////////////////////////////////////////////////////////////////////////////////
@@ -200,7 +204,6 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
       vec_erase_no_deletor(&zombie_queue, i);
       k_proc_cleanup(child);
       parent->process_state = 'R';
-      put_pcb_into_correct_queue(parent);
       log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
       return child->pid;
     }
@@ -215,7 +218,6 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
   delete_from_queue(parent->priority, parent->pid);
   parent->process_state = 'B';
   log_generic_event('B', parent->pid, parent->priority, parent->cmd_str);
-  put_pcb_into_correct_queue(parent);
 
   while (true) {
     // Scan the zombie queue first for terminated children.
@@ -232,11 +234,11 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
       }
     }
   }
+
   // If we get here, something went wrong
   return -1;
 }
 
-// TODO --> make sure signals are handled at some point in the loop
 int s_kill(pid_t pid, int signal) {
   pcb_t* pcb_with_pid = get_pcb_in_queue(&current_pcbs, pid);
   if (pcb_with_pid == NULL) {
@@ -259,8 +261,6 @@ void s_exit(void) {
                     current_running_pcb->cmd_str);
 
   delete_from_queue(current_running_pcb->priority, current_running_pcb->pid);
-  // Add to zombie queue
-  put_pcb_into_correct_queue(current_running_pcb);
 
   log_generic_event('Z', current_running_pcb->pid,
                     current_running_pcb->priority,
@@ -284,6 +284,17 @@ int s_nice(pid_t pid, int priority) {
 }
 
 void s_sleep(unsigned int ticks) {
-  // TODO --> implement s_sleep
-  return;
+  if (ticks <= 0) { 
+    P_ERRNO = P_EINVAL;
+    return;
+  }
+
+  // block current process, set state to sleep
+  current_running_pcb->process_state = 'B';
+  current_running_pcb->is_sleeping = true;
+  current_running_pcb->time_to_wake = tick_counter + ticks;
+  log_generic_event('B', current_running_pcb->pid,
+                    current_running_pcb->priority,
+                    current_running_pcb->cmd_str);
+  spthread_suspend(current_running_pcb->thread_handle); // give scheduler control
 }

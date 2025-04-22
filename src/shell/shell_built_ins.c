@@ -10,10 +10,12 @@
 #include "../fs/fs_syscalls.h"
 #include "../kernel/kern_sys_calls.h"
 #include "../lib/spthread.h"
+#include "../kernel/scheduler.h" // TODO --> make sure this is allowed, otw make wrapper
 
 #include <stdio.h>   // I think this is okay? Using snprintf
 #include <stdlib.h>  // For strtol
 #include <unistd.h>  // probably delete once done
+#include <errno.h>   // For errno for strtol
 
 extern Vec current_pcbs;
 
@@ -24,54 +26,63 @@ extern pcb_t* current_running_pcb;  // DELETE
 //        independently scheduled PennOS processes.                           //
 ////////////////////////////////////////////////////////////////////////////////
 
-// void* cat(void *arg) {
-//     // TODO --> implement cat
-//     return NULL;
-// }
-
-void* b_sleep(void* arg) {
-  // TODO --> implement sleep
+void* u_cat(void *arg) {
+  // TODO --> implement cat
   return NULL;
 }
 
-void* busy(void* arg) {
+void* u_sleep(void* arg) {
+  char* endptr;
+  errno = 0;
+  int sleep_secs = (int)strtol(((char**)arg)[1], &endptr, 10);
+  if (*endptr != '\0' || errno != 0) {  
+    return NULL;
+  }
+
+  int sleep_ticks = sleep_secs * 10; 
+  s_sleep(sleep_ticks);
+  s_exit();
+  return NULL;
+}
+
+void* u_busy(void* arg) {
   while (1)
     ;
   s_exit();
   return NULL;
 }
 
-void* echo(void* arg) {
+void* u_echo(void* arg) {
   // TODO --> implement echo
   return NULL;
 }
 
-// void* ls(void *arg) {
-//     // TODO --> implement ls
-//     return NULL;
-// }
+void* u_ls(void *arg) {
+  // TODO --> implement ls
+  return NULL;
+}
 
-// void* touch(void *arg) {
-//     // TODO --> implement touch
-//     return NULL;
-// }
+void* u_touch(void *arg) {
+  // TODO --> implement touch
+  return NULL;
+}
 
-// void* mv(void *arg) {
-//     // TODO --> implement mv
-//     return NULL;
-// }
+void* u_mv(void *arg) {
+  // TODO --> implement mv
+  return NULL;
+}
 
-// void* cp(void *arg) {
-//     // TODO --> implement cp
-//     return NULL;
-// }
+void* u_cp(void *arg) {
+  // TODO --> implement cp
+  return NULL;
+}
 
-// void* rm(void *arg) {
-//     // TODO --> implement rm
-//     return NULL;
-// }
+void* u_rm(void *arg) {
+  // TODO --> implement rm
+  return NULL;
+}
 
-void* chmod(void* arg) {
+void* u_chmod(void* arg) {
   // TODO --> implement chmod
   return NULL;
 }
@@ -82,7 +93,7 @@ void* chmod(void* arg) {
  *
  * Example Usage: ps
  */
-void* ps(void* arg) {
+void* u_ps(void* arg) {
   char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";
   write(STDOUT_FILENO, pid_top, strlen(pid_top));  // replace w/ s_write
   for (int i = 0; i < vec_len(&current_pcbs); i++) {
@@ -98,7 +109,7 @@ void* ps(void* arg) {
 }
 
 // rename to not conflict with kill from signal.h
-void* b_kill(void* arg) {
+void* u_kill(void* arg) {
   char** argv = (char**)arg;
   int sig = 2;          // Default signal: term (2)
   int start_index = 1;  // Start after the "kill" command word.
@@ -126,14 +137,14 @@ void* b_kill(void* arg) {
   for (int i = start_index; argv[i] != NULL; i++) {
     char* endptr;
     long pid_long = strtol(argv[i], &endptr, 10);
-    if (*endptr != '\0' || pid_long <= 0) {
+    if (*endptr != '\0' || pid_long <= 0) { // TODO: check if this or errno is better
       snprintf(err_buf, 128, "Invalid PID: %s\n", argv[i]);
-      write(STDERR_FILENO, err_buf, strlen(err_buf));
+      write(STDERR_FILENO, err_buf, strlen(err_buf)); // TODO--> replace w/ s_write or not? maybe uperror
       continue;
     }
     pid_t pid = (pid_t)pid_long;
     if (s_kill(pid, sig) < 0) {
-      snprintf(err_buf, 128, "b_kill error on PID %d\n", pid);
+      snprintf(err_buf, 128, "b_kill error on PID %d\n", pid); // TODO--> ditto above
       write(STDERR_FILENO, err_buf, strlen(err_buf));
     }
   }
@@ -147,14 +158,72 @@ void* b_kill(void* arg) {
 //     than as an independent process.                                        //
 ////////////////////////////////////////////////////////////////////////////////
 
-void* b_nice(void* arg) {
-  // TODO --> implement b_nice
+
+/**
+ * @brief Helper function to get the associated "u-version" of a function
+ *        given its standalone version. As a conrete example, if we pass
+ *        in "cat", we will output "u_cat"
+ * 
+ * @param func A string of the function name to get the associated ufunc for
+ * @return     A ptr to the associated u-version function or NULL if no 
+ *             matches are found
+ */
+void* (*get_associated_ufunc(char* func))(void*) {
+  if (strcmp(func, "cat") == 0) {
+    return u_cat;
+  } else if (strcmp(func, "sleep") == 0) {
+    return u_sleep;
+  } else if (strcmp(func, "busy") == 0) {
+    return u_busy;
+  } else if (strcmp(func, "echo") == 0) {
+    return u_echo;
+  } else if (strcmp(func, "ls") == 0) {
+    return u_ls;
+  } else if (strcmp(func, "touch") == 0) {
+    return u_touch;
+  } else if (strcmp(func, "mv") == 0) {
+    return u_mv;
+  } else if (strcmp(func, "cp") == 0) {
+    return u_cp;
+  } else if (strcmp(func, "rm") == 0) {
+    return u_rm;
+  } else if (strcmp(func, "chmod") == 0) {
+    return u_chmod;
+  } else if (strcmp(func, "ps") == 0) {
+    return u_ps;
+  } else if (strcmp(func, "kill") == 0) {
+    return u_kill;
+  }
+  
+  return NULL; // no matches case
+}
+
+void* u_nice(void* arg) {
+  char* endptr;
+  errno = 0;
+  int new_priority = (int)strtol(((char**)arg)[1], &endptr, 10);
+  if (*endptr != '\0' || errno != 0) {  // error catch
+    return NULL;
+  }
+
+  char* command = ((char**)arg)[2];
+  void* (*ufunc)(void*) = get_associated_ufunc(command);
+  if (ufunc == NULL) {
+    return NULL;  // no matches, don't spawn
+  }
+
+  pid_t new_proc_pid = s_spawn(ufunc, &((char**)arg)[2], 0, 1);  // TODO --> check these fds
+
+  if (new_proc_pid != -1) { // non-error case
+    s_nice(new_proc_pid, new_priority);
+  } 
+
   return NULL;
 }
 
-void* nice_pid(void* arg) {
+void* u_nice_pid(void* arg) {
   char* endptr;
-  int errno = 0;
+  errno = 0;
   int new_priority = (int)strtol(((char**)arg)[1], &endptr, 10);
   if (*endptr != '\0' || errno != 0) {  // error catch
     return NULL;
@@ -167,28 +236,28 @@ void* nice_pid(void* arg) {
   return NULL;
 }
 
-void* man(void* arg) {
+void* u_man(void* arg) {
   // TODO --> implement man
   return NULL;
 }
 
-void* bg(void* arg) {
+void* u_bg(void* arg) {
   // TODO --> implement bg
   return NULL;
 }
 
-void* fg(void* arg) {
+void* u_fg(void* arg) {
   // TODO --> implement fg
   return NULL;
 }
 
-void* jobs(void* arg) {
+void* u_jobs(void* arg) {
   // TODO --> implement jobs
   return NULL;
 }
 
-void* logout(void* arg) {
-  // TODO --> implement logout
+void* u_logout(void* arg) {
+  shutdown_pennos();
   return NULL;
 }
 
@@ -204,7 +273,7 @@ void* zombie_child(void* arg) {
   return NULL;
 }
 
-void* zombify(void* arg) {
+void* u_zombify(void* arg) {
   char* zombie_child_argv[] = {"zombie_child", NULL};
   s_spawn(zombie_child, zombie_child_argv, 0, 1);  // TODO --> check these fds
   while (1)
@@ -221,7 +290,7 @@ void* orphan_child(void* arg) {
   s_exit();
 }
 
-void* orphanify(void* arg) {
+void* u_orphanify(void* arg) {
   char* orphan_child_argv[] = {"orphan_child", NULL};
   s_spawn(orphan_child, orphan_child_argv, 0, 1);  // TODO --> fix/fill in args
   s_exit();

@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
   scheduler();
 
   // Init process has PID 1.
-  k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1));
+  k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1)); // UPDATE THIS AS SUSAN SAID
   // cleanup
   free_scheduler_queues();
   close(log_fd);
