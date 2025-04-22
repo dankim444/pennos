@@ -57,6 +57,9 @@ pcb_t* create_pcb(pid_t pid,
     ret_pcb->signals[i] = false;
   }
 
+  ret_pcb->is_sleeping = false;
+  ret_pcb->time_to_wake = -1;  // default to not sleeping
+
   return ret_pcb;
 }
 
@@ -107,8 +110,8 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
   // update parent as needed
   vec_push_back(&parent->child_pcbs, child);
 
-  // add to appropriate queue (TODO -> see if this is necessary)
-  put_pcb_into_correct_queue(child);  // CAUSING ERROR!
+  // add to appropriate queue
+  put_pcb_into_correct_queue(child); 
   vec_push_back(&current_pcbs, child);
 
   return child;

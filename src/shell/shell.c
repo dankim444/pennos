@@ -34,7 +34,7 @@ void shell_sigint_handler(int sig) {
     s_kill(current_fg_pid, 2);  // P_SIGTERM
   }
   // Write a new line to prompt
-  write(STDERR_FILENO, "\n", 1);
+  write(STDERR_FILENO, "\n", 1); // TODO --> integrate with FS calls
   write(STDOUT_FILENO, PROMPT, strlen(PROMPT));
 }
 
@@ -52,7 +52,7 @@ void setup_terminal_signal_handlers(void) {
 void free_job_ptr(void* ptr) {
   job* job_ptr = (job*)ptr;
   free(job_ptr->pids);
-  free(job_ptr->cmd);
+  free(job_ptr->cmd); // TODO: check if this will double free w/ spawned processes
   free(job_ptr);
 }
 
@@ -81,50 +81,50 @@ pid_t execute_command(struct parsed_command* cmd) {
   if (strcmp(cmd->commands[0][0], "cat") == 0) {
     // TODO --> make sure these files from parser are okay!
     // I'm assuming yes b/c we implement s_spawn but just check
-    return s_spawn(cat, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_cat, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "sleep") == 0) {
-    return s_spawn(b_sleep, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_sleep, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "busy") == 0) {
-    return s_spawn(busy, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_busy, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "echo") == 0) {
-    return s_spawn(echo, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_echo, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "ls") == 0) {
-    return s_spawn(ls, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_ls, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "touch") == 0) {
-    return s_spawn(touch, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_touch, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "mv") == 0) {
-    return s_spawn(mv, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_mv, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "cp") == 0) {
-    return s_spawn(cp, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_cp, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "rm") == 0) {
-    return s_spawn(rm, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_rm, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "chmod") == 0) {
-    return s_spawn(chmod, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_chmod, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "ps") == 0) {
-    return s_spawn(ps, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_ps, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "kill") == 0) {
-    return s_spawn(b_kill, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_kill, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "zombify") == 0) {
-    return s_spawn(zombify, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_zombify, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "orphanify") == 0) {
-    return s_spawn(orphanify, cmd->commands[0], input_fd, output_fd);
+    return s_spawn(u_orphanify, cmd->commands[0], input_fd, output_fd);
   }
 
   // check for sub-routines (nice, nice_pid, man, bg, fg, jobs, logout)
   if (strcmp(cmd->commands[0][0], "nice") == 0) {
-    b_nice(cmd->commands[0]);
+    u_nice(cmd->commands[0]);
   } else if (strcmp(cmd->commands[0][0], "nice_pid") == 0) {
-    nice_pid(cmd->commands[0]);
+    u_nice_pid(cmd->commands[0]);
   } else if (strcmp(cmd->commands[0][0], "man") == 0) {
-    man(cmd->commands[0]);
+    u_man(cmd->commands[0]);
   } else if (strcmp(cmd->commands[0][0], "bg") == 0) {
-    bg(cmd->commands[0]);
+    u_bg(cmd->commands[0]);
   } else if (strcmp(cmd->commands[0][0], "fg") == 0) {
-    fg(cmd->commands[0]);
+    u_fg(cmd->commands[0]);
   } else if (strcmp(cmd->commands[0][0], "jobs") == 0) {
-    jobs(cmd->commands[0]);
+    u_jobs(cmd->commands[0]);
   } else if (strcmp(cmd->commands[0][0], "logout") == 0) {
-    logout(cmd->commands[0]);
+    u_logout(cmd->commands[0]);
   } else {
     // TODO --> handle error via some valid print
     return -1;
@@ -134,11 +134,7 @@ pid_t execute_command(struct parsed_command* cmd) {
 }
 
 void* shell_main(void*) {
-  // TODO --> determine if we need more here
-  // add in the jobs, bg, fg stuff as needed
-  // cross-check against penn-shell.c file once we
-  // get answers on this
-
+ 
   job_list = vec_new(0, free_job_ptr);
 
   setup_terminal_signal_handlers();
@@ -194,8 +190,6 @@ void* shell_main(void*) {
       continue;
     }
 
-    // TODO --> handle builtins/bg as needed (if needed)
-
     child_pid = execute_command(cmd);
     if (child_pid < 0) {
       // TODO --> handle error via some valid print
@@ -211,7 +205,7 @@ void* shell_main(void*) {
       // Create a new job entry.
       job* new_job = malloc(sizeof(job));
       if (new_job == NULL) {
-        u_perror("malloc new_job");
+        perror("Error: mallocing new_job failed");
         free(cmd);
         continue;
       }
@@ -220,7 +214,7 @@ void* shell_main(void*) {
       new_job->num_pids = 1;
       new_job->pids = malloc(sizeof(pid_t));
       if (new_job->pids == NULL) {
-        u_perror("malloc job->pids");
+        perror("Error: mallocing new_job->pids failed"); 
         free(new_job);
         free(cmd);
         continue;
@@ -235,7 +229,7 @@ void* shell_main(void*) {
       char msg[128];
       snprintf(msg, sizeof(msg), "[%lu] %d\n", (unsigned long)new_job->id,
                child_pid);
-      write(STDOUT_FILENO, msg, strlen(msg));
+      write(STDOUT_FILENO, msg, strlen(msg)); // TODO-->change once integrated?
     } else {
       // Foreground execution.
       current_fg_pid = child_pid;
@@ -243,9 +237,10 @@ void* shell_main(void*) {
       s_waitpid(child_pid, &status, false);
       current_fg_pid = 2;
       // Free cmd memory for foreground commands.
-      free(cmd);
+      //free(cmd); // TODO --> check if this is already freed, it may be
     }
   }
+
   vec_destroy(&job_list);
   s_exit();
   return 0;
