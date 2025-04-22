@@ -10,6 +10,7 @@
 #include "../fs/fs_syscalls.h"
 #include "../kernel/kern_sys_calls.h"
 #include "../lib/spthread.h"
+#include "../kernel/scheduler.h" // TODO --> make sure this is allowed, otw make wrapper
 
 #include <stdio.h>   // I think this is okay? Using snprintf
 #include <stdlib.h>  // For strtol
@@ -256,7 +257,7 @@ void* u_jobs(void* arg) {
 }
 
 void* u_logout(void* arg) {
-  // TODO --> implement logout
+  shutdown_pennos();
   return NULL;
 }
 
