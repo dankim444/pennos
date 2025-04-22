@@ -14,6 +14,7 @@
 #include <stdio.h>   // I think this is okay? Using snprintf
 #include <stdlib.h>  // For strtol
 #include <unistd.h>  // probably delete once done
+#include <errno.h>   // For errno for strtol
 
 extern Vec current_pcbs;
 
@@ -31,16 +32,14 @@ extern pcb_t* current_running_pcb;  // DELETE
 
 void* b_sleep(void* arg) {
   char* endptr;
-  int errno = 0;
+  errno = 0;
   int sleep_secs = (int)strtol(((char**)arg)[1], &endptr, 10);
   if (*endptr != '\0' || errno != 0) {  
     return NULL;
   }
 
   int sleep_ticks = sleep_secs * 10; 
-  fprintf(stderr, "About to sleep for %d ticks\n", sleep_ticks);  // TODO --> delete
   s_sleep(sleep_ticks);
-  fprintf(stderr, "Woke up from sleep\n");  // TODO --> delete
   s_exit();
   return NULL;
 }
@@ -137,7 +136,7 @@ void* b_kill(void* arg) {
   for (int i = start_index; argv[i] != NULL; i++) {
     char* endptr;
     long pid_long = strtol(argv[i], &endptr, 10);
-    if (*endptr != '\0' || pid_long <= 0) {
+    if (*endptr != '\0' || pid_long <= 0) { // TODO: check if this or errno is better
       snprintf(err_buf, 128, "Invalid PID: %s\n", argv[i]);
       write(STDERR_FILENO, err_buf, strlen(err_buf)); // TODO--> replace w/ s_write or not? maybe uperror
       continue;
@@ -165,7 +164,7 @@ void* b_nice(void* arg) {
 
 void* nice_pid(void* arg) {
   char* endptr;
-  int errno = 0;
+  errno = 0;
   int new_priority = (int)strtol(((char**)arg)[1], &endptr, 10);
   if (*endptr != '\0' || errno != 0) {  // error catch
     return NULL;

@@ -215,7 +215,6 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
   }
 
   // Block the parent until a child exits
-  fprintf(stderr, "Blocking parent %d\n", parent->pid);  // TODO DELETE
   delete_from_queue(parent->priority, parent->pid);
   parent->process_state = 'B';
   log_generic_event('B', parent->pid, parent->priority, parent->cmd_str);
@@ -235,6 +234,7 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
       }
     }
   }
+
   // If we get here, something went wrong
   return -1;
 }

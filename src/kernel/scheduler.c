@@ -137,7 +137,6 @@ pcb_t* get_next_pcb(int priority) {
   if ((priority == 0 && vec_is_empty(&zero_priority_queue)) || (priority == 1 
       && vec_is_empty(&one_priority_queue)) || (priority == 2 && 
       vec_is_empty(&two_priority_queue))) {
-    fprintf(stderr, "Queue %d is empty\n", priority);
     return NULL;
   }
 
@@ -236,6 +235,7 @@ void handle_signal(pcb_t* pcb, int signal) {
         pcb->process_state = 'R';
         log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
         delete_process_from_all_queues_except_current(pcb);
+        // TODO --> check if queue placement needed here, Krystof (me) removed b/c done in scheduler, I think
       }
       pcb->signals[1] = false;
       break;
@@ -265,7 +265,6 @@ void shutdown_pennos(void) {
 
 void scheduler() {
 
-  // TODO --> insert code somewhere to prevent busy waiting via sigsuspend
   int curr_priority_queue_num;
 
   // mask for while scheduler is waiting for alarm
@@ -343,7 +342,12 @@ void scheduler() {
     }
 
     curr_priority_queue_num = generate_next_priority();
+
     current_running_pcb = get_next_pcb(curr_priority_queue_num);
+    if (current_running_pcb == NULL) {
+      sigsuspend(&suspend_set); // idle until signal received
+      continue; 
+    }
 
     // TODO: If no runnable processes, go to idle state
 

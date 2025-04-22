@@ -237,9 +237,10 @@ void* shell_main(void*) {
       s_waitpid(child_pid, &status, false);
       current_fg_pid = 2;
       // Free cmd memory for foreground commands.
-      free(cmd); // TODO --> check if this is already freed, it may be
+      //free(cmd); // TODO --> check if this is already freed, it may be
     }
   }
+
   vec_destroy(&job_list);
   s_exit();
   return 0;
