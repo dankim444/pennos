@@ -7,6 +7,7 @@
 #include "kern_pcb.h"
 #include "logger.h"
 #include "stdlib.h"
+#include "errno.h"
 
 #include <stdio.h>  // TODO: delete this once finished
 #include <string.h>
@@ -356,9 +357,14 @@ void scheduler() {
     log_scheduling_event(current_running_pcb->pid, curr_priority_queue_num,
                          current_running_pcb->cmd_str);
 
-    spthread_continue(current_running_pcb->thread_handle);
+    if (spthread_continue(current_running_pcb->thread_handle) != 0) {
+      perror("spthread_continue failed in scheduler");
+    }
     sigsuspend(&suspend_set);
+    if (spthread_suspend(current_running_pcb->thread_handle) != 0 && 
+        errno != EINTR) {
+      perror("spthread_suspend failed in scheduler");
+    }
     put_pcb_into_correct_queue(current_running_pcb);
-    spthread_suspend(current_running_pcb->thread_handle);
   }
 }
