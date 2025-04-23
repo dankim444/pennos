@@ -35,7 +35,18 @@ void shell_sigint_handler(int sig) {
   }
   // Write a new line to prompt
   write(STDERR_FILENO, "\n", 1); // TODO --> integrate with FS calls
-  write(STDOUT_FILENO, PROMPT, strlen(PROMPT));
+}
+
+// Signal handler for (Ctrl-Z)
+void shell_sigstp_handler(int sig) {
+  // If there's a foreground process, forward SIGTSTP (stop) to it
+  if (current_fg_pid != 2) {
+    s_kill(current_fg_pid, 0);  // P_SIGSTOP
+    fprintf(stderr, "\nProcess %d stopped\n", current_fg_pid);
+  }
+
+  // Write a new line to prompt
+  write(STDERR_FILENO, "\n", 1); // TODO --> integrate with FS calls
 }
 
 // Set up terminal signal handlers in the shell (only for interactive mode).
@@ -45,6 +56,12 @@ void setup_terminal_signal_handlers(void) {
   sigemptyset(&sa_int.sa_mask);
   sa_int.sa_flags = SA_RESTART;
   sigaction(SIGINT, &sa_int, NULL);
+
+  struct sigaction sa_stp = {0};
+  sa_stp.sa_handler = shell_sigstp_handler;
+  sigemptyset(&sa_stp.sa_mask);
+  sa_stp.sa_flags = SA_RESTART;
+  sigaction(SIGTSTP, &sa_stp, NULL);
 }
 
 // This function will be used by vec_new as the destructor
@@ -64,23 +81,19 @@ void free_job_ptr(void* ptr) {
  *
  * @param cmd the parsed command to execute, assumed non-null
  * @return the created child id on successful spawn, 0 on successful
- *         subroutine call, -1 on error (given cmd is not a shell built-in)
+ *         subroutine call, -1 when nothing was called
  */
 pid_t execute_command(struct parsed_command* cmd) {
-  // TODO --> Vedansh said to use open for now?
-  int input_fd = open(cmd->stdin_file,
-                      F_READ);  // TODO --> error check these once implemented
+  int input_fd = open(cmd->stdin_file, F_READ); // TODO --> integrate with FS
   int output_fd;
   if (cmd->is_file_append) {
-    output_fd = open(cmd->stdout_file, F_APPEND);
+    output_fd = open(cmd->stdout_file, F_APPEND); // ^^
   } else {
-    output_fd = open(cmd->stdout_file, F_WRITE);
+    output_fd = open(cmd->stdout_file, F_WRITE); // ^^
   }
 
   // check for independently scheduled processes
   if (strcmp(cmd->commands[0][0], "cat") == 0) {
-    // TODO --> make sure these files from parser are okay!
-    // I'm assuming yes b/c we implement s_spawn but just check
     return s_spawn(u_cat, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "sleep") == 0) {
     return s_spawn(u_sleep, cmd->commands[0], input_fd, output_fd);
@@ -110,7 +123,7 @@ pid_t execute_command(struct parsed_command* cmd) {
     return s_spawn(u_orphanify, cmd->commands[0], input_fd, output_fd);
   }
 
-  // check for sub-routines (nice, nice_pid, man, bg, fg, jobs, logout)
+  // check for sub-routines 
   if (strcmp(cmd->commands[0][0], "nice") == 0) {
     u_nice(cmd->commands[0]);
   } else if (strcmp(cmd->commands[0][0], "nice_pid") == 0) {
@@ -126,8 +139,7 @@ pid_t execute_command(struct parsed_command* cmd) {
   } else if (strcmp(cmd->commands[0][0], "logout") == 0) {
     u_logout(cmd->commands[0]);
   } else {
-    // TODO --> handle error via some valid print
-    return -1;
+    return -1; // no matched case
   }
 
   return 0;  // only reached for subroutines
@@ -234,7 +246,9 @@ void* shell_main(void*) {
       // Foreground execution.
       current_fg_pid = child_pid;
       int status;
+      fprintf(stderr, "Waiting for child %d\n", child_pid);
       s_waitpid(child_pid, &status, false);
+      fprintf(stderr, "Child %d finished\n", child_pid);
       current_fg_pid = 2;
       // Free cmd memory for foreground commands.
       //free(cmd); // TODO --> check if this is already freed, it may be

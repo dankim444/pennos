@@ -170,7 +170,7 @@ void put_pcb_into_correct_queue(pcb_t* pcb) {
     }
   } else if (pcb->process_state == 'Z') {
     vec_push_back(&zombie_queue, pcb);
-  } else if (pcb->process_state == 'B' || pcb->process_state == 'S') {
+  } else if (pcb->process_state == 'B' || pcb->is_sleeping) {
     vec_push_back(&sleep_blocked_queue, pcb);
   }
 }
@@ -231,7 +231,9 @@ void handle_signal(pcb_t* pcb, int signal) {
         log_generic_event('s', pcb->pid, pcb->priority, pcb->cmd_str);
         delete_process_from_all_queues_except_current(pcb);
         put_pcb_into_correct_queue(pcb);
+        pcb->process_status = 21;  // STOPPED_BY_SIG
       }
+      fprintf(stderr, "SIGSTOP received for PID %d\n", pcb->pid);
       pcb->signals[0] = false;
       break;
     case 1:                             // P_SIGCONT
@@ -239,7 +241,7 @@ void handle_signal(pcb_t* pcb, int signal) {
         pcb->process_state = 'R';
         log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
         delete_process_from_all_queues_except_current(pcb);
-        // TODO --> check if queue placement needed here, Krystof (me) removed b/c done in scheduler, I think
+        pcb->process_status = 0;  // Reset status
       }
       pcb->signals[1] = false;
       break;
@@ -250,6 +252,7 @@ void handle_signal(pcb_t* pcb, int signal) {
         log_generic_event('Z', pcb->pid, pcb->priority, pcb->cmd_str);
         delete_process_from_all_queues_except_current(pcb);
         put_pcb_into_correct_queue(pcb);
+        pcb->process_status = 22;  // TERM_BY_SIG
 
         // Handle orphaned children
         for (int i = 0; i < vec_len(&pcb->child_pcbs); i++) {
@@ -301,6 +304,7 @@ void scheduler() {
       for (int i = 0; i < 3; i++) {
         if (current_running_pcb->signals[i]) {
           handle_signal(current_running_pcb, i);
+          fprintf(stderr, "Handling a signal now");
           // If process was terminated, don't continue scheduling it
           if (current_running_pcb->process_state != 'R') {
             current_running_pcb = NULL;
@@ -311,7 +315,6 @@ void scheduler() {
     }
 
     // Check sleep/blocked queue to move processes back to scheduable queues
-    // once ready
     for (int i = 0; i < vec_len(&sleep_blocked_queue); i++) {
       pcb_t* blocked_proc = vec_get(&sleep_blocked_queue, i);
       bool make_runnable = false;
@@ -325,12 +328,25 @@ void scheduler() {
         blocked_proc->is_sleeping = false;
         blocked_proc->process_state = 'Z';
         blocked_proc->process_status = 22;  // TERM_BY_SIG
+        blocked_proc->signals[2] = false;
         delete_process_from_all_queues_except_current(blocked_proc);
         put_pcb_into_correct_queue(blocked_proc);
         log_generic_event('Z', blocked_proc->pid, blocked_proc->priority,
                           blocked_proc->cmd_str);
         i--;
-      } else if (child_in_zombie_queue(blocked_proc)) {
+      } else if (blocked_proc->process_state == 'B' &&
+                 blocked_proc->signals[0]) {  // P_SIGSTOP received
+        blocked_proc->process_state = 'S';
+        blocked_proc->signals[0] = false;
+        blocked_proc->process_status = 21; // STOPPED_BY_SIG
+        delete_process_from_all_queues_except_current(blocked_proc);
+        log_generic_event('s', blocked_proc->pid, blocked_proc->priority,
+                          blocked_proc->cmd_str);
+        fprintf(stderr, "SIGSTOP handled for PID in scheduler %d\n", blocked_proc->pid);
+        fprintf(stderr, "and its parent pid is %d\n", blocked_proc->par_pid);
+        i--;
+      }
+      else if (child_in_zombie_queue(blocked_proc)) {
         make_runnable = true;
       }
 

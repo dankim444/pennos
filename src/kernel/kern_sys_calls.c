@@ -115,6 +115,21 @@ void delete_from_queue(int queue_id, int pid) {
   }
 }
 
+/**
+ * @brief Helper function that deletes the given PCB from the explicit queue
+ *        passed in. Notably, it does not free the PCB but instead uses
+ *       vec_erase_no_deletor to remove it from the queue.
+ * 
+ * @param queue_to_delete_from ptr to Vec* queue to delete from
+ * @param pid                  the pid of the PCB to delete
+ */
+void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
+  int index = determine_index_in_queue(queue_to_delete_from, pid);
+  if (index != -1) {
+    vec_erase_no_deletor(queue_to_delete_from, index);
+  }
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -195,6 +210,7 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
       }
       log_generic_event('W', child->pid, child->priority, child->cmd_str);
       vec_erase_no_deletor(&zombie_queue, i);
+      delete_from_explicit_queue(&parent->child_pcbs, child->pid);
       k_proc_cleanup(child);
       parent->process_state = 'R';
       log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
@@ -222,10 +238,24 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
         }
         log_generic_event('W', child->pid, child->priority, child->cmd_str);
         vec_erase_no_deletor(&zombie_queue, i);
+        delete_from_explicit_queue(&parent->child_pcbs, child->pid);
         k_proc_cleanup(child);
         return child->pid;
       }
     }
+
+    // scan children of current running process for non-terminated state changes
+    /*for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
+      pcb_t* child = vec_get(&parent->child_pcbs, i);
+      if ((pid == -1 || child->pid == pid) && child->process_status != 0) { // signaled --> TODO ensure 0 invariant maintained
+        if (wstatus != NULL) {
+          *wstatus = child->process_status;
+        }
+        log_generic_event('W', child->pid, child->priority, child->cmd_str);
+        child->process_status = 0; // reset status
+        return child->pid;
+      }
+    }*/
   }
 
   // If we get here, something went wrong
