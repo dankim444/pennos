@@ -27,6 +27,8 @@ int main(int argc, char* argv[]) {
   // initialize scheduler architecture and init process
   initialize_scheduler_queues();
 
+  // TODO --> create the global FD table, as Ed 1253 said
+
   pid_t init_pid = s_spawn_init();
   if (init_pid == -1) {
     // Dan: don't worry abt this until later, but you will have to set the error

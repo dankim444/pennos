@@ -189,6 +189,6 @@ void* rm(void *arg);
 * @param arg Arguments array (command line arguments)
 * @return void pointer (unused)
 */
-// void* chmod(void *arg); --> getting conflicting types issue
+//void* chmod(void *arg);
 
 #endif
