@@ -4,13 +4,13 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include "../kernel/kern_pcb.h"  // TODO --> this is a little dangerous,
-#include "../lib/Vec.h"
-// make sure not to use k funcs
+#include "../lib/Vec.h"          // make sure not to use k funcs
 #include <string.h>
 #include "../fs/fs_syscalls.h"
 #include "../kernel/kern_sys_calls.h"
 #include "../lib/spthread.h"
 #include "../kernel/scheduler.h" // TODO --> make sure this is allowed, otw make wrapper
+#include "../fs/fat_routines.h"
 
 #include <stdio.h>   // I think this is okay? Using snprintf
 #include <stdlib.h>  // For strtol
@@ -19,16 +19,13 @@
 
 extern Vec current_pcbs;
 
-extern pcb_t* current_running_pcb;  // DELETE
-
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
 //        independently scheduled PennOS processes.                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 void* u_cat(void *arg) {
-  // TODO --> implement cat
-  return NULL;
+  return cat(arg);
 }
 
 void* u_sleep(void* arg) {
@@ -58,28 +55,23 @@ void* u_echo(void* arg) {
 }
 
 void* u_ls(void *arg) {
-  // TODO --> implement ls
-  return NULL;
+  return ls(arg);
 }
 
 void* u_touch(void *arg) {
-  // TODO --> implement touch
-  return NULL;
+  return touch(arg);
 }
 
 void* u_mv(void *arg) {
-  // TODO --> implement mv
-  return NULL;
+  return mv(arg);
 }
 
 void* u_cp(void *arg) {
-  // TODO --> implement cp
-  return NULL;
+  return cp(arg);
 }
 
 void* u_rm(void *arg) {
-  // TODO --> implement rm
-  return NULL;
+  return rm(arg);
 }
 
 void* u_chmod(void* arg) {
@@ -202,7 +194,7 @@ void* u_nice(void* arg) {
   char* endptr;
   errno = 0;
   int new_priority = (int)strtol(((char**)arg)[1], &endptr, 10);
-  if (*endptr != '\0' || errno != 0) {  // error catch
+  if (*endptr != '\0' || errno != 0 || new_priority > 2 || new_priority < 0) {  // error catch
     return NULL;
   }
 
@@ -237,7 +229,30 @@ void* u_nice_pid(void* arg) {
 }
 
 void* u_man(void* arg) {
-  // TODO --> implement man
+  const char* man_string =
+  "cat f1 f2 ...        : concatenates provided files (if none, reads from std in), and writes to std out\n"
+  "sleep n               : sleeps for n seconds\n"
+  "busy                  : busy waits indefinitely\n"
+  "echo str              : echoes back the input string str\n"
+  "ls                    : lists all files in the working directory\n"
+  "touch f1 f2 ...       : for each file, creates empty file if it doesn't exist yet, otherwise updates its timestamp\n"
+  "mv f1 f2              : renames f1 to f2 (overwrites f2 if it exists)\n"
+  "cp f1 f2              : copies f1 to f2 (overwrites f2 if it exists)\n"
+  "rm f1 f2 ...          : removes the input list of files\n"
+  "chmod +_ f1           : changes f1 permissions to +_ specifications (+x, +rw, etc)\n"
+  "ps                    : lists all processes on PennOS, displaying PID, PPID, priority, status, and command name\n"
+  "kill (-__) pid1 pid 2 : sends specified signal (term default) to list of processes\n"
+  "nice n command        : spawns a new process for command and sets its priority to n\n"
+  "nice_pid n pid        : adjusts the priority level of an existing process to n\n"
+  "man                   : lists all available commands in PennOS\n"
+  "bg                    : resumes most recently stopped process in background or the one specified by job_id\n"
+  "fg                    : brings most recently stopped or background job to foreground or the one specifed by job_id\n"
+  "jobs                  : lists all jobs\n"
+  "logout                : exits the shell and shuts down PennOS\n"
+  "zombify               : creates a child process that becomes a zombie\n"
+  "orphanify             : creates a child process that becomes an orphan\n";
+  
+  write(STDERR_FILENO, man_string, strlen(man_string)); // replace with s_write
   return NULL;
 }
 
