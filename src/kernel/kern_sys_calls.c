@@ -143,8 +143,7 @@ pid_t s_spawn_init() {
 
   spthread_t thread_handle;
   if (spthread_create(&thread_handle, NULL, init_func, NULL) != 0) {
-    P_ERRNO = P_EINTR;
-    return -1;
+    perror("Error in spthread_create in s_spawn_init call");
   }
 
   init->cmd_str = strdup("init");
@@ -168,12 +167,7 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   spthread_t thread_handle;
 
   if (spthread_create(&thread_handle, NULL, func, argv) != 0) {
-    P_ERRNO =
-        P_EINTR;  // im removing u_perror here bc i believe the shell is only
-                  // allowed to call u_perror the kernel + fs just sets the type
-                  // of error and returns -1, then the shell catches the error
-                  // and interprets it using u_perror. -Dan
-    return -1;
+    perror("Error in spthread_create in s_spawn call");
   }
 
   child->cmd_str = strdup(argv[0]);
@@ -295,5 +289,7 @@ void s_sleep(unsigned int ticks) {
   log_generic_event('B', current_running_pcb->pid,
                     current_running_pcb->priority,
                     current_running_pcb->cmd_str);
-  spthread_suspend(current_running_pcb->thread_handle); // give scheduler control
+  if (spthread_suspend(current_running_pcb->thread_handle) != 0) { // give scheduler control
+    perror("Error in spthread_suspend in s_sleep call");
+  }
 }
