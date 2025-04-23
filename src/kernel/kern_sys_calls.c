@@ -10,6 +10,7 @@
 #include "logger.h"
 #include "scheduler.h"
 #include "signal.h"
+#include "../fs/fs_syscalls.h"
 
 #include "stdio.h"  // TODO: delete this once finished
 
@@ -121,17 +122,16 @@ void delete_from_queue(int queue_id, int pid) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void* init_func(void* input) {
-  // Spawn the shell
   char* shell_argv[] = {"shell_main", NULL};
-  s_spawn(shell_main, shell_argv, 0, 1);  // TODO: check these fds
+  s_spawn(shell_main, shell_argv, STDIN_FILENO, STDOUT_FILENO);
 
-  // Main init loop - continuously wait for and reap zombie children
+  // continuously wait for and reap zombie children
   while (true) {
     int status;
     s_waitpid(-1, &status, false);
   }
 
-  return NULL;  // This should never be reached
+  return NULL;  // should never reach
 }
 
 pid_t s_spawn_init() {
@@ -154,8 +154,7 @@ pid_t s_spawn_init() {
 
 pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   pcb_t* child;
-  if (strcmp(argv[0], "shell_main") ==
-      0) {  // shell, unlike others, has priority 1
+  if (strcmp(argv[0], "shell_main") == 0) { 
     child = k_proc_create(current_running_pcb, 0);
   } else {
     child = k_proc_create(current_running_pcb, 1);
@@ -184,7 +183,7 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
 
   log_generic_event('C', child->pid, child->priority, child->cmd_str);
 
-  return child->pid;  // return child->pid if successful
+  return child->pid; 
 }
 
 pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
