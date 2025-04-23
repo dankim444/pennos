@@ -4,6 +4,8 @@
 #include "scheduler.h"
 #include "stdio.h"  // for perror
 #include "stdlib.h"
+#include "../fs/fs_syscalls.h"
+
 
 int next_pid = 2;  // global variable to track the next pid to be assigned
                    // Note: when incrementing, be careful to lock around
@@ -16,20 +18,15 @@ extern pcb_t* current_running_pcb;
 //                            PCB FUNCTIONS                                   //
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO --> update this function as pcb changes
 void free_pcb(void* pcb) {
   pcb_t* casted_pcb = (pcb_t*)pcb;
 
   free(casted_pcb->cmd_str);
   vec_destroy(&casted_pcb->child_pcbs);  // observe will free any remaining
                                          // children too!
-
-  // TODO --> free file descriptor table
-
   free(casted_pcb);
 }
 
-// TODO --> update this function as pcb changes
 pcb_t* create_pcb(pid_t pid,
                   pid_t par_pid,
                   int priority,
@@ -92,6 +89,13 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
     if (init == NULL) {
       P_ERRNO = P_NULL;  // TODO --> do we want this?
     }
+    init->fd_table[0] = STDIN_FILENO;
+    init->fd_table[1] = STDOUT_FILENO;
+    init->fd_table[2] = STDERR_FILENO;
+    for (int i = 3; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
+      init->fd_table[i] = -1;
+    }
+
     current_running_pcb = init;
     put_pcb_into_correct_queue(init);
     vec_push_back(&current_pcbs, init);
@@ -105,7 +109,11 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
     return NULL;
   }
 
-  // TODO --> copy file descriptor table once added
+  // copy parent's fd table
+  for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) { 
+    child->fd_table[i] = parent->fd_table[i];
+  }
+  // TODO --> file system heads should increase reference count
 
   // update parent as needed
   vec_push_back(&parent->child_pcbs, child);
@@ -144,7 +152,7 @@ void k_proc_cleanup(pcb_t* proc) {
     }
   }
 
-  // TODO --> handle fd table once added
+  // TODO --> FS people reduce reference count for all fds in the fd table?
 
   // delete this process from any queue it's in + free it
   delete_process_from_all_queues(proc);

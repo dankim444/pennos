@@ -8,6 +8,7 @@
 #include "../lib/Vec.h"
 
 
+#define FILE_DESCRIPTOR_TABLE_SIZE 100
 
 ////////////////////////////////////////////////////////////////////////////////
 //              PROCESS CONTROL BLOCK (PCB) STRUCTURE AND FUNCTIONS           //
@@ -43,8 +44,7 @@ typedef struct pcb_st {
     bool is_sleeping;
     int time_to_wake; // time to wake up if sleeping, -1 if not sleeping
 
-
-    // TODO --> file descriptor table
+    int fd_table[FILE_DESCRIPTOR_TABLE_SIZE]; // file descriptor table (-1 if not in use)
 } pcb_t;
 
 ////////////////////////////////////////////////////////////////////////////////

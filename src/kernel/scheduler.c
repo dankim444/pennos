@@ -353,8 +353,6 @@ void scheduler() {
       continue; 
     }
 
-    // TODO: If no runnable processes, go to idle state
-
     log_scheduling_event(current_running_pcb->pid, curr_priority_queue_num,
                          current_running_pcb->cmd_str);
 
