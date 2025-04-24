@@ -115,7 +115,20 @@ void delete_from_queue(int queue_id, int pid) {
   }
 }
 
-
+/**
+ * @brief Helper function that deletes the given PCB from the explicit queue
+ *        passed in. Notably, it does not free the PCB but instead uses
+ *       vec_erase_no_deletor to remove it from the queue.
+ * 
+ * @param queue_to_delete_from ptr to Vec* queue to delete from
+ * @param pid                  the pid of the PCB to delete
+ */
+void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
+  int index = determine_index_in_queue(queue_to_delete_from, pid);
+  if (index != -1) {
+    vec_erase_no_deletor(queue_to_delete_from, index);
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
@@ -143,8 +156,7 @@ pid_t s_spawn_init() {
 
   spthread_t thread_handle;
   if (spthread_create(&thread_handle, NULL, init_func, NULL) != 0) {
-    P_ERRNO = P_EINTR;
-    return -1;
+    perror("Error in spthread_create in s_spawn_init call");
   }
 
   init->cmd_str = strdup("init");
@@ -168,12 +180,7 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   spthread_t thread_handle;
 
   if (spthread_create(&thread_handle, NULL, func, argv) != 0) {
-    P_ERRNO =
-        P_EINTR;  // im removing u_perror here bc i believe the shell is only
-                  // allowed to call u_perror the kernel + fs just sets the type
-                  // of error and returns -1, then the shell catches the error
-                  // and interprets it using u_perror. -Dan
-    return -1;
+    perror("Error in spthread_create in s_spawn call");
   }
 
   child->cmd_str = strdup(argv[0]);
@@ -201,9 +208,8 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
       }
       log_generic_event('W', child->pid, child->priority, child->cmd_str);
       vec_erase_no_deletor(&zombie_queue, i);
+      delete_from_explicit_queue(&parent->child_pcbs, child->pid);
       k_proc_cleanup(child);
-      parent->process_state = 'R';
-      log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
       return child->pid;
     }
   }
@@ -228,7 +234,25 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
         }
         log_generic_event('W', child->pid, child->priority, child->cmd_str);
         vec_erase_no_deletor(&zombie_queue, i);
+        delete_from_explicit_queue(&parent->child_pcbs, child->pid);
         k_proc_cleanup(child);
+        //parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
+        //log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
+        return child->pid;
+      }
+    }
+
+    // scan children of current running process for non-terminated state changes
+    for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
+      pcb_t* child = vec_get(&parent->child_pcbs, i);
+      if ((pid == -1 || child->pid == pid) && (child->process_status == 21 || child->process_status == 23)) { // signaled --> TODO ensure 0 invariant maintained
+        if (wstatus != NULL) {
+          *wstatus = child->process_status;
+        }
+        log_generic_event('W', child->pid, child->priority, child->cmd_str);
+        child->process_status = 0; // reset status
+        //parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
+        //log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
         return child->pid;
       }
     }
@@ -295,5 +319,7 @@ void s_sleep(unsigned int ticks) {
   log_generic_event('B', current_running_pcb->pid,
                     current_running_pcb->priority,
                     current_running_pcb->cmd_str);
-  spthread_suspend(current_running_pcb->thread_handle); // give scheduler control
+  if (spthread_suspend(current_running_pcb->thread_handle) != 0) { // give scheduler control
+    perror("Error in spthread_suspend in s_sleep call");
+  }
 }
