@@ -30,14 +30,14 @@ int main(int argc, char *argv[]) {
 
     // set up handler for SIGINT (ctrl-c)
     if (sigaction(SIGINT, &sa, NULL) == -1) {
-        // set error code
+        P_ERRNO = P_ESIGNAL;
         u_perror("Error setting up SIGINT handler");
         return EXIT_FAILURE;
     }
 
     // set up handler for SIGTSTP (ctrl-z)
     if (sigaction(SIGTSTP, &sa, NULL) == -1) {
-        // set error code
+        P_ERRNO = P_ESIGNAL;
         u_perror("Error setting up SIGTSTP handler");
         return EXIT_FAILURE;
     }
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     while (true) {
         // print prompt
         if (write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
-            // set the error code
+            P_ERRNO = P_EWRITE;
             u_perror("prompt write error");
             break;
         }
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
         
         // check for EOF (ctrl-D)
         if (bytes_read <= 0) {
-            printf("\n");
+            write(STDOUT_FILENO, "\n", 1);
             break;
         }
         
@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
         int parse_result = parse_command(input_buffer, &parsed_command);
         if (parse_result != 0) {
             if (parse_result == -1) {
-                // set error code here
+                P_ERRNO = P_EINVAL;
                 u_perror("Error parsing command");
             } else {
                 print_parser_errcode(stderr, parse_result);
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
         if (strcmp(args[0], "mkfs") == 0) {
             if (args[1] == NULL || args[2] == NULL || args[3] == NULL) {
                 P_ERRNO = P_EINVAL;
-                u_perror("Usage: mkfs FS_NAME BLOCKS_IN_FAT BLOCK_SIZE_CONFIG\n");
+                u_perror("mkfs");
             } else {
                 int blocks_in_fat = atoi(args[2]);
                 int block_size = atoi(args[3]);
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(args[0], "mount") == 0) {
             if (args[1] == NULL) {
                 P_ERRNO = P_EINVAL;
-                u_perror("Usage: mount FS_NAME\n");
+                u_perror("mount");
             } else {
                 if (mount(args[1]) != 0) {
                     u_perror("mount");
@@ -134,7 +134,8 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(args[0], "cp") == 0) {
             cp(args);
         } else {
-            fprintf(stderr, "pennfat: command not found: %s\n", args[0]);
+            P_ERRNO = P_ECOMMAND;
+            u_perror("shell");
         }
 
         // free resource and re-prompt
