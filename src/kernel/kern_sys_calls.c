@@ -137,7 +137,7 @@ void* init_func(void* input) {
 pid_t s_spawn_init() {
   pcb_t* init = k_proc_create(NULL, 0);
   if (init == NULL) {
-    P_ERRNO = P_NULL;
+    P_ERRNO = P_ENULL;
     return -1;
   }
 
@@ -161,7 +161,7 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   }
 
   if (child == NULL) {
-    P_ERRNO = P_NULL;
+    P_ERRNO = P_ENULL;
     return -1;
   }
 
