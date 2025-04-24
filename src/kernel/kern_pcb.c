@@ -87,7 +87,7 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
   if (parent == NULL) {                       // init creation case
     pcb_t* init = create_pcb(1, 0, 0, 0, 1);  // TODO: check these fds
     if (init == NULL) {
-      P_ERRNO = P_NULL;  // TODO --> do we want this?
+      P_ERRNO = P_ENULL;  // TODO --> do we want this?
     }
     init->fd_table[0] = STDIN_FILENO;
     init->fd_table[1] = STDOUT_FILENO;
@@ -105,7 +105,7 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
   pcb_t* child = create_pcb(next_pid++, parent->pid, priority, parent->input_fd,
                             parent->output_fd);
   if (child == NULL) {
-    P_ERRNO = P_NULL;  // TODO --> do we want this?
+    P_ERRNO = P_ENULL;  // TODO --> do we want this?
     return NULL;
   }
 
@@ -132,7 +132,7 @@ void k_proc_cleanup(pcb_t* proc) {
   if (par_pcb != NULL) {
     remove_child_in_parent(par_pcb, proc);
   } else {
-    P_ERRNO = P_NULL;  // TODO --> do we want this?
+    P_ERRNO = P_ENULL;  // TODO --> do we want this?
     return;
   }
 

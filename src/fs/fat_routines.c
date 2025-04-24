@@ -20,14 +20,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Creates a PennFAT filesystem in the file named fs_name at the OS-level
- */
+* Creates a PennFAT filesystem in the file named fs_name at the OS-level
+*/
 int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   // validate arguments
   if (num_blocks < 1 || num_blocks > 32) {
+    P_ERRNO = P_EINVAL;
     return -1;
   }
   if (blk_size < 0 || blk_size > 4) {
+    P_ERRNO = P_EINVAL;
     return -1;
   }
 
@@ -36,17 +38,19 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   int actual_block_size = block_sizes[blk_size];
   int fat_size = num_blocks * actual_block_size;
   int fat_entries = fat_size / 2;
-  int num_data_blocks = (num_blocks == 32) ? fat_entries - 2 : fat_entries - 1;
+  int num_data_blocks = (num_blocks == 32) ? fat_entries - 2 : fat_entries - 1; // note: first entry is reserved for metadata!
   size_t filesystem_size = fat_size + (actual_block_size * num_data_blocks);
 
   // create the file for the filesystem
   int fd = open(fs_name, O_RDWR | O_CREAT | O_TRUNC, 0644);
   if (fd == -1) {
+    P_ERRNO = P_EOPEN;
     return -1;
   }
 
   // extend the file to the required size
   if (ftruncate(fd, filesystem_size) == -1) {
+    P_ERRNO = P_EFUNC;
     close(fd);
     return -1;
   }
@@ -54,30 +58,38 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   // allocate the FAT
   uint16_t* temp_fat = (uint16_t*)calloc(fat_entries, sizeof(uint16_t));
   if (!temp_fat) {
+    P_ERRNO = P_EMALLOC;
     close(fd);
     return -1;
   }
 
-  // initialize all FAT entries to free
-  for (int i = 0; i < fat_entries; i++) {
+  // initialize FAT entries to their correct values
+  temp_fat[0] = (num_blocks << 8) | blk_size;
+  temp_fat[1] = FAT_EOF;
+  for (int i = 2; i < fat_entries; i++) {
     temp_fat[i] = FAT_FREE;
   }
-
-  // initialize the first two entries of FAT (metadata and root directory)
-  temp_fat[0] = (num_blocks << 8) | blk_size;
-  temp_fat[1] = FAT_EOF; // root directory is only stored in one block
+  
 
   // write the FAT to the file
   if (write(fd, temp_fat, fat_size) != fat_size) {
+    P_ERRNO = P_EWRITE;
     free(temp_fat);
     close(fd);
     return -1;
   }
 
-  // initialize the root directory
+  // initialize the root directory + write to memory
   uint8_t* root_dir = (uint8_t*)calloc(actual_block_size, 1);
-  if (lseek(fd, fat_size, SEEK_SET) == -1 ||
-      write(fd, root_dir, actual_block_size) != actual_block_size) {
+  if (lseek(fd, fat_size, SEEK_SET) == -1) {
+    P_ERRNO = P_ELSEEK;
+    free(temp_fat);
+    free(root_dir);
+    close(fd);
+    return -1;
+  }
+  if (write(fd, root_dir, actual_block_size) != actual_block_size) {
+    P_ERRNO = P_EWRITE;
     free(temp_fat);
     free(root_dir);
     close(fd);
@@ -92,8 +104,8 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
 }
 
 /**
- * Mounts a filesystem with name fs_name by loading its FAT into memory.
- */
+* Mounts a filesystem with name fs_name by loading its FAT into memory.
+*/
 int mount(const char* fs_name) {
   // check if a filesystem is already mounted
   if (is_mounted) {
@@ -108,27 +120,25 @@ int mount(const char* fs_name) {
     return -1;
   }
 
-  // read the first two bytes to get configuration
+  // read the first two bytes to get size configuration
   uint16_t config;
   if (read(fs_fd, &config, sizeof(config)) != sizeof(config)) {
-    P_ERRNO = P_READ;
+    P_ERRNO = P_EREAD;
     close(fs_fd);
     fs_fd = -1;
     return -1;
   }
 
-  // extract size information from first two bytes
+  // extract FAT region size information
   num_fat_blocks = (config >> 8) & 0xFF;  // MSB
   int block_size_config = config & 0xFF;  // LSB
-
-  // determine actual block size from configuration
   int block_sizes[] = {256, 512, 1024, 2048, 4096};
   block_size = block_sizes[block_size_config];
   fat_size = num_fat_blocks * block_size;
 
-  // map the FAT into memory
+  // map the FAT region into memory
   if (lseek(fs_fd, 0, SEEK_SET) == -1) {
-    P_ERRNO = P_LSEEK;
+    P_ERRNO = P_ELSEEK;
     close(fs_fd);
     fs_fd = -1;
     return -1;
@@ -136,32 +146,31 @@ int mount(const char* fs_name) {
 
   fat = mmap(NULL, fat_size, PROT_READ | PROT_WRITE, MAP_SHARED, fs_fd, 0);
   if (fat == MAP_FAILED) {
-    P_ERRNO = P_MAP;
+    P_ERRNO = P_EMAP;
     close(fs_fd);
     fs_fd = -1;
     return -1;
   }
 
-  // initialize the fd table
-  init_fd_table(fd_table);
+  init_fd_table(fd_table); // initialize the file descriptor table
   is_mounted = true;
   return 0;
 }
 
 /**
- * Unmounts the current filesystem and reset variables.
- */
+* Unmounts the current filesystem and reset variables.
+*/
 int unmount() {
   // first check that a file system is actually mounted
   if (!is_mounted) {
-    P_ERRNO = P_FS_NOT_MOUNTED;
+    P_ERRNO = P_EFS_NOT_MOUNTED;
     return -1;
   }
 
   // unmap the FAT
   if (fat != NULL) {
     if (munmap(fat, fat_size) == -1) {
-      P_ERRNO = P_MAP;
+      P_ERRNO = P_EMAP;
       return -1;
     }
     fat = NULL;
@@ -170,7 +179,7 @@ int unmount() {
   // close fs_fd
   if (fs_fd != -1) {
     if (close(fs_fd) == -1) {
-      P_ERRNO = P_EBADF;
+      P_ERRNO = P_ECLOSE;
       return -1;
     }
     fs_fd = -1;
@@ -185,14 +194,14 @@ int unmount() {
 }
 
 /**
- * Concatenates and displays files.
- */
+* Concatenates and displays files.
+*/
 void* cat(void* arg) {
   char** args = (char**)arg;
 
   // verify that the file system is mounted
   if (!is_mounted) {
-    P_ERRNO = P_FS_NOT_MOUNTED;
+    P_ERRNO = P_EFS_NOT_MOUNTED;
     u_perror("cat");
     return NULL;
   }
@@ -317,15 +326,15 @@ void* cat(void* arg) {
 }
 
 /**
- * List all files in the directory.
- */
+* List all files in the directory.
+*/
 // TODO: REWORK --> need to use k_ functions or wrap entirely with k_ls
 void* ls(void* arg) {
   // will eventually need args for ls-ing certain files
   // char **args = (char **)arg;
 
   if (!is_mounted) {
-    P_ERRNO = P_FS_NOT_MOUNTED;
+    P_ERRNO = P_EFS_NOT_MOUNTED;
     u_perror("ls");
     return NULL;
   }
@@ -339,7 +348,7 @@ void* ls(void* arg) {
     // Position at the start of current block
     if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
         -1) {
-      P_ERRNO = P_LSEEK;
+      P_ERRNO = P_ELSEEK;
       u_perror("ls");
       return NULL;
     }
@@ -350,7 +359,7 @@ void* ls(void* arg) {
     // Search current block
     while (offset < block_size) {
       if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
-        P_ERRNO = P_READ;
+        P_ERRNO = P_EREAD;
         u_perror("ls");
         return NULL;
       }
@@ -401,17 +410,17 @@ void* ls(void* arg) {
 }
 
 /**
- * Creates files or updates timestamps.
- *
- * For each file argument, creates the file if it doesn't exist,
- * or updates its timestamp if it already exists.
- */
+* Creates files or updates timestamps.
+*
+* For each file argument, creates the file if it doesn't exist,
+* or updates its timestamp if it already exists.
+*/
 void* touch(void* arg) {
   char** args = (char**)arg;
 
   // verify that the file system is mounted
   if (!is_mounted) {
-    P_ERRNO = P_FS_NOT_MOUNTED;
+    P_ERRNO = P_EFS_NOT_MOUNTED;
     u_perror("touch");
     return NULL;
   }
@@ -436,7 +445,7 @@ void* touch(void* arg) {
       // write the updated entry back to the directory
       // REPLACE WITH K_LSEEK
       if (lseek(fs_fd, entry_offset, SEEK_SET) == -1) {
-        P_ERRNO = P_LSEEK;
+        P_ERRNO = P_ELSEEK;
         u_perror("touch");
         continue;
       }
@@ -471,14 +480,14 @@ void* touch(void* arg) {
 }
 
 /**
- * Renames files.
- */
+* Renames files.
+*/
 void* mv(void* arg) {
   char** args = (char**)arg;
 
   // verify that the file system is mounted
   if (!is_mounted) {
-    P_ERRNO = P_FS_NOT_MOUNTED;
+    P_ERRNO = P_EFS_NOT_MOUNTED;
     u_perror("mv");
     return NULL;
   }
@@ -535,7 +544,7 @@ void* mv(void* arg) {
 
   // write the updated entry back to disk
   if (lseek(fs_fd, source_offset, SEEK_SET) == -1) {
-    P_ERRNO = P_LSEEK;
+    P_ERRNO = P_ELSEEK;
     u_perror("mv");
     return NULL;
   }
@@ -551,8 +560,8 @@ void* mv(void* arg) {
 }
 
 /**
- * Copies the source file to the destination.
- */
+* Copies the source file to the destination.
+*/
 void* cp(void* arg) {
   char** args = (char**)arg;
 
@@ -612,14 +621,14 @@ void* cp(void* arg) {
 }
 
 /**
- * Removes files.
- */
+* Removes files.
+*/
 void* rm(void* arg) {
   char** args = (char**)arg;
 
   // verify that the file system is mounted
   if (!is_mounted) {
-    P_ERRNO = P_FS_NOT_MOUNTED;
+    P_ERRNO = P_EFS_NOT_MOUNTED;
     u_perror("rm");
     return NULL;
   }
@@ -656,7 +665,7 @@ void* rm(void* arg) {
     // mark the directory entry as deleted
     // TODO: REPLACE WITH K_LSEEK
     if (lseek(fs_fd, entry_offset, SEEK_SET) == -1) {
-      P_ERRNO = P_LSEEK;
+      P_ERRNO = P_ELSEEK;
       u_perror("rm");
       continue;
     }
