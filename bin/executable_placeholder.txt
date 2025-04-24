@@ -1,1 +1,0 @@
-here to make sure you have bin/ before calling 'make' or 'make all'
