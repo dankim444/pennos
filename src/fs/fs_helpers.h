@@ -8,17 +8,17 @@
 //                                 GLOBALS                                    //
 ////////////////////////////////////////////////////////////////////////////////
 
-// Global variables to track the current mounted filesystem
-extern int fs_fd;
-extern int block_size;
-extern int num_fat_blocks;
-extern int fat_size;
-extern uint16_t* fat;
-extern bool is_mounted;
+/*
+* Globals to track metadata about the current mounted filesystem
+*/
+extern int fs_fd; // reference to file system that is currently mounted
+extern int block_size; // the size of each block in the filesystem
+extern int num_fat_blocks; // number of blocks in the FAT region
+extern int fat_size; // size of the FAT region in bytes
+extern uint16_t* fat; // pointer to the FAT region in memory, for efficient access
+extern bool is_mounted; // indicator for whether any filesystem is mounted
 extern int MAX_FDS;  // TODO: Figure out if we want more file descriptors
 extern fd_entry_t fd_table[1024];  // file descriptor table
-
-// void print_fat_state(const char* label);
 
 ////////////////////////////////////////////////////////////////////////////////
 //                            FD TABLE HELPERS                                //

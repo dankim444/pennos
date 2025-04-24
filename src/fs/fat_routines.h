@@ -8,19 +8,14 @@
 //                                  DEFINITIONS                               //
 ////////////////////////////////////////////////////////////////////////////////
 
+#define FAT_EOF 0xFFFF // denotes last block
+#define FAT_FREE 0x0000 // denotes unused block
+
 // constants for file types
 #define TYPE_UNKNOWN 0
 #define TYPE_REGULAR 1
 #define TYPE_DIRECTORY 2
 #define TYPE_SYMLINK 4 // TODO: EXTRA CREDIT
-
-#define FAT_EOF 0xFFFF // denotes last block
-#define FAT_FREE 0x0000 // denotes unused block
-
-// constants for file modes (needed when calling k_open)
-#define F_READ 0x01
-#define F_WRITE 0x02
-#define F_APPEND 0x04
 
 // constants for permission (needed for chmod operations)
 #define PERM_NONE 0
@@ -29,6 +24,11 @@
 #define PERM_READ_EXEC 5
 #define PERM_READ_WRITE 6
 #define PERM_READ_WRITE_EXEC 7
+
+// constants for file modes
+#define F_READ 0x01
+#define F_WRITE 0x02
+#define F_APPEND 0x04
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                  FAT STRUCTURES                            //
@@ -67,7 +67,7 @@ typedef struct {
 * is determined by block_size (0=256B, 1=512B, 2=1024B, 3=2048B, 4=4096B).
 * 
 * @param fs_name The name of the file to create the filesystem in.
-* @param num_blocks The number of blocks in the FAT (1-32).
+* @param num_blocks The number of blocks in the FAT region (1-32).
 * @param block_size The block size configuration (0-4).
 */
 int mkfs(const char *fs_name, int num_blocks, int block_size);
