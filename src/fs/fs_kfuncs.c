@@ -16,14 +16,11 @@
 #include <errno.h>
 #include <stdbool.h> 
 
-// Global file descriptor table
-// sys_fd_entry_t sys_fd_table[MAX_GLOBAL_FD];
-
 /**
 * Kernel-level call to open a file.
 */
 int k_open(const char* fname, int mode) {
-    // validate fname and mode
+    // validate arguments
     if (fname == NULL || *fname == '\0') {
         P_ERRNO = P_EINVAL;
         return -1;
@@ -33,11 +30,9 @@ int k_open(const char* fname, int mode) {
         return -1;
     }
 
-    // TODO: this might be redundant since the helper functions in 
-    // fs_helpers already checks this before calling any k_ functions
     // check if the file system is mounted
     if (!is_mounted) {
-        P_ERRNO = P_FS_NOT_MOUNTED;
+        P_ERRNO = P_EFS_NOT_MOUNTED;
         return -1;
     }
 
@@ -69,17 +64,15 @@ int k_open(const char* fname, int mode) {
         // fill in the file descriptor entry
         fd_table[fd].in_use = 1;
         strncpy(fd_table[fd].filename, fname, 31);
-        fd_table[fd].filename[31] = '\0'; // ensure null termination
+        fd_table[fd].filename[31] = '\0';
         fd_table[fd].size = entry.size;
         fd_table[fd].first_block = entry.firstBlock;
         fd_table[fd].mode = mode;
         
         // set the initial position
         if (mode & F_APPEND) {
-            // position at the end of file for append mode
             fd_table[fd].position = entry.size;
         } else {
-            // position at the beginning of file for other modes
             fd_table[fd].position = 0;
         }
         
@@ -104,13 +97,17 @@ int k_open(const char* fname, int mode) {
             
             // update file size to 0
             fd_table[fd].size = 0;
-            
-            // update the directory entry
             entry.size = 0;
             entry.mtime = time(NULL);
             
-            if (lseek(fs_fd, file_offset, SEEK_SET) != -1) {
-                write(fs_fd, &entry, sizeof(entry));
+            // update the file system with the truncated file
+            if (lseek(fs_fd, file_offset, SEEK_SET) == -1) {
+                P_ERRNO = P_ELSEEK;
+                return -1;
+            }
+            if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
+                P_ERRNO = P_EWRITE;
+                return -1;
             }
         }
     } else {
@@ -118,28 +115,28 @@ int k_open(const char* fname, int mode) {
         
         // check if we can create it
         if (!(mode & F_WRITE)) {
-            P_ERRNO = P_ENOENT; // file doesn't exist and read-only mode
+            P_ERRNO = P_ENOENT;
             return -1;
         }
         
         // allocate the first block
         uint16_t first_block = allocate_block();
         if (first_block == 0) {
-            P_ERRNO = P_EFULL; // no free blocks
+            P_ERRNO = P_EFULL;
             return -1;
         }
         
         // create a new file entry
         if (add_file_entry(fname, 0, first_block, TYPE_REGULAR, PERM_READ_WRITE) == -1) {
-            // error adding file entry, free the allocated block
+            // error code already set by add_file_entry
             fat[first_block] = FAT_FREE;
-            return -1; // error code already set by add_file_entry
+            return -1;
         }
         
         // fill in the file descriptor entry
         fd_table[fd].in_use = 1;
         strncpy(fd_table[fd].filename, fname, 31);
-        fd_table[fd].filename[31] = '\0'; // ensure null termination
+        fd_table[fd].filename[31] = '\0';
         fd_table[fd].size = 0;
         fd_table[fd].first_block = first_block;
         fd_table[fd].position = 0;
@@ -153,26 +150,27 @@ int k_open(const char* fname, int mode) {
 * Kernel-level call to read a file.
 */
 int k_read(int fd, int n, char *buf) {
-    // validate the file descriptor
+    // handle standard input
+    if (fd == STDIN_FILENO) {
+        return read(STDIN_FILENO, buf, n);
+    }
+
+    // validate inputs
     if (fd < 0 || fd >= MAX_FDS || !fd_table[fd].in_use) {
         P_ERRNO = P_EBADF;
         return -1;
     }
-    
-    // validate the buffer and count
     if (buf == NULL || n < 0) {
         P_ERRNO = P_EINVAL;
         return -1;
     }
-    
-    // if n is 0, nothing to read
     if (n == 0) {
         return 0;
     }
     
     // check if we're at EOF already
     if (fd_table[fd].position >= fd_table[fd].size) {
-        return 0;  // EOF
+        return 0;
     }
     
     // determine how many bytes we can actually read
@@ -207,7 +205,7 @@ int k_read(int fd, int n, char *buf) {
         
         // seek to the right position in the file
         if (lseek(fs_fd, fat_size + (current_block - 1) * block_size + block_offset, SEEK_SET) == -1) {
-            P_ERRNO = P_LSEEK;
+            P_ERRNO = P_ELSEEK;
             // if we already read some data, return that count
             if (bytes_read > 0) {
                 fd_table[fd].position += bytes_read;
@@ -219,7 +217,7 @@ int k_read(int fd, int n, char *buf) {
         // read the data from the file
         ssize_t read_result = read(fs_fd, buf + bytes_read, bytes_to_read_now);
         if (read_result <= 0) {
-            P_ERRNO = P_READ;
+            P_ERRNO = P_EREAD;
             // if we already read some data, return that count
             if (bytes_read > 0) {
                 fd_table[fd].position += bytes_read;
@@ -254,10 +252,18 @@ int k_read(int fd, int n, char *buf) {
 }
 
 /**
- * Kernel-level call to write to a file.
- */
- int k_write(int fd, const char* str, int n) {
-    // Validate inputs
+* Kernel-level call to write to a file.
+*/
+int k_write(int fd, const char* str, int n) {
+    // handle standard output and error
+    if (fd == STDOUT_FILENO) {
+        return write(STDOUT_FILENO, str, n);
+    }
+    if (fd == STDERR_FILENO) {
+        return write(STDERR_FILENO, str, n);
+    }
+
+    // validate inputs
     if (fd < 0 || fd >= MAX_FDS || !fd_table[fd].in_use) {
         P_ERRNO = P_EBADF;
         return -1;
@@ -270,28 +276,28 @@ int k_read(int fd, int n, char *buf) {
         return 0;
     }
     
-    // Check if filesystem is mounted and FAT is valid
+    // check if filesystem is mounted and FAT is valid
     if (!is_mounted || fat == NULL) {
-        P_ERRNO = P_FS_NOT_MOUNTED;
+        P_ERRNO = P_EFS_NOT_MOUNTED;
         return -1;
     }
     
-    // Get file information
+    // get file information
     uint16_t current_block = fd_table[fd].first_block;
     uint32_t current_position = fd_table[fd].position;
     
-    // Create a local buffer for block data
-    char* block_buffer = malloc(block_size);
+    // create a local buffer for block data
+    char* block_buffer = (char*) malloc(block_size);
     if (block_buffer == NULL) {
         P_ERRNO = P_EMALLOC;
         return -1;
     }
     
-    // Calculate initial block position
+    // calculate initial block position
     uint32_t block_index = current_position / block_size;
     uint32_t block_offset = current_position % block_size;
     
-    // If the file doesn't have a first block yet, allocate one
+    // if the file doesn't have a first block yet, allocate one
     if (current_block == 0) {
         current_block = allocate_block();
         if (current_block == 0) {
@@ -302,11 +308,11 @@ int k_read(int fd, int n, char *buf) {
         fd_table[fd].first_block = current_block;
     }
     
-    // Navigate to the appropriate block
+    // navigate to the appropriate block
     uint16_t prev_block = 0;
     for (uint32_t i = 0; i < block_index; i++) {
         if (current_block == 0 || current_block == FAT_EOF || current_block >= fat_size / 2) {
-            // Reached the end of chain prematurely, need to allocate a new block
+            // reached the end of chain prematurely, need to allocate a new block
             uint16_t new_block = allocate_block();
             if (new_block == 0) {
                 P_ERRNO = P_EFULL;
@@ -314,11 +320,11 @@ int k_read(int fd, int n, char *buf) {
                 return -1;
             }
             
-            // Update the chain
+            // update the chain
             if (prev_block != 0 && prev_block < fat_size / 2) {
                 fat[prev_block] = new_block;
             } else {
-                // If there's no previous block, this must be the first one
+                // if there's no previous block, this must be the first one
                 fd_table[fd].first_block = new_block;
             }
             
@@ -327,7 +333,7 @@ int k_read(int fd, int n, char *buf) {
         
         prev_block = current_block;
         
-        // Validate the block number before accessing FAT
+        // validate the block number before accessing FAT
         if (current_block >= fat_size / 2) {
             P_ERRNO = P_EINVAL;
             free(block_buffer);
@@ -337,7 +343,7 @@ int k_read(int fd, int n, char *buf) {
         current_block = fat[current_block];
     }
     
-    // If we ended up without a valid block, go back to the last valid one
+    // if we ended up without a valid block, go back to the last valid one
     if (current_block == 0 || current_block == FAT_EOF || current_block >= fat_size / 2) {
         if (prev_block != 0 && prev_block < fat_size / 2) {
             uint16_t new_block = allocate_block();
@@ -350,92 +356,90 @@ int k_read(int fd, int n, char *buf) {
             fat[prev_block] = new_block;
             current_block = new_block;
         } else {
-            // This really shouldn't happen if we've allocated a first block already
             P_ERRNO = P_EINVAL;
             free(block_buffer);
             return -1;
         }
     }
     
-    // Start writing data
+    // start writing data
     uint32_t bytes_written = 0;
     
     while (bytes_written < n) {
-        // Validate current block
+        // validate current block
         if (current_block == 0 || current_block == FAT_EOF || current_block >= fat_size / 2) {
             P_ERRNO = P_EINVAL;
             break;
         }
         
-        // How much can we write to this block
+        // how much can we write to this block
         uint32_t space_in_block = block_size - block_offset;
         uint32_t bytes_to_write = (n - bytes_written) < space_in_block ? 
                                   (n - bytes_written) : space_in_block;
         
-        // Position in filesystem
+        // position in filesystem
         off_t block_position = fat_size + (current_block - 1) * block_size;
         
-        // If we're not writing a full block or not starting at the beginning, 
-        // we need to read-modify-write
+        // if we're not writing a full block or not starting at the beginning, we need to read-modify-write
         if (bytes_to_write < block_size || block_offset > 0) {
-            // Read the current block
+            // read the current block
             if (lseek(fs_fd, block_position, SEEK_SET) == -1) {
-                P_ERRNO = P_LSEEK;
+                P_ERRNO = P_ELSEEK;
                 break;
             }
             
-            // Read the current block data
+            // read the current block data
             ssize_t read_result = read(fs_fd, block_buffer, block_size);
             if (read_result < 0) {
-                P_ERRNO = P_READ;
+                P_ERRNO = P_EREAD;
                 break;
             }
             
-            // Copy the new data into the block buffer
+            // copy the new data into the block buffer
             memcpy(block_buffer + block_offset, str + bytes_written, bytes_to_write);
             
-            // Seek back to write the modified block
+            // seek back to write the modified block
             if (lseek(fs_fd, block_position, SEEK_SET) == -1) {
-                P_ERRNO = P_LSEEK;
+                P_ERRNO = P_ELSEEK;
                 break;
             }
             
-            // Write the full block back
+            // write the full block back
             ssize_t write_result = write(fs_fd, block_buffer, block_size);
             if (write_result != block_size) {
-                P_ERRNO = P_EINVAL;
-                // We might have a partial write, but that's hard to handle correctly
+                P_ERRNO = P_EWRITE;
+                // we might have a partial write, but that's hard to handle correctly
                 break;
             }
         } else {
-            // We're writing a full block from the beginning
+            // we're writing a full block from the beginning
             if (lseek(fs_fd, block_position, SEEK_SET) == -1) {
-                P_ERRNO = P_LSEEK;
+                P_ERRNO = P_ELSEEK;
                 break;
             }
             
             ssize_t write_result = write(fs_fd, str + bytes_written, bytes_to_write);
             if (write_result != bytes_to_write) {
-                P_ERRNO = P_EINVAL;
+                P_ERRNO = P_EWRITE;
                 break;
             }
         }
         
-        // Update counters
+        // update counters
         bytes_written += bytes_to_write;
         block_offset = (block_offset + bytes_to_write) % block_size;
         
-        // If we've filled this block and still have more to write, go to the next block
+        // if we've filled this block and still have more to write, go to the next block
         if (block_offset == 0 && bytes_written < n) {
-            // Validate current block before accessing FAT
+            // validate current block before accessing FAT
             if (current_block >= fat_size / 2) {
                 P_ERRNO = P_EINVAL;
                 break;
             }
             
-            // Check if there's a next block
+            // check if there's a next block
             if (fat[current_block] == FAT_EOF) {
-                // Allocate a new block
+                // allocate a new block
                 uint16_t new_block = allocate_block();
                 if (new_block == 0) {
                     P_ERRNO = P_EFULL;
@@ -457,25 +461,30 @@ int k_read(int fd, int n, char *buf) {
         }
     }
     
-    // Free the block buffer
+    // free the block buffer
     free(block_buffer);
     
-    // Update file position
+    // update file position
     fd_table[fd].position += bytes_written;
     
-    // Update file size if needed
+    // update file size if needed
     if (fd_table[fd].position > fd_table[fd].size) {
         fd_table[fd].size = fd_table[fd].position;
         
-        // Update the directory entry
+        // update the directory entry
         dir_entry_t entry;
         int dir_offset = find_file(fd_table[fd].filename, &entry);
         if (dir_offset >= 0) {
             entry.size = fd_table[fd].size;
             entry.mtime = time(NULL);
             
-            if (lseek(fs_fd, dir_offset, SEEK_SET) != -1) {
-                write(fs_fd, &entry, sizeof(entry));
+            if (lseek(fs_fd, dir_offset, SEEK_SET) == -1) {
+                P_ERRNO = P_ELSEEK;
+                return -1;
+            }
+            if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
+                P_ERRNO = P_EWRITE;
+                return -1;
             }
         }
     }
@@ -487,6 +496,12 @@ int k_read(int fd, int n, char *buf) {
 * Kernel-level call to close a file.
 */
 int k_close(int fd) {
+    // TODO: check if you're not allowed to close reserved file descriptors
+    if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
+        P_ERRNO = P_EINVAL;
+        return -1;
+    }
+
     // validate the file descriptor
     if (fd < 0 || fd >= MAX_FDS || !fd_table[fd].in_use) {
         P_ERRNO = P_EBADF;
@@ -517,8 +532,8 @@ int k_close(int fd) {
 }
 
 /**
- * Kernel-level call to remove a file.
- */
+* Kernel-level call to remove a file.
+*/
 int k_unlink(const char* fname) {
     if (fname == NULL || *fname == '\0') {
         P_ERRNO = P_EINVAL;
@@ -526,7 +541,7 @@ int k_unlink(const char* fname) {
     }
 
     if (!is_mounted) {
-        P_ERRNO = P_FS_NOT_MOUNTED;
+        P_ERRNO = P_EFS_NOT_MOUNTED;
         return -1;
     }
 
@@ -551,7 +566,7 @@ int k_unlink(const char* fname) {
 
     // write the modified directory entry back
     if (lseek(fs_fd, file_offset, SEEK_SET) == -1) {
-        P_ERRNO = P_LSEEK;
+        P_ERRNO = P_ELSEEK;
         return -1;
     }
     if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
@@ -576,6 +591,12 @@ int k_unlink(const char* fname) {
 * Kernel-level call to re-position a file offset.
 */
 int k_lseek(int fd, int offset, int whence) {
+    // standard file descriptors don't support lseek
+    if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
+        P_ERRNO = P_EINVAL;
+        return -1;
+    }
+    
     // validate the file descriptor
     if (fd < 0 || fd >= MAX_FDS || !fd_table[fd].in_use) {
         P_ERRNO = P_EBADF;
@@ -640,7 +661,7 @@ void format_file_info(dir_entry_t* entry, char* buffer) {
 */
 int k_ls(const char* filename) {
     if (!is_mounted) {
-        P_ERRNO = P_FS_NOT_MOUNTED;
+        P_ERRNO = P_EFS_NOT_MOUNTED;
         return -1;
     }
 
@@ -657,11 +678,11 @@ int k_ls(const char* filename) {
             
             // read directory entry
             if (lseek(fs_fd, abs_offset, SEEK_SET) == -1) {
-                P_ERRNO = P_LSEEK;
+                P_ERRNO = P_ELSEEK;
                 return -1;
             }
             if (read(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
-                P_ERRNO = P_READ;
+                P_ERRNO = P_EREAD;
                 return -1;
             }
 

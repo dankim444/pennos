@@ -1,7 +1,7 @@
 /* CS5480 PennOS Group 61
- * Authors: Dan Kim
- * Purpose: Implements various utility functions at the user level.
- */
+* Authors: Dan Kim
+* Purpose: Implements various utility functions at the user level.
+*/
 #include <stdio.h>
 #include "builtins.h"
 #include "../lib/pennos-errno.h"
@@ -12,7 +12,7 @@ void u_perror(const char *msg) {
 
     switch (P_ERRNO) {
         case P_ENOENT: 
-            error_msg = "cannot open the file"; 
+            error_msg = "file does not exist"; 
             break;
         case P_EBADF: 
             error_msg = "bad file descriptor"; 
@@ -35,23 +35,23 @@ void u_perror(const char *msg) {
         case P_EINTR:
             error_msg = "interrupted system call"; 
             break;
-        case P_NULL:
+        case P_ENULL:
             error_msg = "NULL returned unexpectedly"; 
             break;
         case P_EUNKNOWN:
             error_msg = "unknown error"; 
             break;
-        case P_READ:
+        case P_EREAD:
             error_msg = "interrupted read call"; 
             break;
-        case P_LSEEK:
+        case P_ELSEEK:
             error_msg = "interrupted lseek call"; 
             break;
-        case P_MAP:
+        case P_EMAP:
             error_msg = "interrupted mmap/munmap call"; 
             break;
         case P_EFUNC:
-            error_msg = "interrupted custom call";
+            error_msg = "interrupted system call";
             break;
         case P_EOPEN:
             error_msg = "interrupted open call";
@@ -59,8 +59,23 @@ void u_perror(const char *msg) {
         case P_EMALLOC:
             error_msg = "error when trying to malloc";
             break;
-        case P_FS_NOT_MOUNTED:
+        case P_EFS_NOT_MOUNTED:
             error_msg = "file system not mounted yet";
+            break;
+        case P_ESIGNAL:
+            error_msg = "error with signal handling";
+            break;
+        case P_EWRITE:
+            error_msg = "interrupted write call";
+            break;
+        case P_ECLOSE:
+            error_msg = "interrupted close call";
+            break;
+        case P_EPARSE:
+            error_msg = "error when trying to parse a command";
+            break;
+        case P_ECOMMAND:
+            error_msg = "command not found";
             break;
         default: 
             error_msg = "Unknown error"; 
