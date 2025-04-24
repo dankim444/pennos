@@ -170,7 +170,7 @@ void put_pcb_into_correct_queue(pcb_t* pcb) {
     }
   } else if (pcb->process_state == 'Z') {
     vec_push_back(&zombie_queue, pcb);
-  } else if (pcb->process_state == 'B' || pcb->process_state == 'S') {
+  } else if (pcb->process_state == 'B' || pcb->is_sleeping) {
     vec_push_back(&sleep_blocked_queue, pcb);
   }
 }
@@ -219,6 +219,16 @@ bool child_in_zombie_queue(pcb_t* parent) {
   return false;
 }
 
+bool child_with_changed_process_status(pcb_t* parent) {
+  for (int i = 0; i < vec_len(&current_pcbs); i++) {
+    pcb_t* child = vec_get(&current_pcbs, i);
+    if (child->par_pid == parent->pid && child->process_status != 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void alarm_handler(int signum) {
   tick_counter++;
 }
@@ -226,11 +236,11 @@ void alarm_handler(int signum) {
 void handle_signal(pcb_t* pcb, int signal) {
   switch (signal) {
     case 0:                             // P_SIGSTOP
-      if (pcb->process_state == 'R') {  // Only stop if running
+      if (pcb->process_state == 'R' || pcb->process_state == 'B') {
         pcb->process_state = 'S';
         log_generic_event('s', pcb->pid, pcb->priority, pcb->cmd_str);
         delete_process_from_all_queues_except_current(pcb);
-        put_pcb_into_correct_queue(pcb);
+        pcb->process_status = 21;  // STOPPED_BY_SIG
       }
       pcb->signals[0] = false;
       break;
@@ -239,7 +249,8 @@ void handle_signal(pcb_t* pcb, int signal) {
         pcb->process_state = 'R';
         log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
         delete_process_from_all_queues_except_current(pcb);
-        // TODO --> check if queue placement needed here, Krystof (me) removed b/c done in scheduler, I think
+        put_pcb_into_correct_queue(pcb);
+        pcb->process_status = 23;  // Reset status
       }
       pcb->signals[1] = false;
       break;
@@ -250,6 +261,7 @@ void handle_signal(pcb_t* pcb, int signal) {
         log_generic_event('Z', pcb->pid, pcb->priority, pcb->cmd_str);
         delete_process_from_all_queues_except_current(pcb);
         put_pcb_into_correct_queue(pcb);
+        pcb->process_status = 22;  // TERM_BY_SIG
 
         // Handle orphaned children
         for (int i = 0; i < vec_len(&pcb->child_pcbs); i++) {
@@ -296,7 +308,7 @@ void scheduler() {
   setitimer(ITIMER_REAL, &it, NULL);
 
   while (!scheduling_done) {
-    // Handle signals
+    // handle signals for the currently running process
     if (current_running_pcb != NULL) {
       for (int i = 0; i < 3; i++) {
         if (current_running_pcb->signals[i]) {
@@ -310,8 +322,17 @@ void scheduler() {
       }
     }
 
+    // handle signals for all other processes (currently running or not)
+    for (int i = 0; i < vec_len(&current_pcbs); i++) {
+      pcb_t* curr_pcb = vec_get(&current_pcbs, i);
+      for (int j = 0; j < 3; j++) {
+        if (curr_pcb->signals[j]) {
+          handle_signal(curr_pcb, j);
+        }
+      }
+    }
+
     // Check sleep/blocked queue to move processes back to scheduable queues
-    // once ready
     for (int i = 0; i < vec_len(&sleep_blocked_queue); i++) {
       pcb_t* blocked_proc = vec_get(&sleep_blocked_queue, i);
       bool make_runnable = false;
@@ -320,17 +341,21 @@ void scheduler() {
         blocked_proc->time_to_wake = -1;
         blocked_proc->signals[2] = false;  // Unlikely, but reset signal
         make_runnable = true;
-      } else if (blocked_proc->is_sleeping &&
+      } // TODO: THIS BLOCK MAY BE REDUNDANT NOW B/C SIGNAL HANDLERS CALLED
+      else if (blocked_proc->is_sleeping &&
                  blocked_proc->signals[2]) {  // P_SIGTERM received 
         blocked_proc->is_sleeping = false;
         blocked_proc->process_state = 'Z';
         blocked_proc->process_status = 22;  // TERM_BY_SIG
+        blocked_proc->signals[2] = false;
         delete_process_from_all_queues_except_current(blocked_proc);
         put_pcb_into_correct_queue(blocked_proc);
         log_generic_event('Z', blocked_proc->pid, blocked_proc->priority,
                           blocked_proc->cmd_str);
         i--;
       } else if (child_in_zombie_queue(blocked_proc)) {
+        make_runnable = true;
+      } else if (child_with_changed_process_status(blocked_proc)) {
         make_runnable = true;
       }
 
@@ -344,7 +369,6 @@ void scheduler() {
         i--;
       }
     }
-
 
     curr_priority_queue_num = generate_next_priority();
 

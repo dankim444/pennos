@@ -39,6 +39,7 @@ typedef struct pcb_st {
                              // EXITED_NORMALLY 20
                              // STOPPED_BY_SIG 21
                              // TERM_BY_SIG 22
+                             // CONT_BY_SIG 23
                              // 0 otherwise
 
     bool is_sleeping;
