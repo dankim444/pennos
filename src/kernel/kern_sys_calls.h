@@ -47,7 +47,8 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang);
  * @brief Send a signal to a particular process.
  *
  * @param pid Process ID of the target proces.
- * @param signal Signal number to be sent.
+ * @param signal Signal number to be sent 
+ *               0 = P_SIGSTOP, 1 = P_SIGCONT, 2 = P_SIGTERM
  * @return 0 on success, -1 on error.
  */
 int s_kill(pid_t pid, int signal);
