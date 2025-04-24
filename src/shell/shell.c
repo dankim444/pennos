@@ -33,7 +33,7 @@ void shell_sigint_handler(int sig) {
   if (current_fg_pid != 2) {
     s_kill(current_fg_pid, 2);  // P_SIGTERM
   }
-  // Write a new line to prompt
+
   write(STDERR_FILENO, "\n", 1); // TODO --> integrate with FS calls
 }
 
@@ -42,10 +42,8 @@ void shell_sigstp_handler(int sig) {
   // If there's a foreground process, forward SIGTSTP (stop) to it
   if (current_fg_pid != 2) {
     s_kill(current_fg_pid, 0);  // P_SIGSTOP
-    fprintf(stderr, "\nProcess %d stopped\n", current_fg_pid);
   }
 
-  // Write a new line to prompt
   write(STDERR_FILENO, "\n", 1); // TODO --> integrate with FS calls
 }
 
@@ -246,9 +244,7 @@ void* shell_main(void*) {
       // Foreground execution.
       current_fg_pid = child_pid;
       int status;
-      fprintf(stderr, "Waiting for child %d\n", child_pid);
       s_waitpid(child_pid, &status, false);
-      fprintf(stderr, "Child %d finished\n", child_pid);
       current_fg_pid = 2;
       // Free cmd memory for foreground commands.
       //free(cmd); // TODO --> check if this is already freed, it may be

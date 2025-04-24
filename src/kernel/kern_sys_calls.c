@@ -130,8 +130,6 @@ void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
   }
 }
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 //        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
 ////////////////////////////////////////////////////////////////////////////////
@@ -240,12 +238,14 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
         vec_erase_no_deletor(&zombie_queue, i);
         delete_from_explicit_queue(&parent->child_pcbs, child->pid);
         k_proc_cleanup(child);
+        parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
+        log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
         return child->pid;
       }
     }
 
     // scan children of current running process for non-terminated state changes
-    /*for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
+    for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
       pcb_t* child = vec_get(&parent->child_pcbs, i);
       if ((pid == -1 || child->pid == pid) && child->process_status != 0) { // signaled --> TODO ensure 0 invariant maintained
         if (wstatus != NULL) {
@@ -253,9 +253,11 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
         }
         log_generic_event('W', child->pid, child->priority, child->cmd_str);
         child->process_status = 0; // reset status
+        parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
+        log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
         return child->pid;
       }
-    }*/
+    }
   }
 
   // If we get here, something went wrong
