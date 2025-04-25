@@ -658,7 +658,6 @@ void* rm(void* arg) {
     }
 
     // mark the directory entry as deleted
-    // TODO: REPLACE WITH K_LSEEK
     if (lseek(fs_fd, entry_offset, SEEK_SET) == -1) {
       P_ERRNO = P_ELSEEK;
       u_perror("rm");
@@ -666,7 +665,6 @@ void* rm(void* arg) {
     }
 
     char deleted = 1;  // mark as deleted
-    // TODO: REPLACE WITH K_WRITE
     if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
       P_ERRNO = P_EINVAL;
       u_perror("rm");

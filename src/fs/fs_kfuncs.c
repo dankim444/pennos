@@ -136,7 +136,7 @@ int k_open(const char* fname, int mode) {
         
         // fill in the file descriptor entry
         fd_table[fd].in_use = 1;
-        fd_table[i].ref_count++;
+        fd_table[fd].ref_count++;
         strncpy(fd_table[fd].filename, fname, 31);
         fd_table[fd].filename[31] = '\0';
         fd_table[fd].size = 0;
