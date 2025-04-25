@@ -9,6 +9,8 @@
 #include "kernel/scheduler.h"
 #include "lib/Vec.h"
 #include "shell/builtins.h"
+#include "lib/pennos-errno.h"
+#include "fs/fat_routines.h"
 
 #include <stdio.h>  // DELETE
 
@@ -17,8 +19,20 @@ extern int log_fd;
 extern Vec current_pcbs;
 
 int main(int argc, char* argv[]) {
+  // mount the filesystem
+  if (argc < 2) {
+    P_ERRNO = P_NEEDF;
+    u_perror("need a pennfat file to mount");
+    return -1;
+  } else {
+    if (mount(argv[1]) == -1) {
+      u_perror("mount failed");
+      return -1;
+    }
+  }
+
   // get the log fd
-  if (argc > 2) {
+  if (argc >= 3) {
     log_fd = open(argv[2], O_RDWR | O_CREAT | O_TRUNC, 0644);
   } else {
     log_fd = open("log/log", O_RDWR | O_CREAT | O_TRUNC, 0644);
@@ -27,14 +41,11 @@ int main(int argc, char* argv[]) {
   // initialize scheduler architecture and init process
   initialize_scheduler_queues();
 
-  // TODO --> create the global FD table, as Ed 1253 said
-
   pid_t init_pid = s_spawn_init();
   if (init_pid == -1) {
-    // Dan: don't worry abt this until later, but you will have to set the error
-    // code here
-    u_perror("init spawn failed");  // TODO --> possible update with new funcs
-    exit(EXIT_FAILURE);  // in case exit is illegal or perror is preferred
+    P_ERRNO = P_INITFAIL;
+    u_perror("init spawn failed"); 
+    return -1;
   }
 
   scheduler();
