@@ -133,6 +133,8 @@ int main(int argc, char *argv[]) {
             rm(args);
         } else if (strcmp(args[0], "cp") == 0) {
             cp(args);
+        } else if (strcmp(args[0], "chmod") == 0) {
+            chmod(args);
         } else {
             P_ERRNO = P_ECOMMAND;
             u_perror("shell");
