@@ -19,11 +19,12 @@
 
 // constants for permission (needed for chmod operations)
 #define PERM_NONE 0
-#define PERM_WRITE 2
-#define PERM_READ 4
-#define PERM_READ_EXEC 5
-#define PERM_READ_WRITE 6
-#define PERM_READ_WRITE_EXEC 7
+#define PERM_WRITE 1
+#define PERM_READ 2
+#define PERM_EXEC 4
+#define PERM_READ_WRITE (PERM_READ | PERM_WRITE)
+#define PERM_READ_EXEC (PERM_READ | PERM_EXEC)
+#define PERM_READ_WRITE_EXEC (PERM_READ | PERM_WRITE | PERM_EXEC)
 
 // constants for file modes
 #define F_READ 0x01
@@ -189,6 +190,6 @@ void* rm(void *arg);
 * @param arg Arguments array (command line arguments)
 * @return void pointer (unused)
 */
-//void* chmod(void *arg);
+void* chmod(void *arg);
 
 #endif
