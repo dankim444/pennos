@@ -77,6 +77,9 @@ void u_perror(const char *msg) {
         case P_ECOMMAND:
             error_msg = "command not found";
             break;
+        case P_NEEDF:
+            error_msg = "no file provided to mount";
+            break;
         default: 
             error_msg = "Unknown error"; 
             break;

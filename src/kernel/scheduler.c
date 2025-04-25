@@ -381,7 +381,8 @@ void scheduler() {
     log_scheduling_event(current_running_pcb->pid, curr_priority_queue_num,
                          current_running_pcb->cmd_str);
 
-    if (spthread_continue(current_running_pcb->thread_handle) != 0) {
+    if (spthread_continue(current_running_pcb->thread_handle) != 0 && 
+        errno != EINTR) {
       perror("spthread_continue failed in scheduler");
     }
     sigsuspend(&suspend_set);

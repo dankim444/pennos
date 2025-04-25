@@ -25,14 +25,20 @@ extern Vec current_pcbs;
 ////////////////////////////////////////////////////////////////////////////////
 
 void* u_cat(void *arg) {
+  
   return cat(arg);
 }
 
 void* u_sleep(void* arg) {
   char* endptr;
   errno = 0;
+  if (((char**)arg)[1] == NULL) { // no arg case
+    s_exit();
+    return NULL;
+  }
   int sleep_secs = (int)strtol(((char**)arg)[1], &endptr, 10);
-  if (*endptr != '\0' || errno != 0) {  
+  if (*endptr != '\0' || errno != 0 || sleep_secs <= 0) {  
+    s_exit();
     return NULL;
   }
 
@@ -79,28 +85,21 @@ void* u_chmod(void* arg) {
   return NULL;
 }
 
-/**
- * @brief List all processes on PennOS, displaying PID, PPID, priority, status,
- * and command name.
- *
- * Example Usage: ps
- */
 void* u_ps(void* arg) {
   char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";
-  write(STDOUT_FILENO, pid_top, strlen(pid_top));  // replace w/ s_write
+  s_write(STDOUT_FILENO, pid_top, strlen(pid_top)); 
   for (int i = 0; i < vec_len(&current_pcbs); i++) {
     pcb_t* curr_pcb = (pcb_t*)vec_get(&current_pcbs, i);
     char buffer[100];
     snprintf(buffer, sizeof(buffer), "%d\t%d\t%d\t%c\t%s\n", curr_pcb->pid,
              curr_pcb->par_pid, curr_pcb->priority, curr_pcb->process_state,
              curr_pcb->cmd_str);                   // TODO --> is this allowed?
-    write(STDOUT_FILENO, buffer, strlen(buffer));  // replace w/ s_write
+    s_write(STDOUT_FILENO, buffer, strlen(buffer)); 
   }
   s_exit();
   return NULL;
 }
 
-// rename to not conflict with kill from signal.h
 void* u_kill(void* arg) {
   char** argv = (char**)arg;
   int sig = 2;          // Default signal: term (2)
@@ -119,7 +118,8 @@ void* u_kill(void* arg) {
       // Construct error message
       snprintf(err_buf, sizeof(err_buf), "Invalid signal specification: %s\n",
                argv[start_index]);
-      write(STDERR_FILENO, err_buf, strlen(err_buf));
+      s_write(STDERR_FILENO, err_buf, strlen(err_buf));
+      s_exit();
       return NULL;
     }
     start_index++;
@@ -129,15 +129,15 @@ void* u_kill(void* arg) {
   for (int i = start_index; argv[i] != NULL; i++) {
     char* endptr;
     long pid_long = strtol(argv[i], &endptr, 10);
-    if (*endptr != '\0' || pid_long <= 0) { // TODO: check if this or errno is better
+    if (*endptr != '\0' || pid_long <= 0) { 
       snprintf(err_buf, 128, "Invalid PID: %s\n", argv[i]);
-      write(STDERR_FILENO, err_buf, strlen(err_buf)); // TODO--> replace w/ s_write or not? maybe uperror
+      s_write(STDERR_FILENO, err_buf, strlen(err_buf));
       continue;
     }
     pid_t pid = (pid_t)pid_long;
     if (s_kill(pid, sig) < 0) {
-      snprintf(err_buf, 128, "b_kill error on PID %d\n", pid); // TODO--> ditto above
-      write(STDERR_FILENO, err_buf, strlen(err_buf));
+      snprintf(err_buf, 128, "b_kill error on PID %d\n", pid);
+      s_write(STDERR_FILENO, err_buf, strlen(err_buf));
     }
   }
   s_exit();
@@ -252,7 +252,7 @@ void* u_man(void* arg) {
   "zombify               : creates a child process that becomes a zombie\n"
   "orphanify             : creates a child process that becomes an orphan\n";
   
-  write(STDERR_FILENO, man_string, strlen(man_string)); // replace with s_write
+  s_write(STDOUT_FILENO, man_string, strlen(man_string)); 
   return NULL;
 }
 
@@ -290,9 +290,8 @@ void* zombie_child(void* arg) {
 
 void* u_zombify(void* arg) {
   char* zombie_child_argv[] = {"zombie_child", NULL};
-  s_spawn(zombie_child, zombie_child_argv, 0, 1);  // TODO --> check these fds
-  while (1)
-    ;
+  s_spawn(zombie_child, zombie_child_argv, STDIN_FILENO, STDOUT_FILENO);
+  while (1);
   return NULL;
 }
 
@@ -300,14 +299,13 @@ void* u_zombify(void* arg) {
  * @brief Helper for orphanify.
  */
 void* orphan_child(void* arg) {
-  while (1)
-    ;
+  while (1);
   s_exit();
 }
 
 void* u_orphanify(void* arg) {
   char* orphan_child_argv[] = {"orphan_child", NULL};
-  s_spawn(orphan_child, orphan_child_argv, 0, 1);  // TODO --> fix/fill in args
+  s_spawn(orphan_child, orphan_child_argv, STDIN_FILENO, STDOUT_FILENO);
   s_exit();
   return NULL;
 }
