@@ -13,6 +13,7 @@
 #include "../lib/Vec.h"
 #include "Job.h"
 #include "signal.h"
+#include "lib/pennos-errno.h"
 
 #ifndef PROMPT
 #define PROMPT "$ "
@@ -34,7 +35,7 @@ void shell_sigint_handler(int sig) {
     s_kill(current_fg_pid, 2);  // P_SIGTERM
   }
 
-  write(STDERR_FILENO, "\n", 1); // TODO --> integrate with FS calls
+  s_write(STDOUT_FILENO, "\n", 1); // TODO --> integrate with FS calls
 }
 
 // Signal handler for (Ctrl-Z)
@@ -44,7 +45,7 @@ void shell_sigstp_handler(int sig) {
     s_kill(current_fg_pid, 0);  // P_SIGSTOP
   }
 
-  write(STDERR_FILENO, "\n", 1); // TODO --> integrate with FS calls
+  s_write(STDOUT_FILENO, "\n", 1); // TODO --> integrate with FS calls
 }
 
 // Set up terminal signal handlers in the shell (only for interactive mode).
@@ -158,22 +159,14 @@ void* shell_main(void*) {
     }
 
     // prompt
-    // TODO --> see if "write" instead of s_write is okay here
-    /*if (s_write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
-        // TODO: remember to set PERRNO
+    if (s_write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
         u_perror("prompt write error");
         break;
-    }*/
-    if (write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
-      perror("prompt write error");
-      break;
     }
 
     // parse user input
     char buffer[MAX_BUFFER_SIZE];
-    // TODO --> see if "write" instead of s_write is okay here
-    // ssize_t user_input = s_read(STDIN_FILENO, MAX_BUFFER_SIZE, buffer);
-    ssize_t user_input = read(STDIN_FILENO, buffer, MAX_BUFFER_SIZE);
+    ssize_t user_input = s_read(STDIN_FILENO, MAX_BUFFER_SIZE, buffer);
     if (user_input < 0) {
       u_perror("shell read error");
       break;
@@ -190,7 +183,8 @@ void* shell_main(void*) {
     struct parsed_command* cmd = NULL;
     int cmd_parse_res = parse_command(buffer, &cmd);
     if (cmd_parse_res != 0 || cmd == NULL) {
-      // TODO -> handle error via some valid print
+      P_ERRNO = P_EPARSE;
+      u_perror("parse_command");
       continue;
     }
 
