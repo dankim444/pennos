@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    char input_buffer[1024]; // TODO: verify the size of this buffer for user input
+    char input_buffer[1024];
     
     while (true) {
         // print prompt
