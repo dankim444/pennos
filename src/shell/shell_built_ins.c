@@ -25,8 +25,9 @@ extern Vec current_pcbs;
 ////////////////////////////////////////////////////////////////////////////////
 
 void* u_cat(void *arg) {
-  
-  return cat(arg);
+  cat(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_sleep(void* arg) {
@@ -56,28 +57,52 @@ void* u_busy(void* arg) {
 }
 
 void* u_echo(void* arg) {
-  // TODO --> implement echo
+  char** argv = (char**)arg;
+  if (argv[1] == NULL) { // no args case
+    s_exit();
+    return NULL;
+  }
+
+  int i = 1; // words after "echo"
+  while (argv[i] != NULL) { // while the arg isn't NULL
+    s_write(STDOUT_FILENO, argv[i], strlen(argv[i]));
+    s_write(STDOUT_FILENO, " ", 1);
+    i++;
+  }
+  
+  s_write(STDOUT_FILENO, "\n", 1);
+  s_exit();
   return NULL;
 }
 
 void* u_ls(void *arg) {
-  return ls(arg);
+  ls(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_touch(void *arg) {
-  return touch(arg);
+  touch(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_mv(void *arg) {
-  return mv(arg);
+  mv(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_cp(void *arg) {
-  return cp(arg);
+  cp(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_rm(void *arg) {
-  return rm(arg);
+  rm(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_chmod(void* arg) {
@@ -93,7 +118,7 @@ void* u_ps(void* arg) {
     char buffer[100];
     snprintf(buffer, sizeof(buffer), "%d\t%d\t%d\t%c\t%s\n", curr_pcb->pid,
              curr_pcb->par_pid, curr_pcb->priority, curr_pcb->process_state,
-             curr_pcb->cmd_str);                   // TODO --> is this allowed?
+             curr_pcb->cmd_str);                
     s_write(STDOUT_FILENO, buffer, strlen(buffer)); 
   }
   s_exit();

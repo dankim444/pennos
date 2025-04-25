@@ -83,12 +83,12 @@ void free_job_ptr(void* ptr) {
  *         subroutine call, -1 when nothing was called
  */
 pid_t execute_command(struct parsed_command* cmd) {
-  int input_fd = open(cmd->stdin_file, F_READ); // TODO --> integrate with FS
+  int input_fd = s_open(cmd->stdin_file, F_READ); // TODO --> integrate with FS
   int output_fd;
   if (cmd->is_file_append) {
-    output_fd = open(cmd->stdout_file, F_APPEND); // ^^
+    output_fd = s_open(cmd->stdout_file, F_APPEND); // ^^
   } else {
-    output_fd = open(cmd->stdout_file, F_WRITE); // ^^
+    output_fd = s_open(cmd->stdout_file, F_WRITE); // ^^
   }
 
   // check for independently scheduled processes
