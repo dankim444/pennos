@@ -25,8 +25,9 @@ extern Vec current_pcbs;
 ////////////////////////////////////////////////////////////////////////////////
 
 void* u_cat(void *arg) {
-  
-  return cat(arg);
+  cat(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_sleep(void* arg) {
@@ -61,23 +62,33 @@ void* u_echo(void* arg) {
 }
 
 void* u_ls(void *arg) {
-  return ls(arg);
+  ls(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_touch(void *arg) {
-  return touch(arg);
+  touch(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_mv(void *arg) {
-  return mv(arg);
+  mv(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_cp(void *arg) {
-  return cp(arg);
+  cp(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_rm(void *arg) {
-  return rm(arg);
+  rm(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_chmod(void* arg) {
