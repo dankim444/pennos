@@ -1,8 +1,6 @@
 #ifndef PENNOS_ERRNO_H
 #define PENNOS_ERRNO_H
 
-// TODO: rework some of the variable names
-
 extern int P_ERRNO; // Global errno variable that is set to different 
                     // error codes based on what error occurs in PennOS system calls.
 
