@@ -17,7 +17,7 @@ extern int num_fat_blocks; // number of blocks in the FAT region
 extern int fat_size; // size of the FAT region in bytes
 extern uint16_t* fat; // pointer to the FAT region in memory, for efficient access
 extern bool is_mounted; // indicator for whether any filesystem is mounted
-extern int MAX_FDS;  // TODO: Figure out if we want more file descriptors
+extern int MAX_FDS;
 extern fd_entry_t fd_table[1024];  // file descriptor table
 
 ////////////////////////////////////////////////////////////////////////////////

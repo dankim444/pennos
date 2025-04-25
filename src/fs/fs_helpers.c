@@ -459,7 +459,13 @@ int copy_pennfat_to_host(const char* pennfat_filename,
   }
 
   // allocate buffer for data transfer
-  char buffer[4096];  // TODO: might want to malloc for buffer
+  char* buffer = (char*)malloc(block_size);
+  if (!buffer) {
+    P_ERRNO = P_EMALLOC;
+    k_close(pennfat_fd);
+    close(host_fd);
+    return -1;
+  }
   ssize_t bytes_read;
 
   // read from PennFAT file and write to host file
@@ -507,8 +513,15 @@ int copy_source_to_dest(const char* source_filename,
   }
 
   // read from source to destination
-  char buffer[4096];
+  char* buffer = (char*)malloc(block_size);
+  if (!buffer) {
+    P_ERRNO = P_EMALLOC;
+    k_close(source_fd);
+    k_close(dest_fd);
+    return -1;
+  }
   ssize_t bytes_read;
+
   while ((bytes_read = k_read(source_fd, sizeof(buffer), buffer)) > 0) {
     if (k_write(dest_fd, buffer, bytes_read) != bytes_read) {
       k_close(source_fd);
