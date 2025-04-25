@@ -246,8 +246,7 @@ void* cat(void* arg) {
     out_fd = STDOUT_FILENO;
   }
 
-  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from
-  // stdin)
+  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from stdin)
   if ((strcmp(args[1], "-w") == 0 || strcmp(args[1], "-a") == 0) &&
       args[2] != NULL && args[3] == NULL) {
     char buffer[1024];
@@ -512,8 +511,7 @@ void* mv(void* arg) {
   int source_offset = find_file(source, &source_entry);
   if (source_offset < 0) {
     // set error code
-    // TODO: replace printf with u_perror
-    printf("mv: cannot rename %s to %s\n", source, dest);
+    u_perror("mv");
     return NULL;
   }
 
@@ -581,7 +579,6 @@ void* cp(void* arg) {
     }
 
     if (copy_host_to_pennfat(args[2], args[3]) != 0) {
-      // error should aready be set by the function
       u_perror("cp");
       return NULL;
     }
@@ -597,7 +594,6 @@ void* cp(void* arg) {
     }
 
     if (copy_pennfat_to_host(args[1], args[3]) != 0) {
-      // error set by function
       u_perror("cp");
       return NULL;
     }
@@ -608,7 +604,6 @@ void* cp(void* arg) {
   if ((args[1] != NULL && strcmp(args[1], "-h") != 0) &&
       (args[2] != NULL && strcmp(args[2], "-h") != 0) && args[3] == NULL) {
     if (copy_source_to_dest(args[1], args[2]) != 0) {
-      // error set by functions
       u_perror("cp");
       return NULL;
     }

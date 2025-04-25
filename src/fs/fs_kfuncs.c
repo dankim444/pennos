@@ -63,6 +63,7 @@ int k_open(const char* fname, int mode) {
         
         // fill in the file descriptor entry
         fd_table[fd].in_use = 1;
+        fd_table[fd].ref_count++;
         strncpy(fd_table[fd].filename, fname, 31);
         fd_table[fd].filename[31] = '\0';
         fd_table[fd].size = entry.size;
@@ -135,6 +136,7 @@ int k_open(const char* fname, int mode) {
         
         // fill in the file descriptor entry
         fd_table[fd].in_use = 1;
+        fd_table[i].ref_count++;
         strncpy(fd_table[fd].filename, fname, 31);
         fd_table[fd].filename[31] = '\0';
         fd_table[fd].size = 0;
@@ -206,7 +208,6 @@ int k_read(int fd, int n, char *buf) {
         // seek to the right position in the file
         if (lseek(fs_fd, fat_size + (current_block - 1) * block_size + block_offset, SEEK_SET) == -1) {
             P_ERRNO = P_ELSEEK;
-            // if we already read some data, return that count
             if (bytes_read > 0) {
                 fd_table[fd].position += bytes_read;
                 return bytes_read;
@@ -527,6 +528,11 @@ int k_close(int fd) {
     
     // mark the file descriptor as not in use
     fd_table[fd].in_use = 0;
+    fd_table[fd].ref_count--;
+    if (fd_table[fd].ref_count == 0) {
+        // free the file descriptor
+        memset(&fd_table[fd], 0, sizeof(fd_entry_t));
+    }
     
     return 0;
 }
