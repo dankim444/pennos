@@ -36,22 +36,27 @@ fd_entry_t fd_table[1024];
 void init_fd_table(fd_entry_t* fd_table) {
   // STDIN (fd 0)
   fd_table[0].in_use = 1;
+  fd_table[0].ref_count = 1;
   strncpy(fd_table[0].filename, "<stdin>", 31);
   fd_table[0].mode = F_READ;
+  // TODO: add ref count
 
   // STDOUT (fd 1)
   fd_table[1].in_use = 1;
   strncpy(fd_table[1].filename, "<stdout>", 31);
   fd_table[1].mode = F_WRITE; // write-only
+  fd_table[1].ref_count = 1;
   
   // STDERR (fd 2)
   fd_table[2].in_use = 1;
   strncpy(fd_table[2].filename, "<stderr>", 31);
   fd_table[2].mode = F_WRITE; // write-only
+  fd_table[2].ref_count = 1;
 
   // other file descriptors (fd 3 and above)
   for (int i = 3; i < MAX_FDS; i++) {
     fd_table[i].in_use = 0;
+    fd_table[i].ref_count = 0;
     memset(fd_table[i].filename, 0, sizeof(fd_table[i].filename));
     fd_table[i].size = 0;
     fd_table[i].first_block = 0;
