@@ -39,6 +39,23 @@ void init_fd_table(fd_entry_t* fd_table);
 */
 int get_free_fd(fd_entry_t* fd_table);
 
+
+/**
+* Increments the reference count of a file descriptor.
+*
+* @param fd file descriptor to increment
+* @return new reference count, or -1 on error
+*/
+int increment_fd_ref_count(int fd);
+
+/**
+* Decrements the reference count of a file descriptor.
+*
+* @param fd file descriptor to decrement
+* @return new reference count, or -1 on error
+*/
+int decrement_fd_ref_count(int fd);
+
 /**
 * Allocates a free block in the FAT
 *

@@ -39,7 +39,6 @@ void init_fd_table(fd_entry_t* fd_table) {
   fd_table[0].ref_count = 1;
   strncpy(fd_table[0].filename, "<stdin>", 31);
   fd_table[0].mode = F_READ;
-  // TODO: add ref count
 
   // STDOUT (fd 1)
   fd_table[1].in_use = 1;
@@ -73,6 +72,42 @@ int get_free_fd(fd_entry_t* fd_table) {
     }
   }
   return -1;
+}
+
+// helper for incrementing the reference count of a file descriptor
+int increment_fd_ref_count(int fd) {
+  if (fd < 0 || fd >= MAX_FDS) {
+    P_ERRNO = P_EBADF;
+    return -1;
+  }
+  if (!fd_table[fd].in_use) {
+    P_ERRNO = P_EBADF;
+    return -1;
+  }
+  fd_table[fd].ref_count++;
+  return fd_table[fd].ref_count;
+}
+
+// helper function to mark a file entry as deleted
+int decrement_fd_ref_count(int fd) {
+  if (fd < 0 || fd >= MAX_FDS) {
+    P_ERRNO = P_EBADF;
+    return -1;
+  }
+  if (!fd_table[fd].in_use) {
+    P_ERRNO = P_EBADF;
+    return -1;
+  }
+  fd_table[fd].ref_count--;
+  if (fd_table[fd].ref_count == 0) {
+    fd_table[fd].in_use = 0;
+    memset(fd_table[fd].filename, 0, sizeof(fd_table[fd].filename));
+    fd_table[fd].size = 0;
+    fd_table[fd].first_block = 0;
+    fd_table[fd].position = 0;
+    fd_table[fd].mode = 0;
+  }
+  return fd_table[fd].ref_count;
 }
 
 // helper function to allocate a block
