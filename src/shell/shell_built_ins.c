@@ -6,7 +6,6 @@
 #include <sys/types.h>
 #include "../fs/fat_routines.h"
 #include "../fs/fs_syscalls.h"
-#include "../kernel/kern_pcb.h"  // TODO --> this is a little dangerous,
 #include "../kernel/kern_sys_calls.h"
 #include "../kernel/scheduler.h"  // TODO --> make sure this is allowed, otw make wrapper
 #include "../lib/Vec.h"           // make sure not to use k funcs
@@ -17,7 +16,6 @@
 #include <stdlib.h>  // For strtol
 #include <unistd.h>  // probably delete once done
 
-extern Vec current_pcbs;
 
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
@@ -57,20 +55,7 @@ void* u_busy(void* arg) {
 }
 
 void* u_echo(void* arg) {
-  char** argv = (char**)arg;
-  if (argv[1] == NULL) {  // no args case
-    s_exit();
-    return NULL;
-  }
-
-  int i = 1;                 // words after "echo"
-  while (argv[i] != NULL) {  // while the arg isn't NULL
-    s_write(STDOUT_FILENO, argv[i], strlen(argv[i]));
-    s_write(STDOUT_FILENO, " ", 1);
-    i++;
-  }
-
-  s_write(STDOUT_FILENO, "\n", 1);
+  s_echo(arg);
   s_exit();
   return NULL;
 }
@@ -112,17 +97,8 @@ void* u_chmod(void* arg) {
 }
 
 void* u_ps(void* arg) {
-  char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";
-  s_write(STDOUT_FILENO, pid_top, strlen(pid_top));
-  for (int i = 0; i < vec_len(&current_pcbs); i++) {
-    pcb_t* curr_pcb = (pcb_t*)vec_get(&current_pcbs, i);
-    char buffer[100];
-    snprintf(buffer, sizeof(buffer), "%d\t%d\t%d\t%c\t%s\n", curr_pcb->pid,
-             curr_pcb->par_pid, curr_pcb->priority, curr_pcb->process_state,
-             curr_pcb->cmd_str);
-    s_write(STDOUT_FILENO, buffer, strlen(buffer));
-  }
   s_exit();
+  s_ps(arg);
   return NULL;
 }
 
@@ -228,7 +204,7 @@ void* u_nice(void* arg) {
   }
 
   pid_t new_proc_pid =
-      s_spawn(ufunc, &((char**)arg)[2], 0, 1);  // TODO --> check these fds
+      s_spawn(ufunc, &((char**)arg)[2], 0, 1);  // TODO --> check these fds THESE ARE WRONG FIX, should allowed redirection
 
   if (new_proc_pid != -1) {  // non-error case
     s_nice(new_proc_pid, new_priority);
@@ -306,7 +282,7 @@ void* u_jobs(void* arg) {
 }
 
 void* u_logout(void* arg) {
-  shutdown_pennos();
+  s_shutdown_pennos();
   return NULL;
 }
 

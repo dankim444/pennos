@@ -21,7 +21,7 @@
 #define MAX_BUFFER_SIZE 4096
 
 // Global variable to track foreground process for signal forwarding.
-pid_t current_fg_pid = 2;
+extern pid_t current_fg_pid;
 // Global job list and job counter (for background processes)
 Vec job_list;           // initialize in main; holds job pointers
 jid_t next_job_id = 1;  // global job id counter
@@ -81,12 +81,25 @@ void free_job_ptr(void* ptr) {
  *         subroutine call, -1 when nothing was called
  */
 pid_t execute_command(struct parsed_command* cmd) {
-  int input_fd = s_open(cmd->stdin_file, F_READ);
-  int output_fd;
+
+  // setup fds
+  int input_fd = STDIN_FILENO; // standard fds
+  int output_fd = STDOUT_FILENO;
+
+  if (cmd->stdin_file != NULL) {
+    input_fd = s_open(cmd->stdin_file, F_READ);
+    if (input_fd < 0) {
+      input_fd = STDIN_FILENO; // reset to default
+    }
+  }
+
   if (cmd->is_file_append) {
     output_fd = s_open(cmd->stdout_file, F_APPEND); 
   } else {
     output_fd = s_open(cmd->stdout_file, F_WRITE);
+  }
+  if (output_fd < 0) {
+    output_fd = STDOUT_FILENO; // reset to default
   }
 
   // check for independently scheduled processes
@@ -177,7 +190,7 @@ void* shell(void*) {
       u_perror("shell read error");
       break;
     } else if (user_input == 0) {  // EOF case
-      shutdown_pennos();
+      s_shutdown_pennos();
       break;
     }
 
