@@ -17,7 +17,7 @@ extern int num_fat_blocks; // number of blocks in the FAT region
 extern int fat_size; // size of the FAT region in bytes
 extern uint16_t* fat; // pointer to the FAT region in memory, for efficient access
 extern bool is_mounted; // indicator for whether any filesystem is mounted
-extern int MAX_FDS;  // TODO: Figure out if we want more file descriptors
+extern int MAX_FDS;
 extern fd_entry_t fd_table[1024];  // file descriptor table
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -38,6 +38,23 @@ void init_fd_table(fd_entry_t* fd_table);
 * @return index of the first free file descriptor, or -1 if none available
 */
 int get_free_fd(fd_entry_t* fd_table);
+
+
+/**
+* Increments the reference count of a file descriptor.
+*
+* @param fd file descriptor to increment
+* @return new reference count, or -1 on error
+*/
+int increment_fd_ref_count(int fd);
+
+/**
+* Decrements the reference count of a file descriptor.
+*
+* @param fd file descriptor to decrement
+* @return new reference count, or -1 on error
+*/
+int decrement_fd_ref_count(int fd);
 
 /**
 * Allocates a free block in the FAT

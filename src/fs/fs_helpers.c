@@ -36,6 +36,7 @@ fd_entry_t fd_table[1024];
 void init_fd_table(fd_entry_t* fd_table) {
   // STDIN (fd 0)
   fd_table[0].in_use = 1;
+  fd_table[0].ref_count = 1;
   strncpy(fd_table[0].filename, "<stdin>", 31);
   fd_table[0].mode = F_READ;
 
@@ -43,15 +44,18 @@ void init_fd_table(fd_entry_t* fd_table) {
   fd_table[1].in_use = 1;
   strncpy(fd_table[1].filename, "<stdout>", 31);
   fd_table[1].mode = F_WRITE; // write-only
+  fd_table[1].ref_count = 1;
   
   // STDERR (fd 2)
   fd_table[2].in_use = 1;
   strncpy(fd_table[2].filename, "<stderr>", 31);
   fd_table[2].mode = F_WRITE; // write-only
+  fd_table[2].ref_count = 1;
 
   // other file descriptors (fd 3 and above)
   for (int i = 3; i < MAX_FDS; i++) {
     fd_table[i].in_use = 0;
+    fd_table[i].ref_count = 0;
     memset(fd_table[i].filename, 0, sizeof(fd_table[i].filename));
     fd_table[i].size = 0;
     fd_table[i].first_block = 0;
@@ -68,6 +72,42 @@ int get_free_fd(fd_entry_t* fd_table) {
     }
   }
   return -1;
+}
+
+// helper for incrementing the reference count of a file descriptor
+int increment_fd_ref_count(int fd) {
+  if (fd < 0 || fd >= MAX_FDS) {
+    P_ERRNO = P_EBADF;
+    return -1;
+  }
+  if (!fd_table[fd].in_use) {
+    P_ERRNO = P_EBADF;
+    return -1;
+  }
+  fd_table[fd].ref_count++;
+  return fd_table[fd].ref_count;
+}
+
+// helper function to mark a file entry as deleted
+int decrement_fd_ref_count(int fd) {
+  if (fd < 0 || fd >= MAX_FDS) {
+    P_ERRNO = P_EBADF;
+    return -1;
+  }
+  if (!fd_table[fd].in_use) {
+    P_ERRNO = P_EBADF;
+    return -1;
+  }
+  fd_table[fd].ref_count--;
+  if (fd_table[fd].ref_count == 0) {
+    fd_table[fd].in_use = 0;
+    memset(fd_table[fd].filename, 0, sizeof(fd_table[fd].filename));
+    fd_table[fd].size = 0;
+    fd_table[fd].first_block = 0;
+    fd_table[fd].position = 0;
+    fd_table[fd].mode = 0;
+  }
+  return fd_table[fd].ref_count;
 }
 
 // helper function to allocate a block
@@ -419,7 +459,13 @@ int copy_pennfat_to_host(const char* pennfat_filename,
   }
 
   // allocate buffer for data transfer
-  char buffer[4096];  // TODO: might want to malloc for buffer
+  char* buffer = (char*)malloc(block_size);
+  if (!buffer) {
+    P_ERRNO = P_EMALLOC;
+    k_close(pennfat_fd);
+    close(host_fd);
+    return -1;
+  }
   ssize_t bytes_read;
 
   // read from PennFAT file and write to host file
@@ -467,8 +513,15 @@ int copy_source_to_dest(const char* source_filename,
   }
 
   // read from source to destination
-  char buffer[4096];
+  char* buffer = (char*)malloc(block_size);
+  if (!buffer) {
+    P_ERRNO = P_EMALLOC;
+    k_close(source_fd);
+    k_close(dest_fd);
+    return -1;
+  }
   ssize_t bytes_read;
+
   while ((bytes_read = k_read(source_fd, sizeof(buffer), buffer)) > 0) {
     if (k_write(dest_fd, buffer, bytes_read) != bytes_read) {
       k_close(source_fd);
