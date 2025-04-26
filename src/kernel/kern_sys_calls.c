@@ -134,9 +134,17 @@ void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
 //        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
 ////////////////////////////////////////////////////////////////////////////////
 
+
+/**
+ * @brief The init process function. It spawns the shell process and 
+ *        reaps zombie children.
+ * 
+ * @param input unused but needed for typing reasons
+ * @return irrelvant return value because never supposed to return
+ */ 
 void* init_func(void* input) {
-  char* shell_argv[] = {"shell_main", NULL};
-  s_spawn(shell_main, shell_argv, STDIN_FILENO, STDOUT_FILENO);
+  char* shell_argv[] = {"shell", NULL};
+  s_spawn(shell, shell_argv, STDIN_FILENO, STDOUT_FILENO);
 
   // continuously wait for and reap zombie children
   while (true) {
@@ -145,6 +153,10 @@ void* init_func(void* input) {
   }
 
   return NULL;  // should never reach
+}
+
+void s_cleanup_init_process() {
+  k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1));
 }
 
 pid_t s_spawn_init() {
@@ -163,6 +175,8 @@ pid_t s_spawn_init() {
   init->thread_handle = thread_handle;
   return init->pid;
 }
+
+
 
 pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   pcb_t* child;
@@ -196,6 +210,19 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
 pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
   pcb_t* parent = current_running_pcb;
   if (parent == NULL) {
+    return -1;
+  }
+
+  // if no children, return -1
+  bool has_child = false;
+  for (int i = 0; i < vec_len(&current_pcbs); i++) {
+    pcb_t* child = vec_get(&current_pcbs, i);
+    if (child->par_pid == parent->pid) {
+      has_child = true;
+      break;
+    }
+  }
+  if (!has_child) {
     return -1;
   }
 
