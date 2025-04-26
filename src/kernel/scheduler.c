@@ -4,16 +4,16 @@
 #include <sys/time.h>
 #include "../lib/Vec.h"
 #include "../lib/spthread.h"
+#include "errno.h"
 #include "kern_pcb.h"
 #include "logger.h"
 #include "stdlib.h"
-#include "errno.h"
 
 #include <stdio.h>  // TODO: delete this once finished
 #include <string.h>
 
 /////////////////////////////////////////////////////////////////////////////////
-//                       QUEUES AND SCHEDULER DATA                             //
+//                       QUEUES AND SCHEDULER DATA //
 /////////////////////////////////////////////////////////////////////////////////
 
 Vec zero_priority_queue;  // lower index = more recent
@@ -37,7 +37,7 @@ int det_priorities_arr[19] = {0, 1, 2, 0, 0, 1, 0, 1, 2, 0,
                               0, 1, 2, 0, 1, 0, 0, 1, 2};
 
 /////////////////////////////////////////////////////////////////////////////////
-//                         QUEUE MAINTENANCE FUNCTIONS                         //
+//                         QUEUE MAINTENANCE FUNCTIONS //
 /////////////////////////////////////////////////////////////////////////////////
 
 // changed the deconstructors to NULL for most queues because when exiting
@@ -60,10 +60,8 @@ void free_scheduler_queues() {
   vec_destroy(&current_pcbs);
 }
 
-
-
 /////////////////////////////////////////////////////////////////////////////////
-//                       DEBUGGING FUNCTIONS  (DELETE THEM!)                   // 
+//                       DEBUGGING FUNCTIONS  (DELETE THEM!) //
 /////////////////////////////////////////////////////////////////////////////////
 
 void print_all_queues() {
@@ -72,32 +70,32 @@ void print_all_queues() {
     pcb_t* curr_pcb = vec_get(&zero_priority_queue, i);
     fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
   }
-  fprintf(stderr,"One Priority Queue:\n");
+  fprintf(stderr, "One Priority Queue:\n");
   for (int i = 0; i < vec_len(&one_priority_queue); i++) {
     pcb_t* curr_pcb = vec_get(&one_priority_queue, i);
     fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
   }
-  fprintf(stderr,"Two Priority Queue:\n");
+  fprintf(stderr, "Two Priority Queue:\n");
   for (int i = 0; i < vec_len(&two_priority_queue); i++) {
     pcb_t* curr_pcb = vec_get(&two_priority_queue, i);
     fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
   }
-  fprintf(stderr,"Zombie Queue:\n");
+  fprintf(stderr, "Zombie Queue:\n");
   for (int i = 0; i < vec_len(&zombie_queue); i++) {
     pcb_t* curr_pcb = vec_get(&zombie_queue, i);
     fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
   }
-  fprintf(stderr,"Sleep Blocked Queue:\n");
+  fprintf(stderr, "Sleep Blocked Queue:\n");
   for (int i = 0; i < vec_len(&sleep_blocked_queue); i++) {
     pcb_t* curr_pcb = vec_get(&sleep_blocked_queue, i);
     fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
   }
-  fprintf(stderr,"Current PCBs:\n");
+  fprintf(stderr, "Current PCBs:\n");
   for (int i = 0; i < vec_len(&current_pcbs); i++) {
     pcb_t* curr_pcb = vec_get(&current_pcbs, i);
     fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
   }
-  fprintf(stderr,"Current Running PCB:\n");
+  fprintf(stderr, "Current Running PCB:\n");
   if (current_running_pcb != NULL) {
     fprintf(stderr, "PID: %d, CMD: %s\n", current_running_pcb->pid,
             current_running_pcb->cmd_str);
@@ -106,17 +104,15 @@ void print_all_queues() {
   }
 }
 
-
-
 /////////////////////////////////////////////////////////////////////////////////
-//                         SCHEDULING FUNCTIONS                                //
+//                         SCHEDULING FUNCTIONS //
 /////////////////////////////////////////////////////////////////////////////////
 
 int generate_next_priority() {
   // check if all queues are empty
   if (vec_is_empty(&zero_priority_queue) && vec_is_empty(&one_priority_queue) &&
       vec_is_empty(&two_priority_queue)) {
-    return -1; 
+    return -1;
   }
 
   int priorities_attempted = 0;
@@ -135,16 +131,15 @@ int generate_next_priority() {
     }
   }
 
-  return -1; // should never reach
+  return -1;  // should never reach
 }
 
 pcb_t* get_next_pcb(int priority) {
-
-  if (priority == -1) { // all queues empty
+  if (priority == -1) {  // all queues empty
     return NULL;
   }
 
-  pcb_t* next_pcb = NULL; 
+  pcb_t* next_pcb = NULL;
   if (priority == 0) {
     next_pcb = vec_get(&zero_priority_queue, 0);
     vec_erase_no_deletor(&zero_priority_queue, 0);
@@ -235,7 +230,7 @@ void alarm_handler(int signum) {
 
 void handle_signal(pcb_t* pcb, int signal) {
   switch (signal) {
-    case 0:                             // P_SIGSTOP
+    case 0:  // P_SIGSTOP
       if (pcb->process_state == 'R' || pcb->process_state == 'B') {
         pcb->process_state = 'S';
         log_generic_event('s', pcb->pid, pcb->priority, pcb->cmd_str);
@@ -262,13 +257,6 @@ void handle_signal(pcb_t* pcb, int signal) {
         delete_process_from_all_queues_except_current(pcb);
         put_pcb_into_correct_queue(pcb);
         pcb->process_status = 22;  // TERM_BY_SIG
-
-        // Handle orphaned children
-        for (int i = 0; i < vec_len(&pcb->child_pcbs); i++) {
-          pcb_t* child = vec_get(&pcb->child_pcbs, i);
-          child->par_pid = 1;  // Set parent to init
-          log_generic_event('O', child->pid, child->priority, child->cmd_str);
-        }
       }
       pcb->signals[2] = false;
       break;
@@ -280,7 +268,6 @@ void shutdown_pennos(void) {
 }
 
 void scheduler() {
-
   int curr_priority_queue_num;
 
   // mask for while scheduler is waiting for alarm
@@ -336,14 +323,15 @@ void scheduler() {
     for (int i = 0; i < vec_len(&sleep_blocked_queue); i++) {
       pcb_t* blocked_proc = vec_get(&sleep_blocked_queue, i);
       bool make_runnable = false;
-      if (blocked_proc->is_sleeping && blocked_proc->time_to_wake == tick_counter) {
+      if (blocked_proc->is_sleeping &&
+          blocked_proc->time_to_wake == tick_counter) {
         blocked_proc->is_sleeping = false;
         blocked_proc->time_to_wake = -1;
         blocked_proc->signals[2] = false;  // Unlikely, but reset signal
         make_runnable = true;
-      } // TODO: THIS BLOCK MAY BE REDUNDANT NOW B/C SIGNAL HANDLERS CALLED
+      }  // TODO: THIS BLOCK MAY BE REDUNDANT NOW B/C SIGNAL HANDLERS CALLED
       else if (blocked_proc->is_sleeping &&
-                 blocked_proc->signals[2]) {  // P_SIGTERM received 
+               blocked_proc->signals[2]) {  // P_SIGTERM received
         blocked_proc->is_sleeping = false;
         blocked_proc->process_state = 'Z';
         blocked_proc->process_status = 22;  // TERM_BY_SIG
@@ -374,19 +362,19 @@ void scheduler() {
 
     current_running_pcb = get_next_pcb(curr_priority_queue_num);
     if (current_running_pcb == NULL) {
-      sigsuspend(&suspend_set); // idle until signal received
-      continue; 
+      sigsuspend(&suspend_set);  // idle until signal received
+      continue;
     }
 
     log_scheduling_event(current_running_pcb->pid, curr_priority_queue_num,
                          current_running_pcb->cmd_str);
 
-    if (spthread_continue(current_running_pcb->thread_handle) != 0 && 
+    if (spthread_continue(current_running_pcb->thread_handle) != 0 &&
         errno != EINTR) {
       perror("spthread_continue failed in scheduler");
     }
     sigsuspend(&suspend_set);
-    if (spthread_suspend(current_running_pcb->thread_handle) != 0 && 
+    if (spthread_suspend(current_running_pcb->thread_handle) != 0 &&
         errno != EINTR) {
       perror("spthread_suspend failed in scheduler");
     }
