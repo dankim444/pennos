@@ -19,6 +19,13 @@
  */
 pid_t s_spawn_init();
 
+
+/**
+ * @brief Wrapper system-level function to be called in pennos's
+ *        main method to clean up the init process
+ */
+void s_cleanup_init_process();
+
 /**
  * @brief Create a child process that executes the function `func`.
  *        The child will retain some attributes of the parent.

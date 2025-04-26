@@ -155,6 +155,12 @@ void k_proc_cleanup(pcb_t* proc) {
 
   // TODO --> Close all file descriptors
 
+  // cancel + join this thread
+  spthread_cancel(proc->thread_handle);
+  spthread_continue(proc->thread_handle);
+  spthread_suspend(proc->thread_handle);
+  spthread_join(proc->thread_handle, NULL);
+
   // delete this process from any queue it's in + free it
   delete_process_from_all_queues(proc);
   free_pcb(proc);
