@@ -97,8 +97,8 @@ void* u_chmod(void* arg) {
 }
 
 void* u_ps(void* arg) {
-  s_exit();
   s_ps(arg);
+  s_exit();
   return NULL;
 }
 
