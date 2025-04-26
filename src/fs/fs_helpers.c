@@ -413,7 +413,7 @@ int copy_host_to_pennfat(const char* host_filename,
     ssize_t bytes_read = read(host_fd, buffer, bytes_to_read);
 
     if (bytes_read <= 0) {
-      break;  // reached eof or error
+      break;
     }
 
     // write to pennfat_fd using k_write
@@ -427,6 +427,16 @@ int copy_host_to_pennfat(const char* host_filename,
     bytes_remaining -= bytes_read;
   }
 
+  // check for read error
+  if (bytes_read < 0) {
+    P_ERRNO = P_EREAD;
+    free(buffer);
+    k_close(pennfat_fd);
+    close(host_fd);
+    return -1;
+  }
+
+  // otherwise, cleanup and return success
   free(buffer);
   k_close(pennfat_fd);
   close(host_fd);
@@ -447,6 +457,19 @@ int copy_pennfat_to_host(const char* pennfat_filename,
     return -1;
   }
 
+  // get the pennfat file size
+  off_t pennfat_file_size_in_bytes = k_lseek(pennfat_fd, 0, SEEK_END);
+  if (bytes_remaining == -1) {
+    k_close(pennfat_fd);
+    return -1;
+  }
+
+  // go back to beginning of file for reading
+  if (k_lseek(pennfat_fd, 0, SEEK_SET) == -1) {
+    k_close(pennfat_fd);
+    return -1;
+  }
+
   // open the host file
   int host_fd = open(host_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (host_fd == -1) {
@@ -463,27 +486,40 @@ int copy_pennfat_to_host(const char* pennfat_filename,
     close(host_fd);
     return -1;
   }
-  ssize_t bytes_read;
+
+  uint32_t bytes_remaining = pennfat_file_size_in_bytes;
 
   // read from PennFAT file and write to host file
-  while ((bytes_read = k_read(pennfat_fd, sizeof(buffer), buffer)) > 0) {
+  while (bytes_remaining > 0) {
+    // ensure bytes to read never exceeds the block size
+    ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+    ssize_t bytes_read = k_read(pennfat_fd, bytes_to_read, buffer);
+
+    if (bytes_read <= 0) {
+      break;
+    }
+    
     if (write(host_fd, buffer, bytes_read) != bytes_read) {
       P_ERRNO = P_EINVAL;
+      free(buffer);
       close(host_fd);
       k_close(pennfat_fd);
       return -1;
     }
+
+    bytes_remaining -= bytes_read;
   }
 
   // check for read error
   if (bytes_read < 0) {
+    P_ERRNO = P_EREAD;
     free(buffer);
     close(host_fd);
     k_close(pennfat_fd);
     return -1;
   }
 
-  // cleanup
+  // otherwise, cleanup and return success
   free(buffer);
   close(host_fd);
   k_close(pennfat_fd);
@@ -503,6 +539,19 @@ int copy_source_to_dest(const char* source_filename,
     return -1;
   }
 
+  // get the source file size
+  off_t source_file_size_in_bytes = k_lseek(source_fd, 0, SEEK_END);
+  if (source_file_size_in_bytes == -1) {
+    k_close(source_fd);
+    return -1;
+  }
+
+  // move to the beginning of the source file for reading
+  if (k_lseek(source_fd, 0, SEEK_SET) < 0) {
+    k_close(source_fd);
+    return -1;
+  }
+
   // open the destination file
   int dest_fd = k_open(dest_filename, F_WRITE);
   if (dest_fd < 0) {
@@ -518,9 +567,18 @@ int copy_source_to_dest(const char* source_filename,
     k_close(dest_fd);
     return -1;
   }
-  ssize_t bytes_read;
+  
+  uint32_t bytes_remaining = source_file_size_in_bytes;
 
-  while ((bytes_read = k_read(source_fd, sizeof(buffer), buffer)) > 0) {
+  while (bytes_remaining > 0) {
+    // make sure the bytes to read doesn't exceed block size
+    ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+    ssize_t bytes_read = k_read(source_fd, bytes_to_read, buffer);
+
+    if (bytes_read <= 0) {
+      break;
+    }
+    
     if (k_write(dest_fd, buffer, bytes_read) != bytes_read) {
       free(buffer);
       k_close(source_fd);
@@ -537,7 +595,7 @@ int copy_source_to_dest(const char* source_filename,
     return -1;
   }
 
-  // cleanup
+  // otherwise, cleanup and return success
   free(buffer);
   k_close(source_fd);
   k_close(dest_fd);
