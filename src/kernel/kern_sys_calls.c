@@ -182,7 +182,7 @@ pid_t s_spawn_init() {
 
 pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   pcb_t* child;
-  if (strcmp(argv[0], "shell_main") == 0) { 
+  if (strcmp(argv[0], "shell") == 0) { 
     child = k_proc_create(current_running_pcb, 0);
   } else {
     child = k_proc_create(current_running_pcb, 1);
