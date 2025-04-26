@@ -106,7 +106,8 @@ void* u_rm(void* arg) {
 }
 
 void* u_chmod(void* arg) {
-  // TODO --> implement chmod
+  /*chmod(arg); // uncomment these lines once chmod is implemented
+  s_exit();*/
   return NULL;
 }
 

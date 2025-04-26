@@ -5,6 +5,6 @@
  * @brief The function that runs our shell. TODO rest
  * 
  */
-void* shell_main(void* input);
+void* shell(void* input);
 
 #endif
