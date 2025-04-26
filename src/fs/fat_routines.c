@@ -217,15 +217,13 @@ void* cat(void* arg) {
   int out_fd = -1;
   int out_mode = 0;
 
-  // search for output redirection
-  // handles cat -w/-a OUTPUT_FILE and cat FILE ... -w/-a OUTPUT_FILE
+  // scan arguments and determine output fd and output mode
   int i;
   for (i = 1; args[i] != NULL; i++) {
     if (strcmp(args[i], "-w") == 0 && args[i + 1] != NULL) {
       out_mode = F_WRITE;
       out_fd = k_open(args[i + 1], F_WRITE);
       if (out_fd < 0) {
-        // error set by k_open
         u_perror("cat");
         return NULL;
       }
@@ -250,10 +248,20 @@ void* cat(void* arg) {
   if ((strcmp(args[1], "-w") == 0 || strcmp(args[1], "-a") == 0) &&
       args[2] != NULL && args[3] == NULL) {
     char buffer[1024];
+
     while (1) {
-      ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
-      if (bytes_read <= 0) {
-        break;  // eof or error
+      ssize_t bytes_read = k_read(STDIN_FILENO, buffer, sizeof(buffer));
+      
+      if (bytes_read < 0) {
+        u_perror("cat");
+        if (out_fd != STDOUT_FILENO) {
+          k_close(out_fd);
+        }
+        return NULL;
+      }
+
+      if (bytes_read == 0) {
+        break;
       }
 
       if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
@@ -287,33 +295,68 @@ void* cat(void* arg) {
       continue;
     }
 
+    // open the current input file
     int in_fd = k_open(args[i], F_READ);
     if (in_fd < 0) {
-      // set error code
+      u_perror("cat");
+      continue;
+    }
+
+    // use lseek to get the size of in_fd
+    off_t in_fd_size = k_lseek(in_fd, 0, SEEK_END);
+    if (in_fd_size == -1) {
+      k_close(in_fd);
+      u_perror("cat");
+      continue;
+    }
+
+    // use lseek to reset position to 0 for reading
+    if (k_lseek(in_fd, 0, SEEK_SET) == -1) {
+      k_close(in_fd);
       u_perror("cat");
       continue;
     }
 
     // copy file content to output
-    char buffer[1024];
-    int bytes_read;
-
-    while ((bytes_read = k_read(in_fd, sizeof(buffer), buffer)) > 0) {
-      if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
-        u_perror("cat");
-        k_close(in_fd);
-        if (out_fd != STDOUT_FILENO) {
-          k_close(out_fd);
-        }
-        return NULL;
-      }
+    char* buffer = (char*)malloc(block_size);
+    if (buffer == NULL) {
+      P_ERRNO = P_EMALLOC;
+      k_close(in_fd);
+      u_perror("cat");
+      continue;
     }
 
+    int bytes_read;
+    ssize_t bytes_remaining = in_fd_size;
+
+    while (bytes_remaining > 0) {
+      ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+      bytes_read = k_read(in_fd, buffer, bytes_to_read);
+
+      if (bytes_read <= 0) {
+        break;
+      }
+
+      if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
+        free(buffer);
+        k_close(in_fd);
+        u_perror("cat");
+        break;
+      }
+
+      bytes_remaining -= bytes_read;
+    }
+
+    // read error
     if (bytes_read < 0) {
+      free(buffer);
+      k_close(in_fd);
       u_perror("cat");
+      continue;
     }
 
     k_close(in_fd);
+    free(buffer);
   }
 
   // close output file if not stdout

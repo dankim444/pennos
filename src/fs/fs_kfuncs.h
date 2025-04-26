@@ -47,7 +47,7 @@ int k_open(const char* fname, int mode);
 *         - P_EBADF: Invalid file descriptor.
 *         - P_EINVAL: Invalid buffer or count.
 */
-int k_read(int fd, int n, char* buf);
+int k_read(int fd, char* buf, int n);
 
 /**
 * @brief Writes data to an open file.
