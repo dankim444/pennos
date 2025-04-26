@@ -172,7 +172,7 @@ void* shell(void*) {
 
     // parse user input
     char buffer[MAX_BUFFER_SIZE];
-    ssize_t user_input = s_read(STDIN_FILENO, MAX_BUFFER_SIZE, buffer);
+    ssize_t user_input = s_read(STDIN_FILENO, buffer, MAX_BUFFER_SIZE);
     if (user_input < 0) {
       u_perror("shell read error");
       break;

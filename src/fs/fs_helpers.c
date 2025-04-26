@@ -94,10 +94,12 @@ int decrement_fd_ref_count(int fd) {
     P_ERRNO = P_EBADF;
     return -1;
   }
+
   if (!fd_table[fd].in_use) {
     P_ERRNO = P_EBADF;
     return -1;
   }
+
   fd_table[fd].ref_count--;
   if (fd_table[fd].ref_count == 0) {
     fd_table[fd].in_use = 0;
@@ -495,7 +497,7 @@ int copy_pennfat_to_host(const char* pennfat_filename,
   while (bytes_remaining > 0) {
     // ensure bytes to read never exceeds the block size
     ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
-    bytes_read = k_read(pennfat_fd, bytes_to_read, buffer);
+    bytes_read = k_read(pennfat_fd, buffer, bytes_to_read);
 
     if (bytes_read <= 0) {
       break;
@@ -576,7 +578,7 @@ int copy_source_to_dest(const char* source_filename,
   while (bytes_remaining > 0) {
     // make sure the bytes to read doesn't exceed block size
     ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
-    bytes_read = k_read(source_fd, bytes_to_read, buffer);
+    bytes_read = k_read(source_fd, buffer, bytes_to_read);
 
     if (bytes_read <= 0) {
       break;

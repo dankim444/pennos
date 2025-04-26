@@ -151,7 +151,7 @@ int k_open(const char* fname, int mode) {
 /**
 * Kernel-level call to read a file.
 */
-int k_read(int fd, int n, char *buf) {
+int k_read(int fd, char *buf, int n) {
     // handle standard input
     if (fd == STDIN_FILENO) {
         return read(STDIN_FILENO, buf, n);
@@ -526,13 +526,8 @@ int k_close(int fd) {
         }
     }
     
-    // mark the file descriptor as not in use
-    fd_table[fd].in_use = 0;
-    fd_table[fd].ref_count--;
-    if (fd_table[fd].ref_count == 0) {
-        // free the file descriptor
-        memset(&fd_table[fd], 0, sizeof(fd_entry_t));
-    }
+    // decrement the reference count
+    decrement_fd_ref_count(fd);
     
     return 0;
 }
