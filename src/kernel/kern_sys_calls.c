@@ -199,6 +199,19 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
     return -1;
   }
 
+  // if no children, return -1
+  bool has_child = false;
+  for (int i = 0; i < vec_len(&current_pcbs); i++) {
+    pcb_t* child = vec_get(&current_pcbs, i);
+    if (child->par_pid == parent->pid) {
+      has_child = true;
+      break;
+    }
+  }
+  if (!has_child) {
+    return -1;
+  }
+
   // Scan the zombie queue first for terminated children.
   for (int i = 0; i < vec_len(&zombie_queue); i++) {
     pcb_t* child = vec_get(&zombie_queue, i);

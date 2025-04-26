@@ -6,6 +6,7 @@
 #include "parser.h"
 #include "shell_built_ins.h"
 #include "stdlib.h"
+#include "../kernel/stress.h"
 
 #include <fcntl.h>
 #include <unistd.h>  // delete these once finished
@@ -120,6 +121,14 @@ pid_t execute_command(struct parsed_command* cmd) {
     return s_spawn(u_zombify, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "orphanify") == 0) {
     return s_spawn(u_orphanify, cmd->commands[0], input_fd, output_fd);
+  } else if (strcmp(cmd->commands[0][0], "hang") == 0) {
+    return s_spawn(hang, cmd->commands[0], input_fd, output_fd);
+  } else if (strcmp(cmd->commands[0][0], "nohang") == 0) {
+    return s_spawn(nohang, cmd->commands[0], input_fd, output_fd);
+  } else if (strcmp(cmd->commands[0][0], "recur") == 0) {
+    return s_spawn(recur, cmd->commands[0], input_fd, output_fd);
+  } else if (strcmp(cmd->commands[0][0], "crash") == 0) {
+    return s_spawn(crash, cmd->commands[0], input_fd, output_fd);
   }
 
   // check for sub-routines 
