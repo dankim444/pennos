@@ -391,7 +391,6 @@ int copy_host_to_pennfat(const char* host_filename,
   // open the destination file in PennFAT
   int pennfat_fd = k_open(pennfat_filename, F_WRITE);
   if (pennfat_fd < 0) {
-    // error code is already set by k_open
     close(host_fd);
     return -1;
   }
@@ -419,7 +418,6 @@ int copy_host_to_pennfat(const char* host_filename,
 
     // write to pennfat_fd using k_write
     if (k_write(pennfat_fd, (const char*)buffer, bytes_read) != bytes_read) {
-      // errors are already set in the kernel functions
       free(buffer);
       k_close(pennfat_fd);
       close(host_fd);
@@ -446,14 +444,13 @@ int copy_pennfat_to_host(const char* pennfat_filename,
   // open the PennFAT file
   int pennfat_fd = k_open(pennfat_filename, F_READ);
   if (pennfat_fd < 0) {
-    // error already set by k_open
     return -1;
   }
 
   // open the host file
   int host_fd = open(host_filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (host_fd == -1) {
-    P_ERRNO = P_EINVAL;
+    P_ERRNO = P_EOPEN;
     k_close(pennfat_fd);
     return -1;
   }
@@ -480,13 +477,14 @@ int copy_pennfat_to_host(const char* pennfat_filename,
 
   // check for read error
   if (bytes_read < 0) {
-    // error already set by k_read
+    free(buffer);
     close(host_fd);
     k_close(pennfat_fd);
     return -1;
   }
 
   // cleanup
+  free(buffer);
   close(host_fd);
   k_close(pennfat_fd);
   return 0;
@@ -524,6 +522,7 @@ int copy_source_to_dest(const char* source_filename,
 
   while ((bytes_read = k_read(source_fd, sizeof(buffer), buffer)) > 0) {
     if (k_write(dest_fd, buffer, bytes_read) != bytes_read) {
+      free(buffer);
       k_close(source_fd);
       k_close(dest_fd);
       return -1;
@@ -532,12 +531,14 @@ int copy_source_to_dest(const char* source_filename,
 
   // check for read error
   if (bytes_read < 0) {
+    free(buffer);
     k_close(source_fd);
     k_close(dest_fd);
     return -1;
   }
 
   // cleanup
+  free(buffer);
   k_close(source_fd);
   k_close(dest_fd);
   return 0;
