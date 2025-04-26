@@ -405,12 +405,13 @@ int copy_host_to_pennfat(const char* host_filename,
   }
 
   uint32_t bytes_remaining = host_file_size_in_bytes;
+  ssize_t bytes_read;
 
   // read from host file
   while (bytes_remaining > 0) {
     // ensure bytes to read never exceeds the block size
     ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
-    ssize_t bytes_read = read(host_fd, buffer, bytes_to_read);
+    bytes_read = read(host_fd, buffer, bytes_to_read);
 
     if (bytes_read <= 0) {
       break;
@@ -459,7 +460,7 @@ int copy_pennfat_to_host(const char* pennfat_filename,
 
   // get the pennfat file size
   off_t pennfat_file_size_in_bytes = k_lseek(pennfat_fd, 0, SEEK_END);
-  if (bytes_remaining == -1) {
+  if (pennfat_file_size_in_bytes == -1) {
     k_close(pennfat_fd);
     return -1;
   }
@@ -488,12 +489,13 @@ int copy_pennfat_to_host(const char* pennfat_filename,
   }
 
   uint32_t bytes_remaining = pennfat_file_size_in_bytes;
+  ssize_t bytes_read;
 
   // read from PennFAT file and write to host file
   while (bytes_remaining > 0) {
     // ensure bytes to read never exceeds the block size
     ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
-    ssize_t bytes_read = k_read(pennfat_fd, bytes_to_read, buffer);
+    bytes_read = k_read(pennfat_fd, bytes_to_read, buffer);
 
     if (bytes_read <= 0) {
       break;
@@ -569,16 +571,17 @@ int copy_source_to_dest(const char* source_filename,
   }
   
   uint32_t bytes_remaining = source_file_size_in_bytes;
+  ssize_t bytes_read;
 
   while (bytes_remaining > 0) {
     // make sure the bytes to read doesn't exceed block size
     ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
-    ssize_t bytes_read = k_read(source_fd, bytes_to_read, buffer);
+    bytes_read = k_read(source_fd, bytes_to_read, buffer);
 
     if (bytes_read <= 0) {
       break;
     }
-    
+
     if (k_write(dest_fd, buffer, bytes_read) != bytes_read) {
       free(buffer);
       k_close(source_fd);
