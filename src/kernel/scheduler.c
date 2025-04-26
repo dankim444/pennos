@@ -263,7 +263,7 @@ void handle_signal(pcb_t* pcb, int signal) {
   }
 }
 
-void shutdown_pennos(void) {
+void s_shutdown_pennos(void) {
   scheduling_done = true;
 }
 
