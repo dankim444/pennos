@@ -114,7 +114,7 @@ int k_open(const char* fname, int mode) {
     } else {
         // file doesn't exist
         
-        // check if we can create it
+        // we can only create it if we are reading the file
         if (!(mode & F_WRITE)) {
             P_ERRNO = P_ENOENT;
             return -1;
