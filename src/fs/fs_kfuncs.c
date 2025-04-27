@@ -158,8 +158,10 @@ int k_open(const char* fname, int mode) {
 */
 int k_read(int fd, char *buf, int n) {
     // handle terminal control (if doesn't control, send a STOP signal)
-    if (fd == STDIN_FILENO && current_running_pcb->pid != current_fg_pid) {
-        s_kill(current_running_pcb->pid, P_SIGSTOP);
+    if (fd == STDIN_FILENO && current_running_pcb != NULL) {
+        if (current_running_pcb->pid != current_fg_pid) {
+            s_kill(current_running_pcb->pid, P_SIGSTOP);
+        }
     }
 
     // handle standard input
