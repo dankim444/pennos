@@ -149,6 +149,18 @@ uint16_t allocate_block() {
       return i;
     }
   }
+
+  // No free blocks found, try compacting the directory
+  if (compact_directory() == 0) {
+    // Now try again to find a free block
+    for (int i = 2; i < fat_size / 2; i++) {
+      if (fat[i] == FAT_FREE) {
+        fat[i] = FAT_EOF;
+        return i;
+      }
+    }
+  }
+
   return 0;
 }
 
@@ -631,5 +643,217 @@ int copy_source_to_dest(const char* source_filename,
   free(buffer);
   k_close(source_fd);
   k_close(dest_fd);
+  return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                                EXTRA CREDIT                                //
+////////////////////////////////////////////////////////////////////////////////
+
+// helper function for compacting root directory
+int compact_directory() {
+  if (!is_mounted) {
+    P_ERRNO = P_EFS_NOT_MOUNTED;
+    return -1;
+  }
+
+  // buffer for temp storage of a block
+  uint8_t* dir_buffer = malloc(block_size);
+  if (!dir_buffer) {
+    P_ERRNO = P_EMALLOC;
+    return -1;
+  }
+
+  // start at root directory
+  uint16_t current_block = 1;
+  int dir_entries_count = 0;
+  int deleted_entries_count = 0;
+
+  // calculate number of entries and deleted entries in the root directory
+  while (current_block != FAT_EOF) {
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
+      P_ERRNO = P_ELSEEK;
+      free(dir_buffer);
+      return -1;
+    }
+    
+    if (read(fs_fd, dir_buffer, block_size) != block_size) {
+      P_ERRNO = P_EREAD;
+      free(dir_buffer);
+      return -1;
+    }
+    
+    // count entries and deleted entries in this block
+    for (int offset = 0; offset < block_size; offset += sizeof(dir_entry_t)) {
+      dir_entry_t* entry = (dir_entry_t*)(dir_buffer + offset);
+      
+      // check if we've reached the end of directory
+      if (entry->name[0] == 0) {
+        break;
+      }
+      
+      dir_entries_count++;
+      
+      // check if it's a deleted entry
+      if (entry->name[0] == 1) {
+        deleted_entries_count++;
+      }
+    }
+    
+    // move onto next block, if there is one
+    if (fat[current_block] != FAT_EOF) {
+      current_block = fat[current_block];
+    } else {
+      break;
+    }
+  }
+
+  // if no deleted entries, no compaction needed
+  if (deleted_entries_count == 0) {
+    free(dir_buffer);
+    return 0;
+  }
+
+  // allocate space for all valid entries
+  dir_entry_t* all_entries = malloc(dir_entries_count * sizeof(dir_entry_t));
+  if (!all_entries) {
+    P_ERRNO = P_EMALLOC;
+    free(dir_buffer);
+    return -1;
+  }
+
+  // read all entries into the buffer, skipping deleted ones
+  current_block = 1;
+  int valid_entry_idx = 0;
+
+  while (current_block != FAT_EOF) {
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
+      P_ERRNO = P_ELSEEK;
+      free(dir_buffer);
+      free(all_entries);
+      return -1;
+    }
+    
+    if (read(fs_fd, dir_buffer, block_size) != block_size) {
+      P_ERRNO = P_EREAD;
+      free(dir_buffer);
+      free(all_entries);
+      return -1;
+    }
+    
+    // process entries in this block
+    for (int offset = 0; offset < block_size; offset += sizeof(dir_entry_t)) {
+      dir_entry_t* entry = (dir_entry_t*)(dir_buffer + offset);
+      
+      // check if we've reached the end of directory
+      if (entry->name[0] == 0) {
+        break;
+      }
+      
+      // skip deleted entries
+      if (entry->name[0] == 1) {
+        continue;
+      }
+      
+      // copy valid entry to our array
+      memcpy(&all_entries[valid_entry_idx++], entry, sizeof(dir_entry_t));
+    }
+    
+    // move to the next block
+    if (fat[current_block] != FAT_EOF) {
+      current_block = fat[current_block];
+    } else {
+      break;
+    }
+  }
+
+  // rewrite the directory with only valid entries
+  current_block = 1;
+  int entries_per_block = block_size / sizeof(dir_entry_t);
+  int blocks_needed = (valid_entry_idx + entries_per_block - 1) / entries_per_block;
+
+  // clean up any excess directory blocks in the FAT chain
+  uint16_t next_block = fat[current_block];
+  if (blocks_needed == 1) {
+    // only need one block, free all others
+    while (next_block != FAT_EOF) {
+      uint16_t temp = fat[next_block];
+      fat[next_block] = FAT_FREE;
+      next_block = temp;
+    }
+    fat[current_block] = FAT_EOF;
+  } else {
+    // navigate through needed blocks
+    int block_count = 1;
+    uint16_t prev_block = current_block;
+    
+    while (block_count < blocks_needed) {
+      if (next_block == FAT_EOF) {
+        // need to allocate a new block
+        uint16_t new_block = allocate_block();
+        if (new_block == 0) {
+          P_ERRNO = P_EFULL;
+          free(dir_buffer);
+          free(all_entries);
+          return -1;
+        }
+        fat[prev_block] = new_block;
+        next_block = new_block;
+      }
+      
+      prev_block = next_block;
+      next_block = fat[next_block];
+      block_count++;
+    }
+    
+    // free any excess blocks
+    fat[prev_block] = FAT_EOF;
+    while (next_block != FAT_EOF) {
+      uint16_t temp = fat[next_block];
+      fat[next_block] = FAT_FREE;
+      next_block = temp;
+    }
+  }
+
+  // write the valid entries back to the directory blocks
+  current_block = 1;
+  int entries_written = 0;
+
+  while (entries_written < valid_entry_idx) {
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
+      P_ERRNO = P_ELSEEK;
+      free(dir_buffer);
+      free(all_entries);
+      return -1;
+    }
+    
+    memset(dir_buffer, 0, block_size);
+    
+    // copy entries to the buffer
+    int entries_in_this_block = 0;
+    while (entries_written < valid_entry_idx && entries_in_this_block < entries_per_block) {
+      memcpy(dir_buffer + (entries_in_this_block * sizeof(dir_entry_t)), 
+              &all_entries[entries_written], 
+              sizeof(dir_entry_t));
+      entries_written++;
+      entries_in_this_block++;
+    }
+    
+    // write the buffer to the file system
+    if (write(fs_fd, dir_buffer, block_size) != block_size) {
+      P_ERRNO = P_EINVAL;
+      free(dir_buffer);
+      free(all_entries);
+      return -1;
+    }
+    
+    // move to the next block if needed
+    if (entries_written < valid_entry_idx) {
+      current_block = fat[current_block];
+    }
+  }
+
+  free(dir_buffer);
+  free(all_entries);
   return 0;
 }
