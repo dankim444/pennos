@@ -14,8 +14,8 @@ int s_open(const char *fname, int mode) {
  * System call to read from a file.
  * This is a wrapper around the kernel function k_read.
  */
-int s_read(int fd, int n, char *buf) {
-    return k_read(fd, n, buf);
+int s_read(int fd, char *buf, int n) {
+    return k_read(fd, buf, n);
 }
 
 /**

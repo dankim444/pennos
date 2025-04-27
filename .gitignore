@@ -3,4 +3,5 @@
 *.out
 *.d
 *.stackdump
+*.txt
 .DS_Store

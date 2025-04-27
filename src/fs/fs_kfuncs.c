@@ -119,7 +119,7 @@ int k_open(const char* fname, int mode) {
     } else {
         // file doesn't exist
         
-        // check if we can create it
+        // we can only create it if we are reading the file
         if (!(mode & F_WRITE)) {
             P_ERRNO = P_ENOENT;
             return -1;
@@ -156,7 +156,7 @@ int k_open(const char* fname, int mode) {
 /**
 * Kernel-level call to read a file.
 */
-int k_read(int fd, int n, char *buf) {
+int k_read(int fd, char *buf, int n) {
     // handle terminal control (if doesn't control, send a STOP signal)
     if (fd == STDIN_FILENO && current_running_pcb->pid != current_fg_pid) {
         s_kill(current_running_pcb->pid, P_SIGSTOP);
@@ -536,13 +536,8 @@ int k_close(int fd) {
         }
     }
     
-    // mark the file descriptor as not in use
-    fd_table[fd].in_use = 0;
-    fd_table[fd].ref_count--;
-    if (fd_table[fd].ref_count == 0) {
-        // free the file descriptor
-        memset(&fd_table[fd], 0, sizeof(fd_entry_t));
-    }
+    // decrement the reference count
+    decrement_fd_ref_count(fd);
     
     return 0;
 }
