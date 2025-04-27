@@ -17,7 +17,6 @@
 #include <stdlib.h>  // For strtol
 #include <unistd.h>  // probably delete once done
 
-extern Vec current_pcbs;
 
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
@@ -25,7 +24,9 @@ extern Vec current_pcbs;
 ////////////////////////////////////////////////////////////////////////////////
 
 void* u_cat(void* arg) {
-  return cat(arg);
+  cat(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_sleep(void* arg) {
@@ -55,50 +56,55 @@ void* u_busy(void* arg) {
 }
 
 void* u_echo(void* arg) {
-  // TODO --> implement echo
+  s_echo(arg);
+  s_exit();
   return NULL;
 }
 
 void* u_ls(void* arg) {
-  return ls(arg);
+  ls(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_chmod(void* arg) {
-  return chmod(arg);
+  chmod(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_touch(void* arg) {
-  return touch(arg);
+  touch(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_mv(void* arg) {
-  return mv(arg);
+  mv(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_cp(void* arg) {
-  return cp(arg);
+  cp(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_rm(void* arg) {
-  return rm(arg);
+  rm(arg);
+  s_exit();
+  return NULL;
 }
 
 void* u_chmod(void* arg) {
-  // TODO --> implement chmod
+  /*chmod(arg); // uncomment these lines once chmod is implemented
+  s_exit();*/
   return NULL;
 }
 
 void* u_ps(void* arg) {
-  char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";
-  s_write(STDOUT_FILENO, pid_top, strlen(pid_top));
-  for (int i = 0; i < vec_len(&current_pcbs); i++) {
-    pcb_t* curr_pcb = (pcb_t*)vec_get(&current_pcbs, i);
-    char buffer[100];
-    snprintf(buffer, sizeof(buffer), "%d\t%d\t%d\t%c\t%s\n", curr_pcb->pid,
-             curr_pcb->par_pid, curr_pcb->priority, curr_pcb->process_state,
-             curr_pcb->cmd_str);  // TODO --> is this allowed?
-    s_write(STDOUT_FILENO, buffer, strlen(buffer));
-  }
+  s_ps(arg);
   s_exit();
   return NULL;
 }
@@ -119,9 +125,6 @@ void* u_kill(void* arg) {
       sig = 1;
     } else {
       // Construct error message
-      snprintf(err_buf, sizeof(err_buf), "Invalid signal specification: %s\n",
-               argv[start_index]);
-      s_write(STDERR_FILENO, err_buf, strlen(err_buf));
       s_exit();
       return NULL;
     }
@@ -208,7 +211,7 @@ void* u_nice(void* arg) {
   }
 
   pid_t new_proc_pid =
-      s_spawn(ufunc, &((char**)arg)[2], 0, 1);  // TODO --> check these fds
+      s_spawn(ufunc, &((char**)arg)[2], 0, 1);  // TODO --> check these fds THESE ARE WRONG FIX, should allowed redirection
 
   if (new_proc_pid != -1) {  // non-error case
     s_nice(new_proc_pid, new_priority);
@@ -286,7 +289,7 @@ void* u_jobs(void* arg) {
 }
 
 void* u_logout(void* arg) {
-  shutdown_pennos();
+  s_shutdown_pennos();
   return NULL;
 }
 

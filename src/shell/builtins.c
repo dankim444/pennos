@@ -5,9 +5,11 @@
 #include <stdio.h>
 #include "builtins.h"
 #include "../lib/pennos-errno.h"
+#include "../fs/fs_syscalls.h"
+#include <string.h>
 
 void u_perror(const char *msg) {
-    char buffer[256];  // adjust size if we need
+    char buffer[256];
     const char *error_msg;
 
     switch (P_ERRNO) {
@@ -86,5 +88,5 @@ void u_perror(const char *msg) {
     }
 
     snprintf(buffer, sizeof(buffer), "%s: %s\n", msg, error_msg);
-    fputs(buffer, stderr); // TODO --> check if this is allowed
+    s_write(STDERR_FILENO, buffer, strlen(buffer));
 }

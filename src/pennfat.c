@@ -13,7 +13,7 @@
 #include <stdbool.h>
 
 #ifndef PROMPT
-#define PROMPT "$ pennfat# "
+#define PROMPT "pennfat# "
 #endif
 
 // signal handler function
@@ -42,22 +42,22 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    char input_buffer[1024]; // TODO: verify the size of this buffer for user input
+    char input_buffer[1024];
     
     while (true) {
         // print prompt
-        if (write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
+        if (k_write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
             P_ERRNO = P_EWRITE;
             u_perror("prompt write error");
             break;
         }
         
         // read user input
-        int bytes_read = read(STDIN_FILENO, input_buffer, sizeof(input_buffer) - 1);
+        int bytes_read = k_read(STDIN_FILENO, input_buffer, sizeof(input_buffer) - 1);
         
         // check for EOF (ctrl-D)
         if (bytes_read <= 0) {
-            write(STDOUT_FILENO, "\n", 1);
+            k_write(STDOUT_FILENO, "\n", 1);
             break;
         }
         

@@ -4,6 +4,8 @@
 #include "fat_routines.h"
 #include "fs_helpers.h"
 #include "fs_syscalls.h"  // F_READ, F_WRITE, F_APPEND, STDIN_FILENO, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO
+#include "../kernel/kern_sys_calls.h"
+#include "../kernel/signal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +16,9 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <stdbool.h> 
+
+extern pcb_t* current_running_pcb;
+extern pid_t current_fg_pid;
 
 /**
 * Kernel-level call to open a file.
@@ -62,6 +67,7 @@ int k_open(const char* fname, int mode) {
         
         // fill in the file descriptor entry
         fd_table[fd].in_use = 1;
+        fd_table[fd].ref_count++;
         strncpy(fd_table[fd].filename, fname, 31);
         fd_table[fd].filename[31] = '\0';
         fd_table[fd].size = entry.size;
@@ -112,7 +118,7 @@ int k_open(const char* fname, int mode) {
     } else {
         // file doesn't exist
         
-        // check if we can create it
+        // we can only create it if we are reading the file
         if (!(mode & F_WRITE)) {
             P_ERRNO = P_ENOENT;
             return -1;
@@ -134,6 +140,7 @@ int k_open(const char* fname, int mode) {
         
         // fill in the file descriptor entry
         fd_table[fd].in_use = 1;
+        fd_table[fd].ref_count++;
         strncpy(fd_table[fd].filename, fname, 31);
         fd_table[fd].filename[31] = '\0';
         fd_table[fd].size = 0;
@@ -148,7 +155,14 @@ int k_open(const char* fname, int mode) {
 /**
 * Kernel-level call to read a file.
 */
-int k_read(int fd, int n, char *buf) {
+int k_read(int fd, char *buf, int n) {
+    // handle terminal control (if doesn't control, send a STOP signal)
+    if (fd == STDIN_FILENO && current_running_pcb != NULL) {
+        if (current_running_pcb->pid != current_fg_pid) {
+            s_kill(current_running_pcb->pid, P_SIGSTOP);
+        }
+    }
+
     // handle standard input
     if (fd == STDIN_FILENO) {
         return read(STDIN_FILENO, buf, n);
@@ -205,7 +219,6 @@ int k_read(int fd, int n, char *buf) {
         // seek to the right position in the file
         if (lseek(fs_fd, fat_size + (current_block - 1) * block_size + block_offset, SEEK_SET) == -1) {
             P_ERRNO = P_ELSEEK;
-            // if we already read some data, return that count
             if (bytes_read > 0) {
                 fd_table[fd].position += bytes_read;
                 return bytes_read;
@@ -524,8 +537,8 @@ int k_close(int fd) {
         }
     }
     
-    // mark the file descriptor as not in use
-    fd_table[fd].in_use = 0;
+    // decrement the reference count
+    decrement_fd_ref_count(fd);
     
     return 0;
 }

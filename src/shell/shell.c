@@ -2,13 +2,12 @@
 #include "../fs/fat_routines.h"
 #include "../fs/fs_syscalls.h"
 #include "../kernel/kern_sys_calls.h"
-#include "builtins.h"  // contains u_perrror
+#include "builtins.h"
 #include "parser.h"
 #include "shell_built_ins.h"
 #include "stdlib.h"
-
+#include "../kernel/stress.h"
 #include <fcntl.h>
-#include <unistd.h>  // delete these once finished
 #include "../kernel/scheduler.h"
 #include "../lib/Vec.h"
 #include "Job.h"
@@ -22,7 +21,7 @@
 #define MAX_BUFFER_SIZE 4096
 
 // Global variable to track foreground process for signal forwarding.
-pid_t current_fg_pid = 2;
+extern pid_t current_fg_pid;
 // Global job list and job counter (for background processes)
 Vec job_list;           // initialize in main; holds job pointers
 jid_t next_job_id = 1;  // global job id counter
@@ -45,7 +44,7 @@ void shell_sigstp_handler(int sig) {
     s_kill(current_fg_pid, 0);  // P_SIGSTOP
   }
 
-  s_write(STDOUT_FILENO, "\n", 1); // TODO --> integrate with FS calls
+  s_write(STDOUT_FILENO, "\n", 1);
 }
 
 // Set up terminal signal handlers in the shell (only for interactive mode).
@@ -68,7 +67,6 @@ void setup_terminal_signal_handlers(void) {
 void free_job_ptr(void* ptr) {
   job* job_ptr = (job*)ptr;
   free(job_ptr->pids);
-  free(job_ptr->cmd); // TODO: check if this will double free w/ spawned processes
   free(job_ptr);
 }
 
@@ -83,12 +81,25 @@ void free_job_ptr(void* ptr) {
  *         subroutine call, -1 when nothing was called
  */
 pid_t execute_command(struct parsed_command* cmd) {
-  int input_fd = open(cmd->stdin_file, F_READ); // TODO --> integrate with FS
-  int output_fd;
+
+  // setup fds
+  int input_fd = STDIN_FILENO; // standard fds
+  int output_fd = STDOUT_FILENO;
+
+  if (cmd->stdin_file != NULL) {
+    input_fd = s_open(cmd->stdin_file, F_READ);
+    if (input_fd < 0) {
+      input_fd = STDIN_FILENO; // reset to default
+    }
+  }
+
   if (cmd->is_file_append) {
-    output_fd = open(cmd->stdout_file, F_APPEND); // ^^
+    output_fd = s_open(cmd->stdout_file, F_APPEND); 
   } else {
-    output_fd = open(cmd->stdout_file, F_WRITE); // ^^
+    output_fd = s_open(cmd->stdout_file, F_WRITE);
+  }
+  if (output_fd < 0) {
+    output_fd = STDOUT_FILENO; // reset to default
   }
 
   // check for independently scheduled processes
@@ -120,6 +131,14 @@ pid_t execute_command(struct parsed_command* cmd) {
     return s_spawn(u_zombify, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "orphanify") == 0) {
     return s_spawn(u_orphanify, cmd->commands[0], input_fd, output_fd);
+  } else if (strcmp(cmd->commands[0][0], "hang") == 0) {
+    return s_spawn(hang, cmd->commands[0], input_fd, output_fd);
+  } else if (strcmp(cmd->commands[0][0], "nohang") == 0) {
+    return s_spawn(nohang, cmd->commands[0], input_fd, output_fd);
+  } else if (strcmp(cmd->commands[0][0], "recur") == 0) {
+    return s_spawn(recur, cmd->commands[0], input_fd, output_fd);
+  } else if (strcmp(cmd->commands[0][0], "crash") == 0) {
+    return s_spawn(crash, cmd->commands[0], input_fd, output_fd);
   }
 
   // check for sub-routines 
@@ -144,7 +163,7 @@ pid_t execute_command(struct parsed_command* cmd) {
   return 0;  // only reached for subroutines
 }
 
-void* shell_main(void*) {
+void* shell(void*) {
  
   job_list = vec_new(0, free_job_ptr);
 
@@ -166,12 +185,12 @@ void* shell_main(void*) {
 
     // parse user input
     char buffer[MAX_BUFFER_SIZE];
-    ssize_t user_input = s_read(STDIN_FILENO, MAX_BUFFER_SIZE, buffer);
+    ssize_t user_input = s_read(STDIN_FILENO, buffer, MAX_BUFFER_SIZE);
     if (user_input < 0) {
       u_perror("shell read error");
       break;
     } else if (user_input == 0) {  // EOF case
-      shutdown_pennos();
+      s_shutdown_pennos();
       break;
     }
 
@@ -233,7 +252,7 @@ void* shell_main(void*) {
       char msg[128];
       snprintf(msg, sizeof(msg), "[%lu] %d\n", (unsigned long)new_job->id,
                child_pid);
-      write(STDOUT_FILENO, msg, strlen(msg)); // TODO-->change once integrated?
+      s_write(STDOUT_FILENO, msg, strlen(msg));
     } else {
       // Foreground execution.
       current_fg_pid = child_pid;

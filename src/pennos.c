@@ -1,22 +1,15 @@
 #include <fcntl.h>
-#include <kernel/logger.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include "fs/fs_syscalls.h"
-#include "kernel/kern_pcb.h"
 #include "kernel/kern_sys_calls.h"
 #include "kernel/scheduler.h"
-#include "lib/Vec.h"
 #include "shell/builtins.h"
 #include "lib/pennos-errno.h"
 #include "fs/fat_routines.h"
 
-#include <stdio.h>  // DELETE
-
 extern int tick_counter;
 extern int log_fd;
-extern Vec current_pcbs;
 
 int main(int argc, char* argv[]) {
   // mount the filesystem
@@ -50,10 +43,9 @@ int main(int argc, char* argv[]) {
 
   scheduler();
 
-  // Init process has PID 1.
-  k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1)); // UPDATE THIS AS SUSAN SAID
   // cleanup
+  s_cleanup_init_process();
   free_scheduler_queues();
+  unmount();
   close(log_fd);
-  // TODO --> add anything else that's needed
 }
