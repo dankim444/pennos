@@ -13,7 +13,7 @@
 #include <stdbool.h>
 
 #ifndef PROMPT
-#define PROMPT "$ pennfat# "
+#define PROMPT "pennfat# "
 #endif
 
 // signal handler function
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
         }
         
         // read user input
-        int bytes_read = k_read(STDIN_FILENO, sizeof(input_buffer) - 1, input_buffer);
+        int bytes_read = k_read(STDIN_FILENO, input_buffer, sizeof(input_buffer) - 1);
         
         // check for EOF (ctrl-D)
         if (bytes_read <= 0) {

@@ -368,37 +368,31 @@ void* cat(void* arg) {
 }
 
 /**
-* List all files in the directory.
+* Searches root directory and lists all files in the directory.
 */
-// TODO: REWORK --> need to use k_ functions or wrap entirely with k_ls
 void* ls(void* arg) {
-  // will eventually need args for ls-ing certain files
-  // char **args = (char **)arg;
-
   if (!is_mounted) {
     P_ERRNO = P_EFS_NOT_MOUNTED;
     u_perror("ls");
     return NULL;
   }
 
-  // Start with root directory block (block 1)
+  // start at root directory block
   uint16_t current_block = 1;
   int offset = 0;
   dir_entry_t dir_entry;
 
   while (1) {
-    // Position at the start of current block
-    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
-        -1) {
+    // adjust pointer to beginning of current block
+    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
       P_ERRNO = P_ELSEEK;
       u_perror("ls");
       return NULL;
     }
 
-    // Reset offset for new block
     offset = 0;
 
-    // Search current block
+    // search current block
     while (offset < block_size) {
       if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
         P_ERRNO = P_EREAD;
@@ -419,32 +413,31 @@ void* ls(void* arg) {
 
       // format permission string
       char perm_str[4] = "---";
-      if (dir_entry.perm & PERM_READ)
-        perm_str[0] = 'r';
-      if (dir_entry.perm & PERM_WRITE)
-        perm_str[1] = 'w';
-      // if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // do we need x?
+      if (dir_entry.perm & PERM_READ) perm_str[0] = 'r';
+      if (dir_entry.perm & PERM_WRITE) perm_str[1] = 'w';
+      // if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // TODO: do we need x?
 
       // format time
       struct tm* tm_info = localtime(&dir_entry.mtime);
       char time_str[50];
-      strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y",
-               tm_info);  // TODO: check if we're allowed to use strftime
+      strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);  // TODO: check if we're allowed to use strftime
 
       // print entry details
-      printf("%2d -%s- %6d %s %s\n", dir_entry.firstBlock, perm_str,
-             dir_entry.size, time_str, dir_entry.name);  // TODO: replace printf
+      if (dir_entry.firstBlock == 0) {
+        printf("   -%s- %6d %s %s\n", perm_str, dir_entry.size, time_str, dir_entry.name);  // TODO: replace printf
+      } else {
+        printf("%2d -%s- %6d %s %s\n", dir_entry.firstBlock, perm_str, dir_entry.size, time_str, dir_entry.name);  // TODO: replace printf
+      }
       offset += sizeof(dir_entry);
     }
 
-    // If we've reached the end of the current block, check if there's a next
-    // block
+    // move to the next block if there is one
     if (fat[current_block] != FAT_EOF) {
       current_block = fat[current_block];
       continue;
     }
 
-    // No more blocks to search
+    // no more blocks to search
     break;
   }
 
@@ -470,52 +463,45 @@ void* touch(void* arg) {
   // check if we have any arguments
   if (args[1] == NULL) {
     P_ERRNO = P_EINVAL;
-    u_perror("touch: missing file operand");
+    u_perror("touch");
     return NULL;
   }
 
   // process each file argument
   for (int i = 1; args[i] != NULL; i++) {
-    // print_fat_state("Before touching file");
     dir_entry_t entry;
     int entry_offset = find_file(args[i], &entry);
 
+    // file exists
     if (entry_offset >= 0) {
-      // file exists, just update the timestamp
       entry.mtime = time(NULL);
 
       // write the updated entry back to the directory
-      // REPLACE WITH K_LSEEK
       if (lseek(fs_fd, entry_offset, SEEK_SET) == -1) {
         P_ERRNO = P_ELSEEK;
         u_perror("touch");
         continue;
       }
-
-      // REPLACE WITH K_WRITE
       if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
-        P_ERRNO = P_EINVAL;
+        P_ERRNO = P_EWRITE;
         u_perror("touch");
         continue;
       }
     } else {
       // file doesn't exist, create a new empty file
 
-      // first check if directory is full
+      // check if the fat is full
       if (P_ERRNO == P_EFULL) {
         u_perror("touch");
-        continue;
+        return NULL;
       }
 
-      // add the file entry to the directory with first_block = 0
-      // blocks will be allocated when data is written
-      if (add_file_entry(args[i], 0, 0, TYPE_REGULAR,
-                         PERM_READ_WRITE) == -1) {
+      // add the file entry to root directory
+      if (add_file_entry(args[i], 0, 0, TYPE_REGULAR, PERM_READ_WRITE) == -1) {
         u_perror("touch");
         continue;
       }
     }
-    // print_fat_state("After touching file");
   }
 
   return NULL;
