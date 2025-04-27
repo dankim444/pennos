@@ -49,7 +49,7 @@ int s_open(const char *fname, int mode);
 *         - P_EBADF: fd is not a valid file descriptor or is not open for reading.
 *         - P_EINVAL: Invalid parameters (NULL buffer or negative count).
 */
-int s_read(int fd, int n, char *buf);
+int s_read(int fd, char *buf, int n);
 
 /**
 * @brief Writes data to an open file.
@@ -81,7 +81,7 @@ int s_write(int fd, const char *str, int n);
 *
 * @return On success, returns 0.
 *         On error, returns -1 and sets P_ERRNO appropriately:
-*         - P_EBADF: fd is not a valid file descriptor.
+*         - P_EBADF: fd is not a valid file descriptor.t
 */
 int s_close(int fd);
 
