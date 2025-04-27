@@ -4,6 +4,8 @@
 #include "fat_routines.h"
 #include "fs_helpers.h"
 #include "fs_syscalls.h"  // F_READ, F_WRITE, F_APPEND, STDIN_FILENO, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO
+#include "../kernel/kern_sys_calls.h"
+#include "../kernel/signal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +17,9 @@
 #include <sys/stat.h> 
 #include <errno.h>
 #include <stdbool.h> 
+
+extern pcb_t* current_running_pcb;
+extern pid_t current_fg_pid;
 
 /**
 * Kernel-level call to open a file.
@@ -152,6 +157,11 @@ int k_open(const char* fname, int mode) {
 * Kernel-level call to read a file.
 */
 int k_read(int fd, int n, char *buf) {
+    // handle terminal control (if doesn't control, send a STOP signal)
+    if (fd == STDIN_FILENO && current_running_pcb->pid != current_fg_pid) {
+        s_kill(current_running_pcb->pid, P_SIGSTOP);
+    }
+
     // handle standard input
     if (fd == STDIN_FILENO) {
         return read(STDIN_FILENO, buf, n);
