@@ -11,7 +11,7 @@ PennOS is a UNIX-like operating system simulator built to run as a single proces
 - To-do
 
 ## Extra Credit Implemented
-- to-do
+- Compaction of directory files (extra credit 1)
 
 ## Compilation Instructions
 - `make` or `make all`: create executables of mains in src/

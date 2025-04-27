@@ -582,7 +582,7 @@ int k_unlink(const char* fname) {
         return -1;
     }
     if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
-        P_ERRNO = P_EUNKNOWN;
+        P_ERRNO = P_EWRITE;
         return -1;
     }
 

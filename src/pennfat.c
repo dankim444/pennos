@@ -130,14 +130,14 @@ int main(int argc, char *argv[]) {
             cp(args);
         } else if (strcmp(args[0], "chmod") == 0) {
             chmod(args);
+        } else if (strcmp(args[0], "cmpctdir") == 0) { // extra credit
+            cmpctdir(args);
         } else {
             P_ERRNO = P_ECOMMAND;
             u_perror("shell");
         }
 
-        // free resource and re-prompt
         free(parsed_command);
     }
-    // note any other resources we might need to free (?)
     return EXIT_SUCCESS;
 }
