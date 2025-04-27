@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include "../fs/fat_routines.h"
 #include "../fs/fs_syscalls.h"
+#include "../kernel/kern_pcb.h"  // TODO --> this is a little dangerous,
 #include "../kernel/kern_sys_calls.h"
 #include "../kernel/scheduler.h"  // TODO --> make sure this is allowed, otw make wrapper
 #include "../lib/Vec.h"           // make sure not to use k funcs
@@ -15,7 +16,6 @@
 #include <stdio.h>   // I think this is okay? Using snprintf
 #include <stdlib.h>  // For strtol
 #include <unistd.h>  // probably delete once done
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
@@ -66,6 +66,12 @@ void* u_ls(void* arg) {
   return NULL;
 }
 
+void* u_chmod(void* arg) {
+  chmod(arg);
+  s_exit();
+  return NULL;
+}
+
 void* u_touch(void* arg) {
   touch(arg);
   s_exit();
@@ -87,12 +93,6 @@ void* u_cp(void* arg) {
 void* u_rm(void* arg) {
   rm(arg);
   s_exit();
-  return NULL;
-}
-
-void* u_chmod(void* arg) {
-  /*chmod(arg); // uncomment these lines once chmod is implemented
-  s_exit();*/
   return NULL;
 }
 
@@ -203,8 +203,9 @@ void* u_nice(void* arg) {
     return NULL;  // no matches, don't spawn
   }
 
-  pid_t new_proc_pid =
-      s_spawn(ufunc, &((char**)arg)[2], 0, 1);  // TODO --> check these fds THESE ARE WRONG FIX, should allowed redirection
+  pid_t new_proc_pid = s_spawn(ufunc, &((char**)arg)[2], 0,
+                               1);  // TODO --> check these fds THESE ARE WRONG
+                                    // FIX, should allowed redirection
 
   if (new_proc_pid != -1) {  // non-error case
     s_nice(new_proc_pid, new_priority);
