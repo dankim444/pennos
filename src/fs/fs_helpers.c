@@ -111,6 +111,36 @@ int decrement_fd_ref_count(int fd) {
   return fd_table[fd].ref_count;
 }
 
+// helper function to check if a file has executable permissions
+int has_executable_permission(int fd) {
+  // check if fs is mounted
+  if (!is_mounted) {
+    P_ERRNO = P_EFS_NOT_MOUNTED;
+    return -1;
+  }
+
+  // validate fd argument
+  if (fd < 0 || fd >= MAX_FDS) {
+    P_ERRNO = P_EINVAL;
+    return -1;
+  }
+
+
+  // determine whether the file exists
+  dir_entry_t entry;
+  int entry_offset = find_file(fd_table[fd].filename, &entry);
+  if (entry_offset < 0) {
+    return -1;
+  }
+
+  // if it exists, get its permission
+  if (entry.perm & PERM_EXEC) {
+    return 1;
+  }
+
+  return 0;
+}
+
 // helper function to allocate a block
 uint16_t allocate_block() {
   for (int i = 2; i < fat_size / 2; i++) {
@@ -329,23 +359,21 @@ int mark_entry_as_deleted(dir_entry_t* entry, int absolute_offset) {
   }
 
   // free the blocks
-  uint16_t block = entry->firstBlock;
-  while (block != 0 && block != FAT_EOF) {
-    uint16_t next_block = fat[block];
-    fat[block] = FAT_FREE;
-    block = next_block;
+  uint16_t current_block = entry->firstBlock;
+  while (current_block != FAT_FREE && current_block != FAT_EOF) {
+    uint16_t next_block = fat[current_block];
+    fat[current_block] = FAT_FREE;
+    current_block = next_block;
   }
 
+  // mark the entry as deleted in the root directory
   dir_entry_t deleted_entry = *entry;
   deleted_entry.name[0] = 1;
-
-  // update the file system
   if (lseek(fs_fd, absolute_offset, SEEK_SET) == -1) {
     P_ERRNO = P_ELSEEK;
     return -1;
   }
-  if (write(fs_fd, &deleted_entry, sizeof(deleted_entry)) !=
-      sizeof(deleted_entry)) {
+  if (write(fs_fd, &deleted_entry, sizeof(deleted_entry)) != sizeof(deleted_entry)) {
     P_ERRNO = P_EINVAL;
     return -1;
   }

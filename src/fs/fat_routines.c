@@ -560,7 +560,6 @@ void* mv(void* arg) {
   dir_entry_t source_entry;
   int source_offset = find_file(source, &source_entry);
   if (source_offset < 0) {
-    // set error code
     u_perror("mv");
     return NULL;
   }
@@ -568,6 +567,8 @@ void* mv(void* arg) {
   // check if the destination file already exists
   dir_entry_t dest_entry;
   int dest_offset = find_file(dest, &dest_entry);
+
+  // designation file exists
   if (dest_offset >= 0) {
     // check if the destination file is currently open by any process
     for (int i = 0; i < MAX_FDS; i++) {
@@ -587,8 +588,7 @@ void* mv(void* arg) {
 
   // rename file
   strncpy(source_entry.name, dest, sizeof(source_entry.name) - 1);
-  source_entry.name[sizeof(source_entry.name) - 1] =
-      '\0';  // ensure null termination
+  source_entry.name[sizeof(source_entry.name) - 1] ='\0';
 
   // write the updated entry back to disk
   if (lseek(fs_fd, source_offset, SEEK_SET) == -1) {
@@ -597,9 +597,8 @@ void* mv(void* arg) {
     return NULL;
   }
 
-  if (write(fs_fd, &source_entry, sizeof(source_entry)) !=
-      sizeof(source_entry)) {
-    P_ERRNO = P_EINVAL;
+  if (write(fs_fd, &source_entry, sizeof(source_entry)) != sizeof(source_entry)) {
+    P_ERRNO = P_EWRITE;
     u_perror("mv");
     return NULL;
   }
@@ -681,7 +680,7 @@ void* rm(void* arg) {
   // check if we have any arguments
   if (args[1] == NULL) {
     P_ERRNO = P_EINVAL;
-    u_perror("rm: missing file operand");
+    u_perror("rm");
     return NULL;
   }
 
@@ -716,14 +715,14 @@ void* rm(void* arg) {
 
     char deleted = 1;  // mark as deleted
     if (write(fs_fd, &deleted, sizeof(deleted)) != sizeof(deleted)) {
-      P_ERRNO = P_EINVAL;
+      P_ERRNO = P_EWRITE;
       u_perror("rm");
       continue;
     }
 
     // free the FAT chain for this file
     uint16_t block = entry.firstBlock;
-    while (block != 0 && block != FAT_EOF) {
+    while (block != FAT_FREE && block != FAT_EOF) {
       uint16_t next_block = fat[block];
       fat[block] = FAT_FREE;
       block = next_block;

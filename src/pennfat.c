@@ -119,14 +119,9 @@ int main(int argc, char *argv[]) {
             touch(args);
         } else if (strcmp(args[0], "cat") == 0) {
             cat(args);
+        } else if (strcmp(args[0], "chmod") == 0) {
+            chmod(args);
         } 
-        // implement after you figure out the chmod type issue
-        // else if (strcmp(args[0], "chmod") == 0) {
-        //     if (chmod(args) != 0) {
-        //         // set error code
-        //         u_perror("chmod");
-        //     }
-        // } 
         else if (strcmp(args[0], "mv") == 0) {
             mv(args);
         } else if (strcmp(args[0], "rm") == 0) {
