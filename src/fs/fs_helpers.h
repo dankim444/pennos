@@ -57,6 +57,14 @@ int increment_fd_ref_count(int fd);
 int decrement_fd_ref_count(int fd);
 
 /**
+* Checks if a file has executable permissions in the PennFAT filesystem.
+*
+* @param fd The fd of the file to check.
+* @return 1 if the file has executable permissions, 0 if it doesn't, -1 if an error occurred.
+*/
+int has_executable_permission(int fd);
+
+/**
 * Allocates a free block in the FAT
 *
 * @return block number of the allocated block, or 0 if no free blocks available
