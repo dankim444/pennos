@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
@@ -20,8 +19,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
-* Creates a PennFAT filesystem in the file named fs_name at the OS-level
-*/
+ * Creates a PennFAT filesystem in the file named fs_name at the OS-level
+ */
 int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   // validate arguments
   if (num_blocks < 1 || num_blocks > 32) {
@@ -38,7 +37,10 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   int actual_block_size = block_sizes[blk_size];
   int fat_size = num_blocks * actual_block_size;
   int fat_entries = fat_size / 2;
-  int num_data_blocks = (num_blocks == 32) ? fat_entries - 2 : fat_entries - 1; // note: first entry is reserved for metadata!
+  int num_data_blocks =
+      (num_blocks == 32)
+          ? fat_entries - 2
+          : fat_entries - 1;  // note: first entry is reserved for metadata!
   size_t filesystem_size = fat_size + (actual_block_size * num_data_blocks);
 
   // create the file for the filesystem
@@ -69,7 +71,6 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   for (int i = 2; i < fat_entries; i++) {
     temp_fat[i] = FAT_FREE;
   }
-  
 
   // write the FAT to the file
   if (write(fd, temp_fat, fat_size) != fat_size) {
@@ -104,8 +105,8 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
 }
 
 /**
-* Mounts a filesystem with name fs_name by loading its FAT into memory.
-*/
+ * Mounts a filesystem with name fs_name by loading its FAT into memory.
+ */
 int mount(const char* fs_name) {
   // check if a filesystem is already mounted
   if (is_mounted) {
@@ -152,14 +153,14 @@ int mount(const char* fs_name) {
     return -1;
   }
 
-  init_fd_table(fd_table); // initialize the file descriptor table
+  init_fd_table(fd_table);  // initialize the file descriptor table
   is_mounted = true;
   return 0;
 }
 
 /**
-* Unmounts the current filesystem and reset variables.
-*/
+ * Unmounts the current filesystem and reset variables.
+ */
 int unmount() {
   // first check that a file system is actually mounted
   if (!is_mounted) {
@@ -194,8 +195,8 @@ int unmount() {
 }
 
 /**
-* Concatenates and displays files.
-*/
+ * Concatenates and displays files.
+ */
 void* cat(void* arg) {
   char** args = (char**)arg;
 
@@ -413,9 +414,12 @@ void* ls(void* arg) {
 
       // format permission string
       char perm_str[4] = "---";
-      if (dir_entry.perm & PERM_READ) perm_str[0] = 'r';
-      if (dir_entry.perm & PERM_WRITE) perm_str[1] = 'w';
-      // if (dir_entry.perm & PERM_EXEC) perm_str[2] = 'x'; // TODO: do we need x?
+      if (dir_entry.perm & PERM_READ)
+        perm_str[0] = 'r';
+      if (dir_entry.perm & PERM_WRITE)
+        perm_str[1] = 'w';
+      if (dir_entry.perm & PERM_EXEC)
+        perm_str[2] = 'x';
 
       // format time
       struct tm* tm_info = localtime(&dir_entry.mtime);
@@ -462,11 +466,11 @@ void* ls(void* arg) {
 }
 
 /**
-* Creates files or updates timestamps.
-*
-* For each file argument, creates the file if it doesn't exist,
-* or updates its timestamp if it already exists.
-*/
+ * Creates files or updates timestamps.
+ *
+ * For each file argument, creates the file if it doesn't exist,
+ * or updates its timestamp if it already exists.
+ */
 void* touch(void* arg) {
   char** args = (char**)arg;
 
@@ -525,8 +529,8 @@ void* touch(void* arg) {
 }
 
 /**
-* Renames files.
-*/
+ * Renames files.
+ */
 void* mv(void* arg) {
   char** args = (char**)arg;
 
@@ -604,8 +608,8 @@ void* mv(void* arg) {
 }
 
 /**
-* Copies the source file to the destination.
-*/
+ * Copies the source file to the destination.
+ */
 void* cp(void* arg) {
   char** args = (char**)arg;
 
@@ -662,8 +666,8 @@ void* cp(void* arg) {
 }
 
 /**
-* Removes files.
-*/
+ * Removes files.
+ */
 void* rm(void* arg) {
   char** args = (char**)arg;
 
@@ -729,6 +733,82 @@ void* rm(void* arg) {
   return NULL;
 }
 
-// void* chmod(void *arg) {
-//     return 0;
-// }
+/**
+* - chmod +x FILE (adds executable permission)
+* - chmod +rw FILE (adds read and write permissions)
+* - chmod -wx FILE (removes write and executable permissions)
+
+*/
+void* chmod(void* arg) {
+  char** args = (char**)arg;
+  if (!args || !args[0] || !args[1] || !args[2]) {
+    P_ERRNO = P_EINVAL;
+    return NULL;
+  }
+
+  // Parse permission string
+  const char* perm_str = args[1];
+  if (perm_str[0] != '+' && perm_str[0] != '-') {
+    P_ERRNO = P_EINVAL;
+    return NULL;
+  }
+
+  // Find the file and get its current directory entry
+  dir_entry_t dir_entry;
+  int entry_offset = find_file(args[2], &dir_entry);
+  if (entry_offset < 0) {
+    P_ERRNO = P_ENOENT;
+    return NULL;
+  }
+
+  // Calculate new permissions
+  uint8_t new_perm = dir_entry.perm;
+  int i = 1;  // Start after + or -
+  while (perm_str[i] != '\0') {
+    switch (perm_str[i]) {
+      case 'r':
+        if (perm_str[0] == '+') {
+          new_perm |= PERM_READ;
+        } else {
+          new_perm &= ~PERM_READ;
+        }
+        break;
+      case 'w':
+        if (perm_str[0] == '+') {
+          new_perm |= PERM_WRITE;
+        } else {
+          new_perm &= ~PERM_WRITE;
+        }
+        break;
+      case 'x':
+        if (perm_str[0] == '+') {
+          new_perm |= PERM_EXEC;
+        } else {
+          new_perm &= ~PERM_EXEC;
+        }
+        break;
+      default:
+        P_ERRNO = P_EINVAL;
+        return NULL;
+    }
+    i++;
+  }
+
+  // Update the directory entry
+  dir_entry.perm = new_perm;
+  dir_entry.mtime = time(NULL);
+
+  // Seek to the entry's position
+  if (lseek(fs_fd, entry_offset, SEEK_SET) == -1) {
+    P_ERRNO = P_ELSEEK;
+    return NULL;
+  }
+
+  // Write the updated entry back
+  if (write(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+    P_ERRNO = P_EWRITE;
+    return NULL;
+  }
+
+  return NULL;
+}
