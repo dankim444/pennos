@@ -17,7 +17,6 @@
 #include <stdlib.h>  // For strtol
 #include <unistd.h>  // probably delete once done
 
-
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
 //        independently scheduled PennOS processes.                           //
@@ -94,12 +93,6 @@ void* u_cp(void* arg) {
 void* u_rm(void* arg) {
   rm(arg);
   s_exit();
-  return NULL;
-}
-
-void* u_chmod(void* arg) {
-  /*chmod(arg); // uncomment these lines once chmod is implemented
-  s_exit();*/
   return NULL;
 }
 
@@ -210,8 +203,9 @@ void* u_nice(void* arg) {
     return NULL;  // no matches, don't spawn
   }
 
-  pid_t new_proc_pid =
-      s_spawn(ufunc, &((char**)arg)[2], 0, 1);  // TODO --> check these fds THESE ARE WRONG FIX, should allowed redirection
+  pid_t new_proc_pid = s_spawn(ufunc, &((char**)arg)[2], 0,
+                               1);  // TODO --> check these fds THESE ARE WRONG
+                                    // FIX, should allowed redirection
 
   if (new_proc_pid != -1) {  // non-error case
     s_nice(new_proc_pid, new_priority);
