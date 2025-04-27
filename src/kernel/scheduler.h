@@ -99,7 +99,7 @@ void scheduler();
 /**
  * @brief TODO
  */
-void shutdown_pennos();
+void s_shutdown_pennos();
 
 // DELETE on submission
 void print_all_queues();
