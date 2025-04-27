@@ -590,7 +590,7 @@ int k_unlink(const char* fname) {
     uint16_t current_block = entry.firstBlock;
     uint16_t next_block;
 
-    while (current_block != 0 && current_block != FAT_EOF) {
+    while (current_block != FAT_FREE && current_block != FAT_EOF) {
         next_block = fat[current_block];
         fat[current_block] = FAT_FREE;
         current_block = next_block;
@@ -682,8 +682,8 @@ int k_ls(const char* filename) {
     dir_entry_t entry;
     uint32_t offset_in_block = 0;
     
+    // if filename is null, list all files in the current directory
     if (filename == NULL) {
-        // list all files in root directory
         while (current_block != FAT_EOF) {
             // calculate absolute offset in filesystem
             off_t abs_offset = fat_size + (current_block - 1) * block_size + offset_in_block;
