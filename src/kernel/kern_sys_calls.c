@@ -24,6 +24,8 @@ extern pcb_t* current_running_pcb;  // currently running process
 
 extern int tick_counter;
 
+pid_t current_fg_pid = 2; // terminal controller
+
 ////////////////////////////////////////////////////////////////////////////////
 //                         GENERAL HELPER FUNCTIONS                           //
 ////////////////////////////////////////////////////////////////////////////////
@@ -134,9 +136,17 @@ void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
 //        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
 ////////////////////////////////////////////////////////////////////////////////
 
+
+/**
+ * @brief The init process function. It spawns the shell process and 
+ *        reaps zombie children.
+ * 
+ * @param input unused but needed for typing reasons
+ * @return irrelvant return value because never supposed to return
+ */ 
 void* init_func(void* input) {
-  char* shell_argv[] = {"shell_main", NULL};
-  s_spawn(shell_main, shell_argv, STDIN_FILENO, STDOUT_FILENO);
+  char* shell_argv[] = {"shell", NULL};
+  s_spawn(shell, shell_argv, STDIN_FILENO, STDOUT_FILENO);
 
   // continuously wait for and reap zombie children
   while (true) {
@@ -145,6 +155,10 @@ void* init_func(void* input) {
   }
 
   return NULL;  // should never reach
+}
+
+void s_cleanup_init_process() {
+  k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1));
 }
 
 pid_t s_spawn_init() {
@@ -164,9 +178,11 @@ pid_t s_spawn_init() {
   return init->pid;
 }
 
+
+
 pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   pcb_t* child;
-  if (strcmp(argv[0], "shell_main") == 0) { 
+  if (strcmp(argv[0], "shell") == 0) { 
     child = k_proc_create(current_running_pcb, 0);
   } else {
     child = k_proc_create(current_running_pcb, 1);
@@ -187,6 +203,8 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   child->thread_handle = thread_handle;
   child->input_fd = fd0;
   child->output_fd = fd1;
+  child->fd_table[0] = fd0;
+  child->fd_table[1] = fd1;
 
   log_generic_event('C', child->pid, child->priority, child->cmd_str);
 
@@ -196,6 +214,19 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
 pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
   pcb_t* parent = current_running_pcb;
   if (parent == NULL) {
+    return -1;
+  }
+
+  // if no children, return -1
+  bool has_child = false;
+  for (int i = 0; i < vec_len(&current_pcbs); i++) {
+    pcb_t* child = vec_get(&current_pcbs, i);
+    if (child->par_pid == parent->pid) {
+      has_child = true;
+      break;
+    }
+  }
+  if (!has_child) {
     return -1;
   }
 
@@ -322,4 +353,41 @@ void s_sleep(unsigned int ticks) {
   if (spthread_suspend(current_running_pcb->thread_handle) != 0) { // give scheduler control
     perror("Error in spthread_suspend in s_sleep call");
   }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//        SYSTEM-LEVEl BUILTIN-RELATED KERNEL FUNCTIONS                       //
+////////////////////////////////////////////////////////////////////////////////
+
+void* s_echo(void* arg) {
+  char** argv = (char**)arg;
+  if (argv[1] == NULL) {  // no args case
+    s_exit();
+    return NULL;
+  }
+
+  int i = 1;                 // words after "echo"
+  while (argv[i] != NULL) {  // while the arg isn't NULL
+    s_write(current_running_pcb->output_fd, argv[i], strlen(argv[i]));
+    s_write(current_running_pcb->output_fd, " ", 1);
+    i++;
+  }
+
+  s_write(current_running_pcb->output_fd, "\n", 1);
+  return NULL;
+}
+
+void* s_ps(void* arg) {
+  char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";
+  s_write(current_running_pcb->output_fd, pid_top, strlen(pid_top));
+  for (int i = 0; i < vec_len(&current_pcbs); i++) {
+    pcb_t* curr_pcb = (pcb_t*)vec_get(&current_pcbs, i);
+    char buffer[100];
+    snprintf(buffer, sizeof(buffer), "%d\t%d\t%d\t%c\t%s\n", curr_pcb->pid,
+             curr_pcb->par_pid, curr_pcb->priority, curr_pcb->process_state,
+             curr_pcb->cmd_str);
+    s_write(current_running_pcb->output_fd, buffer, strlen(buffer));
+  }
+  return NULL;
 }

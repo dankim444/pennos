@@ -49,6 +49,7 @@ typedef struct {
 // file descriptor structure
 typedef struct {
     int in_use; // 1 for in use, 0 for not in use
+    int ref_count; // reference count for the file descriptor
     char filename[32]; // name of the file
     uint32_t size; // size of the file (in bytes)
     uint16_t first_block; // first block of the file

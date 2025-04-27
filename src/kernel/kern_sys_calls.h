@@ -19,6 +19,13 @@
  */
 pid_t s_spawn_init();
 
+
+/**
+ * @brief Wrapper system-level function to be called in pennos's
+ *        main method to clean up the init process
+ */
+void s_cleanup_init_process();
+
 /**
  * @brief Create a child process that executes the function `func`.
  *        The child will retain some attributes of the parent.
@@ -79,6 +86,26 @@ int s_nice(pid_t pid, int priority);
  */
 void s_sleep(unsigned int ticks);
 
+
+////////////////////////////////////////////////////////////////////////////////
+//        SYSTEM-LEVEl BUILTIN-RELATED KERNEL FUNCTIONS                       //
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief System-level wrapper for the shell built-in command "echo" 
+ * 
+ * @param arg the pass along arguments to the u_echo function
+ * @return NULL, dummy return value
+ */
+void* s_echo(void* arg);
+
+/**
+ * @brief System-level wrapper for the shell built-in command "ps" 
+ * 
+ * @param arg the pass along arguments to the u_ps function
+ * @return NULL, dummy return value
+ */
+void* s_ps(void* arg);
 
 
 
