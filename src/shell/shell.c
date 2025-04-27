@@ -139,6 +139,8 @@ pid_t execute_command(struct parsed_command* cmd) {
     return s_spawn(recur, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "crash") == 0) {
     return s_spawn(crash, cmd->commands[0], input_fd, output_fd);
+  } else if (strcmp(cmd->commands[0][0], "cmpctdir") == 0) {
+    return s_spawn(u_cmpctdir, cmd->commands[0], input_fd, output_fd);
   }
 
   // check for sub-routines 

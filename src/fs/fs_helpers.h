@@ -139,5 +139,16 @@ int copy_pennfat_to_host(const char* pennfat_filename, const char* host_filename
 */
 int copy_source_to_dest(const char* source_filename, const char* dest_filename);
 
+////////////////////////////////////////////////////////////////////////////////
+//                                EXTRA CREDIT                                //
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+* @brief Compacts the root directory by removing all deleted entries
+* 
+* @return 0 on success, -1 on error
+*/
+int compact_directory();
+
 
 #endif

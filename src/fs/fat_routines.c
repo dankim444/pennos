@@ -15,7 +15,7 @@
 #include <unistd.h>
 
 ////////////////////////////////////////////////////////////////////////////////
-//                                 ROUTINES                                   //
+//                           SPECIAL ROUTINES                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -193,6 +193,11 @@ int unmount() {
   is_mounted = false;
   return 0;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//                           OTHER ROUTINES                                   //
+////////////////////////////////////////////////////////////////////////////////
+
 
 /**
  * Concatenates and displays files.
@@ -568,7 +573,7 @@ void* mv(void* arg) {
   dir_entry_t dest_entry;
   int dest_offset = find_file(dest, &dest_entry);
 
-  // designation file exists
+  // destination file exists
   if (dest_offset >= 0) {
     // check if the destination file is currently open by any process
     for (int i = 0; i < MAX_FDS; i++) {
@@ -807,6 +812,27 @@ void* chmod(void* arg) {
   if (write(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
     P_ERRNO = P_EWRITE;
     return NULL;
+  }
+
+  return NULL;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                           EXTRA CREDIT                                     //
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+* Implements compaction of root directory.
+*/
+void* cmpctdir(void* arg) {
+  if (!is_mounted) {
+    P_ERRNO = P_EFS_NOT_MOUNTED;
+    u_perror("cmpctdir");
+    return NULL;
+  }
+
+  if (compact_directory() != 0) {
+    u_perror("cmpctdir");
   }
 
   return NULL;

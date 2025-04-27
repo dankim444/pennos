@@ -183,6 +183,8 @@ void* (*get_associated_ufunc(char* func))(void*) {
     return u_ps;
   } else if (strcmp(func, "kill") == 0) {
     return u_kill;
+  } else if (strcmp(func, "cmpctdir") == 0) {
+    return u_cmpctdir;
   }
 
   return NULL;  // no matches case
@@ -321,4 +323,14 @@ void* u_orphanify(void* arg) {
   s_spawn(orphan_child, orphan_child_argv, STDIN_FILENO, STDOUT_FILENO);
   s_exit();
   return NULL;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//     Extra credit                                                           //
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO: test that this works in shell integration
+void* u_cmpctdir(void* arg) {
+  return cmpctdir(arg);
 }
