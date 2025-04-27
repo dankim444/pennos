@@ -193,4 +193,16 @@ void* rm(void *arg);
 */
 void* chmod(void *arg);
 
+////////////////////////////////////////////////////////////////////////////////
+//                           EXTRA CREDIT                                     //
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+* @brief Compacts the root directory by removing all deleted entries.
+* 
+* @param arg Arguments array (command line arguments)
+* @return void pointer (unused)
+*/
+void* cmpctdir(void* arg);
+
 #endif
