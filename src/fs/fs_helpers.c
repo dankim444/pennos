@@ -231,7 +231,7 @@ int add_file_entry(const char* filename,
     // search current block for free slot
     while (offset < block_size) {
       if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
-        P_ERRNO = P_EINVAL;
+        P_ERRNO = P_EREAD;
         return -1;
       }
 
@@ -268,7 +268,7 @@ int add_file_entry(const char* filename,
       continue;
     }
 
-    // haven't added the file yet, so we need to allocate new blocks
+    // allocate a new block for the root directory
     uint16_t new_block = allocate_block();
     if (new_block == 0) {
       P_ERRNO = P_EFULL;
@@ -279,7 +279,7 @@ int add_file_entry(const char* filename,
     fat[current_block] = new_block;
     fat[new_block] = FAT_EOF;
 
-    // initialize new block with zeros
+    // initialize new block
     uint8_t* zero_block = calloc(block_size, 1);
     if (!zero_block) {
       P_ERRNO = P_EINVAL;
