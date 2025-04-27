@@ -9,7 +9,7 @@
 #include <string.h>
 
 void u_perror(const char *msg) {
-    char buffer[256];  // adjust size if we need
+    char buffer[256];
     const char *error_msg;
 
     switch (P_ERRNO) {

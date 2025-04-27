@@ -420,14 +420,31 @@ void* ls(void* arg) {
       // format time
       struct tm* tm_info = localtime(&dir_entry.mtime);
       char time_str[50];
-      strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);  // TODO: check if we're allowed to use strftime
+      strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);
 
       // print entry details
+      char buffer[128];
+      int len;
       if (dir_entry.firstBlock == 0) {
-        printf("   -%s- %6d %s %s\n", perm_str, dir_entry.size, time_str, dir_entry.name);  // TODO: replace printf
+        len = snprintf(buffer, sizeof(buffer), "   -%s- %6d %s %s\n", 
+                perm_str, dir_entry.size, time_str, dir_entry.name);
       } else {
-        printf("%2d -%s- %6d %s %s\n", dir_entry.firstBlock, perm_str, dir_entry.size, time_str, dir_entry.name);  // TODO: replace printf
+        len = snprintf(buffer, sizeof(buffer), "%2d -%s- %6d %s %s\n", 
+                dir_entry.firstBlock, perm_str, dir_entry.size, time_str, dir_entry.name);
       }
+
+      if (len < 0 || len >= (int)sizeof(buffer)) {
+        P_ERRNO = P_EUNKNOWN;
+        u_perror("ls");
+        return NULL;
+      }
+
+      if (k_write(STDOUT_FILENO, buffer, len) != len) {
+        P_ERRNO = P_EWRITE;
+        u_perror("ls");
+        return NULL;
+      }
+
       offset += sizeof(dir_entry);
     }
 
