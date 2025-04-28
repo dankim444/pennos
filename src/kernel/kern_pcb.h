@@ -8,7 +8,7 @@
 #include "../lib/Vec.h"
 
 
-#define FILE_DESCRIPTOR_TABLE_SIZE 1024
+#define FILE_DESCRIPTOR_TABLE_SIZE 100
 
 ////////////////////////////////////////////////////////////////////////////////
 //              PROCESS CONTROL BLOCK (PCB) STRUCTURE AND FUNCTIONS           //

@@ -115,10 +115,10 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
     child->fd_table[i] = parent->fd_table[i];
   }
 
-  // incr reference counts for all releveant fds
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
-    if (child->fd_table[i] != -1) {
-      increment_fd_ref_count(child->fd_table[i]);
+    if (child->fd_table[i] != -1 && child->fd_table[i] != STDIN_FILENO &&
+        child->fd_table[i] != STDOUT_FILENO && child->fd_table[i] != STDERR_FILENO) {
+          increment_fd_ref_count(child->fd_table[i]);
     }
   }
 
