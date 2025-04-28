@@ -101,7 +101,5 @@ void scheduler();
  */
 void s_shutdown_pennos();
 
-// DELETE on submission
-void print_all_queues();
 
 #endif  // SCHEDULER_H_

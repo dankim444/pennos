@@ -15,7 +15,7 @@
  *        process. It will create the init process and also spawn in the 
  *        shell. 
  * 
- * @return the pid_t of the created process on sucsses or -1 on error
+ * @return the pid_t of the created process on success or -1 on error
  */
 pid_t s_spawn_init();
 

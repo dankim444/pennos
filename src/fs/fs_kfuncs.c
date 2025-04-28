@@ -508,12 +508,7 @@ int k_write(int fd, const char* str, int n) {
 * Kernel-level call to close a file.
 */
 int k_close(int fd) {
-    // TODO: check if you're not allowed to close reserved file descriptors
-    if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
-        P_ERRNO = P_EINVAL;
-        return -1;
-    }
-
+   
     // validate the file descriptor
     if (fd < 0 || fd >= MAX_FDS || !fd_table[fd].in_use) {
         P_ERRNO = P_EBADF;

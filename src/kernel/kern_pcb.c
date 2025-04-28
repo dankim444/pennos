@@ -88,6 +88,7 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
     pcb_t* init = create_pcb(1, 0, 0, 0, 1);  
     if (init == NULL) {
       P_ERRNO = P_ENULL;  
+      return NULL;
     }
     init->fd_table[0] = STDIN_FILENO;
     init->fd_table[1] = STDOUT_FILENO;
@@ -116,9 +117,7 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
 
   // incr reference counts for all releveant fds
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
-    if (child->fd_table[i] != -1 && child->fd_table[i] != STDIN_FILENO &&
-        child->fd_table[i] != STDOUT_FILENO &&
-        child->fd_table[i] != STDERR_FILENO) {
+    if (child->fd_table[i] != -1) {
       increment_fd_ref_count(child->fd_table[i]);
     }
   }
@@ -140,7 +139,7 @@ void k_proc_cleanup(pcb_t* proc) {
   if (par_pcb != NULL) {
     remove_child_in_parent(par_pcb, proc);
   } else {
-    P_ERRNO = P_ENULL;  // TODO --> do we want this?
+    P_ERRNO = P_ENULL; 
     return;
   }
 
