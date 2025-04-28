@@ -1,3 +1,9 @@
+/* CS5480 PennOS Group 61
+ * Authors: Dan Kim and Kevin Zhou
+ * Purpose: Initializes globals and implements the helper functions
+ *          used in fat_routines.c.
+ */
+
 #include "fs_helpers.h"
 #include "fat_routines.h"
 #include "fs_kfuncs.h"
@@ -24,14 +30,16 @@ int num_fat_blocks = 0;
 int fat_size = 0;
 uint16_t* fat = NULL;
 bool is_mounted = false;
-int MAX_FDS = 1024;
-fd_entry_t fd_table[1024];
+int MAX_FDS = 100;
+fd_entry_t fd_table[100];
 
 ////////////////////////////////////////////////////////////////////////////////
 //                            FD TABLE HELPERS                                //
 ////////////////////////////////////////////////////////////////////////////////
 
-// helper for initializing the fd table
+/**
+ * Initializes the global kernel-level file descriptor table.
+ */
 void init_fd_table(fd_entry_t* fd_table) {
   // STDIN (fd 0)
   fd_table[0].in_use = 1;
@@ -63,7 +71,9 @@ void init_fd_table(fd_entry_t* fd_table) {
   }
 }
 
-// helper to get a free file descriptor
+/**
+ * Gets a free file descriptor
+ */
 int get_free_fd(fd_entry_t* fd_table) {
   for (int i = 3; i < MAX_FDS; i++) {
     if (!fd_table[i].in_use) {
@@ -73,7 +83,9 @@ int get_free_fd(fd_entry_t* fd_table) {
   return -1;
 }
 
-// helper for incrementing the reference count of a file descriptor
+/**
+ * Increments the reference count of a file descriptor
+ */
 int increment_fd_ref_count(int fd) {
   if (fd < 0 || fd >= MAX_FDS) {
     P_ERRNO = P_EBADF;
@@ -87,7 +99,10 @@ int increment_fd_ref_count(int fd) {
   return fd_table[fd].ref_count;
 }
 
-// helper function to mark a file entry as deleted
+/**
+ * Decrements the reference count of a file descriptor.
+ * If reference count reaches 0, flush field values.
+ */
 int decrement_fd_ref_count(int fd) {
   if (fd < 0 || fd >= MAX_FDS) {
     P_ERRNO = P_EBADF;
@@ -111,7 +126,9 @@ int decrement_fd_ref_count(int fd) {
   return fd_table[fd].ref_count;
 }
 
-// helper function to check if a file has executable permissions
+/**
+ * Checks if a file has executable permissions
+ */
 int has_executable_permission(int fd) {
   // check if fs is mounted
   if (!is_mounted) {
@@ -141,7 +158,10 @@ int has_executable_permission(int fd) {
   return 0;
 }
 
-// helper function to allocate a block
+/**
+ * Allocates a block.
+ * If no block found, we try compacting the directory.
+ */
 uint16_t allocate_block() {
   for (int i = 2; i < fat_size / 2; i++) {
     if (fat[i] == FAT_FREE) {
@@ -150,9 +170,7 @@ uint16_t allocate_block() {
     }
   }
 
-  // No free blocks found, try compacting the directory
   if (compact_directory() == 0) {
-    // Now try again to find a free block
     for (int i = 2; i < fat_size / 2; i++) {
       if (fat[i] == FAT_FREE) {
         fat[i] = FAT_EOF;
@@ -164,7 +182,10 @@ uint16_t allocate_block() {
   return 0;
 }
 
-// helper function to find a file in the root directory
+/**
+ * Searches for a file in the root directory.
+ * Retrieves the file's absolute offset in the filesystem.
+ */
 int find_file(const char* filename, dir_entry_t* entry) {
   if (!is_mounted) {
     P_ERRNO = P_EFS_NOT_MOUNTED;
@@ -236,7 +257,9 @@ int find_file(const char* filename, dir_entry_t* entry) {
   return -1;
 }
 
-// helper function to add a file to the root directory
+/**
+ * Adds a file to the root directory
+ */
 int add_file_entry(const char* filename,
                    uint32_t size,
                    uint16_t first_block,
@@ -364,6 +387,9 @@ int add_file_entry(const char* filename,
   }
 }
 
+/**
+ * Marks a file entry as deleted and frees its blocks.
+ */
 int mark_entry_as_deleted(dir_entry_t* entry, int absolute_offset) {
   if (!is_mounted || entry == NULL || absolute_offset < 0) {
     P_ERRNO = P_EINVAL;
@@ -399,7 +425,9 @@ int mark_entry_as_deleted(dir_entry_t* entry, int absolute_offset) {
 //                                CP HELPERS                                  //
 ////////////////////////////////////////////////////////////////////////////////
 
-// helper function to copy data from host OS to PennFAT
+/**
+ * Copies data from host OS file to the PennFAT file.
+ */
 int copy_host_to_pennfat(const char* host_filename,
                          const char* pennfat_filename) {
   if (!is_mounted) {
@@ -485,7 +513,9 @@ int copy_host_to_pennfat(const char* host_filename,
   return 0;
 }
 
-// helper function to copy data from PennFAT to host OS
+/**
+ * Copies data from PennFAT file to host OS file.
+ */
 int copy_pennfat_to_host(const char* pennfat_filename,
                          const char* host_filename) {
   if (!is_mounted) {
@@ -569,6 +599,9 @@ int copy_pennfat_to_host(const char* pennfat_filename,
   return 0;
 }
 
+/**
+ * Copies data from source file to destination file.
+ */
 int copy_source_to_dest(const char* source_filename,
                         const char* dest_filename) {
   if (!is_mounted) {
@@ -650,7 +683,9 @@ int copy_source_to_dest(const char* source_filename,
 //                                EXTRA CREDIT                                //
 ////////////////////////////////////////////////////////////////////////////////
 
-// helper function for compacting root directory
+/**
+ * Compacts a directory.
+ */
 int compact_directory() {
   if (!is_mounted) {
     P_ERRNO = P_EFS_NOT_MOUNTED;

@@ -1,3 +1,8 @@
+/* CS5480 PennOS Group 61
+ * Authors: Dan Kim and Kevin Zhou
+ * Purpose: Implements the kernel-level file system functions.
+ */
+
 #include "fs_kfuncs.h"
 #include "../kernel/kern_pcb.h"
 #include "../kernel/kern_sys_calls.h"
@@ -5,7 +10,9 @@
 #include "../lib/pennos-errno.h"
 #include "fat_routines.h"
 #include "fs_helpers.h"
-#include "fs_syscalls.h"  // F_READ, F_WRITE, F_APPEND, STDIN_FILENO, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO
+#include "fs_syscalls.h"
+#include "../kernel/kern_sys_calls.h"
+#include "../kernel/signal.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -156,13 +163,13 @@ int k_open(const char* fname, int mode) {
 /**
  * Kernel-level call to read a file.
  */
-int k_read(int fd, char* buf, int n) {
-  // handle terminal control (if doesn't control, send a STOP signal)
-  if (fd == STDIN_FILENO && current_running_pcb != NULL) {
-    if (current_running_pcb->pid != current_fg_pid) {
-      s_kill(current_running_pcb->pid, P_SIGSTOP);
+int k_read(int fd, char *buf, int n) {
+    // handle terminal control (if doesn't control, send a STOP signal)
+    if (fd == STDIN_FILENO && current_running_pcb != NULL) {
+        if (current_running_pcb->pid != current_fg_pid) {
+            s_kill(current_running_pcb->pid, P_SIGSTOP);
+        }
     }
-  }
 
   // handle standard input
   if (fd == STDIN_FILENO) {
@@ -518,6 +525,8 @@ int k_write(int fd, const char* str, int n) {
 /**
  * Kernel-level call to close a file.
  */
+ * Kernel-level call to close a file.
+ */
 int k_close(int fd) {
   /*if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
       P_ERRNO = P_EINVAL;
@@ -554,6 +563,8 @@ int k_close(int fd) {
 }
 
 /**
+ * Kernel-level call to remove a file.
+ */
  * Kernel-level call to remove a file.
  */
 int k_unlink(const char* fname) {
@@ -610,6 +621,8 @@ int k_unlink(const char* fname) {
 }
 
 /**
+ * Kernel-level call to re-position a file offset.
+ */
  * Kernel-level call to re-position a file offset.
  */
 int k_lseek(int fd, int offset, int whence) {
@@ -677,6 +690,8 @@ void format_file_info(dir_entry_t* entry, char* buffer) {
 }
 
 /**
+ * Kernel-level call to list files.
+ */
  * Kernel-level call to list files.
  */
 int k_ls(const char* filename) {

@@ -1,3 +1,9 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystoff Purtell and Richard Zhang
+ * Purpose: Defines the PCB stucture, process-related helper functions,
+ *          and the kernel-level process functions.  
+ */
+
 #ifndef KERN_PCB_H_
 #define KERN_PCB_H_
 
@@ -8,7 +14,7 @@
 #include "../lib/Vec.h"
 
 
-#define FILE_DESCRIPTOR_TABLE_SIZE 1024
+#define FILE_DESCRIPTOR_TABLE_SIZE 100
 
 ////////////////////////////////////////////////////////////////////////////////
 //              PROCESS CONTROL BLOCK (PCB) STRUCTURE AND FUNCTIONS           //
@@ -49,7 +55,7 @@ typedef struct pcb_st {
 } pcb_t;
 
 ////////////////////////////////////////////////////////////////////////////////
-//                             PCB FUNCTIONS                                  //
+//                               PCB FUNCTIONS                                //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
