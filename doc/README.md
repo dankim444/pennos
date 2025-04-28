@@ -222,7 +222,7 @@ The PennOS shell provides a user interface to interact with the simulated operat
         - *Output*: 0 on success, -1 on failure
         - *Description*: Makes a filesystem. Uses the inputs to calculate the size of the FAT region, data region, and the filesystem. It then makes a system call to open() to open the filename and use ftruncate() to extend the size of the filesystem. A combination of calloc, lseek, and write are used to allocate space for the fat region and root directory and write the contents to the filesystem. 
     - `mount`:
-        - *Inputs*:
+        - *Inputs*: 
         - *Output*:
         - *Description*:
     - `unmount`:
