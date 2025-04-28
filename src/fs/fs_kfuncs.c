@@ -509,10 +509,10 @@ int k_write(int fd, const char* str, int n) {
 */
 int k_close(int fd) {
 
-    if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
+    /*if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
         P_ERRNO = P_EINVAL;
         return -1;
-    }
+    }*/
    
     // validate the file descriptor
     if (fd < 0 || fd >= MAX_FDS || !fd_table[fd].in_use) {
