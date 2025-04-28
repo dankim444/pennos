@@ -83,11 +83,14 @@ void remove_child_in_parent(pcb_t* parent, pcb_t* child) {
  * shell exist
  * @return Reference to the child PCB.
  */
+ // TODO: is there a reason why you have a stub comment here and not anywhere else?
+ // would it be fine to remove it here since it's already documented in the .h file?
 pcb_t* k_proc_create(pcb_t* parent, int priority) {
   if (parent == NULL) {                       // init creation case
     pcb_t* init = create_pcb(1, 0, 0, 0, 1);  
     if (init == NULL) {
       P_ERRNO = P_ENULL;  
+      return NULL; // return to prevent segfault
     }
     init->fd_table[0] = STDIN_FILENO;
     init->fd_table[1] = STDOUT_FILENO;
@@ -116,9 +119,7 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
 
   // incr reference counts for all releveant fds
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
-    if (child->fd_table[i] != -1 && child->fd_table[i] != STDIN_FILENO &&
-        child->fd_table[i] != STDOUT_FILENO &&
-        child->fd_table[i] != STDERR_FILENO) {
+    if (child->fd_table[i] != -1) {
       increment_fd_ref_count(child->fd_table[i]);
     }
   }
@@ -140,13 +141,14 @@ void k_proc_cleanup(pcb_t* proc) {
   if (par_pcb != NULL) {
     remove_child_in_parent(par_pcb, proc);
   } else {
-    P_ERRNO = P_ENULL;  // TODO --> do we want this?
-    return;
+    P_ERRNO = P_ENULL;
   }
 
   // if proc has children, remove them and assign them to init parent
   if (vec_len(&proc->child_pcbs) > 0) {
     // retrieve the init process
+    // TODO: what if the we are cleaning the init process?
+    // Do we want to redirect its children to the init process itself here?
     pcb_t* init_pcb =
         get_pcb_in_queue(&current_pcbs, 1);  // init process has pid 1
 
@@ -162,8 +164,7 @@ void k_proc_cleanup(pcb_t* proc) {
 
   // decr reference counts + close files if necessary
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
-    if (proc->fd_table[i] != -1 && proc->fd_table[i] != STDIN_FILENO &&
-        proc->fd_table[i] != STDOUT_FILENO && proc->fd_table[i] != STDERR_FILENO) {
+    if (proc->fd_table[i] != -1) {
       if (decrement_fd_ref_count(proc->fd_table[i]) == 0) {
         s_close(proc->fd_table[i]); // close the fd since no other process using
       }
