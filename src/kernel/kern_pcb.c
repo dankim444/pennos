@@ -1,11 +1,11 @@
 #include "kern_pcb.h"
+#include "../fs/fs_helpers.h"
 #include "../fs/fs_syscalls.h"
 #include "../lib/pennos-errno.h"
 #include "logger.h"
 #include "scheduler.h"
 #include "stdio.h"  // for perror
 #include "stdlib.h"
-#include "../fs/fs_helpers.h"
 
 int next_pid = 2;  // global variable to track the next pid to be assigned
                    // Note: when incrementing, be careful to lock around
@@ -83,14 +83,15 @@ void remove_child_in_parent(pcb_t* parent, pcb_t* child) {
  * shell exist
  * @return Reference to the child PCB.
  */
- // TODO: is there a reason why you have a stub comment here and not anywhere else?
- // would it be fine to remove it here since it's already documented in the .h file?
+// TODO: is there a reason why you have a stub comment here and not anywhere
+// else? would it be fine to remove it here since it's already documented in the
+// .h file?
 pcb_t* k_proc_create(pcb_t* parent, int priority) {
-  if (parent == NULL) {                       // init creation case
-    pcb_t* init = create_pcb(1, 0, 0, 0, 1);  
+  if (parent == NULL) {  // init creation case
+    pcb_t* init = create_pcb(1, 0, 0, 0, 1);
     if (init == NULL) {
-      P_ERRNO = P_ENULL;  
-      return NULL; // return to prevent segfault
+      P_ERRNO = P_ENULL;
+      return NULL;
     }
     init->fd_table[0] = STDIN_FILENO;
     init->fd_table[1] = STDOUT_FILENO;
@@ -108,7 +109,7 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
   pcb_t* child = create_pcb(next_pid++, parent->pid, priority, parent->input_fd,
                             parent->output_fd);
   if (child == NULL) {
-    P_ERRNO = P_ENULL; 
+    P_ERRNO = P_ENULL;
     return NULL;
   }
 
@@ -117,7 +118,12 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
     child->fd_table[i] = parent->fd_table[i];
   }
 
-  // incr reference counts for all releveant fds
+  /*for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
+    if (child->fd_table[i] != -1 && child->fd_table[i] != STDIN_FILENO &&
+        child->fd_table[i] != STDOUT_FILENO && child->fd_table[i] !=
+  STDERR_FILENO) { increment_fd_ref_count(child->fd_table[i]);
+    }
+  }*/
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
     if (child->fd_table[i] != -1) {
       increment_fd_ref_count(child->fd_table[i]);
@@ -142,6 +148,7 @@ void k_proc_cleanup(pcb_t* proc) {
     remove_child_in_parent(par_pcb, proc);
   } else {
     P_ERRNO = P_ENULL;
+    return;
   }
 
   // if proc has children, remove them and assign them to init parent
@@ -163,10 +170,20 @@ void k_proc_cleanup(pcb_t* proc) {
   }
 
   // decr reference counts + close files if necessary
+  /*for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
+    if (proc->fd_table[i] != -1 && proc->fd_table[i] != STDIN_FILENO &&
+        proc->fd_table[i] != STDOUT_FILENO && proc->fd_table[i] !=
+STDERR_FILENO) {
+      if (decrement_fd_ref_count(proc->fd_table[i]) == 0) {
+        s_close(proc->fd_table[i]); // close the fd since no other process using
+      }
+    }
+  }*/
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
     if (proc->fd_table[i] != -1) {
       if (decrement_fd_ref_count(proc->fd_table[i]) == 0) {
-        s_close(proc->fd_table[i]); // close the fd since no other process using
+        s_close(
+            proc->fd_table[i]);  // close the fd since no other process using
       }
     }
   }
