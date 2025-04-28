@@ -90,7 +90,7 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
     pcb_t* init = create_pcb(1, 0, 0, 0, 1);  
     if (init == NULL) {
       P_ERRNO = P_ENULL;  
-      return NULL; // return to prevent segfault
+      return NULL;
     }
     init->fd_table[0] = STDIN_FILENO;
     init->fd_table[1] = STDOUT_FILENO;
@@ -141,7 +141,8 @@ void k_proc_cleanup(pcb_t* proc) {
   if (par_pcb != NULL) {
     remove_child_in_parent(par_pcb, proc);
   } else {
-    P_ERRNO = P_ENULL;
+    P_ERRNO = P_ENULL; 
+    return;
   }
 
   // if proc has children, remove them and assign them to init parent

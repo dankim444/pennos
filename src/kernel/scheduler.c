@@ -61,50 +61,6 @@ void free_scheduler_queues() {
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-//                       DEBUGGING FUNCTIONS  (DELETE THEM!) //
-/////////////////////////////////////////////////////////////////////////////////
-
-void print_all_queues() {
-  fprintf(stderr, "Zero Priority Queue:\n");
-  for (int i = 0; i < vec_len(&zero_priority_queue); i++) {
-    pcb_t* curr_pcb = vec_get(&zero_priority_queue, i);
-    fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
-  }
-  fprintf(stderr, "One Priority Queue:\n");
-  for (int i = 0; i < vec_len(&one_priority_queue); i++) {
-    pcb_t* curr_pcb = vec_get(&one_priority_queue, i);
-    fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
-  }
-  fprintf(stderr, "Two Priority Queue:\n");
-  for (int i = 0; i < vec_len(&two_priority_queue); i++) {
-    pcb_t* curr_pcb = vec_get(&two_priority_queue, i);
-    fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
-  }
-  fprintf(stderr, "Zombie Queue:\n");
-  for (int i = 0; i < vec_len(&zombie_queue); i++) {
-    pcb_t* curr_pcb = vec_get(&zombie_queue, i);
-    fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
-  }
-  fprintf(stderr, "Sleep Blocked Queue:\n");
-  for (int i = 0; i < vec_len(&sleep_blocked_queue); i++) {
-    pcb_t* curr_pcb = vec_get(&sleep_blocked_queue, i);
-    fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
-  }
-  fprintf(stderr, "Current PCBs:\n");
-  for (int i = 0; i < vec_len(&current_pcbs); i++) {
-    pcb_t* curr_pcb = vec_get(&current_pcbs, i);
-    fprintf(stderr, "PID: %d, CMD: %s\n", curr_pcb->pid, curr_pcb->cmd_str);
-  }
-  fprintf(stderr, "Current Running PCB:\n");
-  if (current_running_pcb != NULL) {
-    fprintf(stderr, "PID: %d, CMD: %s\n", current_running_pcb->pid,
-            current_running_pcb->cmd_str);
-  } else {
-    fprintf(stderr, "No current running PCB\n");
-  }
-}
-
-/////////////////////////////////////////////////////////////////////////////////
 //                         SCHEDULING FUNCTIONS                                //
 /////////////////////////////////////////////////////////////////////////////////
 
