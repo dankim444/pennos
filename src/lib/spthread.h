@@ -161,7 +161,7 @@ int spthread_continue(spthread_t thread);
 // - ESRCH if the thread specified is not a valid pthread
 int spthread_cancel(spthread_t thread);
 
-// Can be called by a thread to get two peices of information:
+// Can be called by a thread to get two pieces of information:
 // 1. Whether or not the calling thread is an spthread (true or false)
 // 2. The spthread_t of the calling thread, if it is an spthread_t
 //
@@ -180,7 +180,7 @@ bool spthread_self(spthread_t* thread);
 
 // The equivalent of pthread_join but for spthread
 // To make sure all resources are cleaned up appropriately
-// spthreads that are created must at some ppoint have spthread_join
+// spthreads that are created must at some point have spthread_join
 // called on them. Do not use pthread_join on an spthread.
 //
 // to avoid repetition, see pthread_join(3) for details

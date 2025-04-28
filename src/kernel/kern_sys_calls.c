@@ -26,6 +26,8 @@ extern int tick_counter;
 
 pid_t current_fg_pid = 2; // terminal controller
 
+// TODO: Should we add these helper functions to the .h file?
+
 ////////////////////////////////////////////////////////////////////////////////
 //                         GENERAL HELPER FUNCTIONS                           //
 ////////////////////////////////////////////////////////////////////////////////
@@ -157,6 +159,7 @@ void* init_func(void* input) {
   return NULL;  // should never reach
 }
 
+// TODO: I don't think this will clean up resources the right way
 void s_cleanup_init_process() {
   k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1));
 }
