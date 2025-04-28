@@ -1,7 +1,8 @@
 /* CS5480 PennOS Group 61
-* Authors: Dan Kim
-* Purpose: Implements various utility functions at the user level.
-*/
+ * Authors: Dan Kim
+ * Purpose: Implements the u_perror function.
+ */
+ 
 #include <stdio.h>
 #include "builtins.h"
 #include "../lib/pennos-errno.h"

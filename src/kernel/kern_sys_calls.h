@@ -1,3 +1,8 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystoff Purtell and Richard Zhang
+ * Purpose: Defines the system-level process-related kernel functions. 
+ */
+
 #ifndef KERN_SYS_CALLS_H_
 #define KERN_SYS_CALLS_H_
 
@@ -7,7 +12,66 @@
 #include "kern_pcb.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-//        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
+//                         GENERAL HELPER FUNCTIONS                           //
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief Given a thread pid and Vec* queue, this helper function determines
+ *        the vector index of the thread/pid in the queue. If the thread/pid
+ *        is not found, it returns -1.
+ *
+ * @param queue pointer to the vector queue that may contain the thread/pid
+ * @param pid   the thread's pid
+ *
+ * @return the index of the thread/pid in the queue, or -1 if not found
+ */
+int determine_index_in_queue(Vec* queue, int pid);
+
+/**
+ * @brief Given a thread's previous priority, this helper checks if the
+ *        thread is present in that priority's queue, removes it from that
+ *        queue if so, and then puts it into the new priority level's queue.
+ *
+ * @param prev_priority thread's previous priority
+ * @param new_priority  thread's new priority
+ * @param curr_pcb     pointer to the thread's PCB
+ *
+ * @pre assumes the prev_priority and new_priority falls in integers [0, 2]
+ */
+void move_pcb_correct_queue(int prev_priority, int new_priority, pcb_t* curr_pcb);
+
+/**
+ * @brief Deletes the PCB with the specified PID from one of the priority
+ * queues, selected by the provided queue_id (0, 1, or 2).
+ *
+ * @param queue_id An integer representing the queue: 0 for zero_priority_queue,
+ *                 1 for one_priority_queue, or 2 for two_priority_queue.
+ * @param pid The PID of the PCB to be removed.
+ */
+void delete_from_queue(int queue_id, int pid);
+
+/**
+ * @brief Helper function that deletes the given PCB from the explicit queue
+ *        passed in. Notably, it does not free the PCB but instead uses
+ *       vec_erase_no_deletor to remove it from the queue.
+ * 
+ * @param queue_to_delete_from ptr to Vec* queue to delete from
+ * @param pid                  the pid of the PCB to delete
+ */
+void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid);
+
+/**
+ * @brief The init process function. It spawns the shell process and 
+ *        reaps zombie children.
+ * 
+ * @param input unused but needed for typing reasons
+ * @return irrelvant return value because never supposed to return
+ */ 
+void* init_func(void* input);
+
+
+////////////////////////////////////////////////////////////////////////////////
+//               SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -88,7 +152,7 @@ void s_sleep(unsigned int ticks);
 
 
 ////////////////////////////////////////////////////////////////////////////////
-//        SYSTEM-LEVEl BUILTIN-RELATED KERNEL FUNCTIONS                       //
+//              SYSTEM-LEVEl BUILTIN-RELATED KERNEL FUNCTIONS                 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**

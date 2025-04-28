@@ -1,3 +1,9 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystoff Purtell and Richard Zhang
+ * Purpose: Implements the process-related helper functions
+ *          and the kernel-level process functions.  
+ */
+
 #include "kern_pcb.h"
 #include "../fs/fs_syscalls.h"
 #include "../lib/pennos-errno.h"
@@ -8,25 +14,30 @@
 #include "../fs/fs_helpers.h"
 
 int next_pid = 2;  // global variable to track the next pid to be assigned
-                   // Note: when incrementing, be careful to lock around
-                   // incrementation. Starts at 2 b/c init is 1
+                   // Note: Starts at 2 because init is 1
 
 extern Vec current_pcbs;
 extern pcb_t* current_running_pcb;
 
 ////////////////////////////////////////////////////////////////////////////////
-//                            PCB FUNCTIONS                                   //
+//                              PCB FUNCTIONS                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Free resources associated with a PCB.
+ */
 void free_pcb(void* pcb) {
   pcb_t* casted_pcb = (pcb_t*)pcb;
 
   free(casted_pcb->cmd_str);
-  vec_destroy(&casted_pcb->child_pcbs);  // observe will free any remaining
+  vec_destroy(&casted_pcb->child_pcbs);  // will free any remaining
                                          // children too!
   free(casted_pcb);
 }
 
+/**
+ * Initializes a PCB with the given parameters.
+ */
 pcb_t* create_pcb(pid_t pid,
                   pid_t par_pid,
                   int priority,
@@ -60,6 +71,9 @@ pcb_t* create_pcb(pid_t pid,
   return ret_pcb;
 }
 
+/**
+ * Removes a child PCB from its parent's child list.
+ */
 void remove_child_in_parent(pcb_t* parent, pcb_t* child) {
   for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
     pcb_t* curr_child = (pcb_t*)vec_get(&parent->child_pcbs, i);
@@ -71,20 +85,12 @@ void remove_child_in_parent(pcb_t* parent, pcb_t* child) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//        KERNEL-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS              //
+//           KERNEL-LEVEl PROCESS-RELATED REQUIRED KERNEL FUNCTIONS           //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Create a new child process, inheriting applicable properties from the
- * parent.
- *
- * @param parent a pointer to the parent pcb
- * @param priority the priority of the child, usually 1 but exceptions like
- * shell exist
- * @return Reference to the child PCB.
+ * Creates a new process. If the parent is NULL, it creates the init process.
  */
- // TODO: is there a reason why you have a stub comment here and not anywhere else?
- // would it be fine to remove it here since it's already documented in the .h file?
 pcb_t* k_proc_create(pcb_t* parent, int priority) {
   if (parent == NULL) {                       // init creation case
     pcb_t* init = create_pcb(1, 0, 0, 0, 1);  
@@ -139,6 +145,11 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
   return child;
 }
 
+/**
+ * Cleans up a process by removing it from its parent's child list,
+ * removing its children, decrementing file descriptor reference counts,
+ * closing files, and freeing the PCB.
+ */
 void k_proc_cleanup(pcb_t* proc) {
   // if proc has parent (i.e. isn't init) then remove it from parent's child
   // list

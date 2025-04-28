@@ -1,3 +1,9 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystoff Purtell and Richard Zhang
+ * Purpose: Implements the all scheduler-related functions and 
+ *          initializes the scheduler queues.
+ */
+
 #include "scheduler.h"
 #include <signal.h>  // TODO --> make sure this is ok to include
 #include <stdbool.h>
@@ -13,7 +19,7 @@
 #include <string.h>
 
 /////////////////////////////////////////////////////////////////////////////////
-//                       QUEUES AND SCHEDULER DATA //
+//                       QUEUES AND SCHEDULER DATA                             //
 /////////////////////////////////////////////////////////////////////////////////
 
 Vec zero_priority_queue;  // lower index = more recent
@@ -37,11 +43,15 @@ int det_priorities_arr[19] = {0, 1, 2, 0, 0, 1, 0, 1, 2, 0,
                               0, 1, 2, 0, 1, 0, 0, 1, 2};
 
 /////////////////////////////////////////////////////////////////////////////////
-//                         QUEUE MAINTENANCE FUNCTIONS //
+//                         QUEUE MAINTENANCE FUNCTIONS                         //
 /////////////////////////////////////////////////////////////////////////////////
 
-// changed the deconstructors to NULL for most queues because when exiting
-// PennOS don't want to double free
+/**
+ * Initializes the scheduler queues.
+ *
+ * Note: The deconstructors for the queues are set to NULL to prevent double
+  *       freeing when exiting PennOS.
+ */
 void initialize_scheduler_queues() {
   zero_priority_queue = vec_new(0, NULL);
   one_priority_queue = vec_new(0, NULL);
@@ -51,6 +61,9 @@ void initialize_scheduler_queues() {
   current_pcbs = vec_new(0, free_pcb);
 }
 
+/**
+ * Frees the scheduler queues.
+ */
 void free_scheduler_queues() {
   vec_destroy(&zero_priority_queue);
   vec_destroy(&one_priority_queue);
@@ -61,9 +74,12 @@ void free_scheduler_queues() {
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-//                         SCHEDULING FUNCTIONS                                //
+//                          SCHEDULING FUNCTIONS                               //
 /////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Generates the next priority for scheduling based on the defined probabilities.
+ */
 int generate_next_priority() {
   // check if all queues are empty
   if (vec_is_empty(&zero_priority_queue) && vec_is_empty(&one_priority_queue) &&
@@ -90,6 +106,9 @@ int generate_next_priority() {
   return -1;  // should never reach
 }
 
+/**
+ * Gets the next PCB from the specified priority queue.
+ */
 pcb_t* get_next_pcb(int priority) {
   if (priority == -1) {  // all queues empty
     return NULL;
@@ -110,6 +129,9 @@ pcb_t* get_next_pcb(int priority) {
   return next_pcb;
 }
 
+/**
+ * Puts the given PCB into the correct queue based on its priority and state.
+ */
 void put_pcb_into_correct_queue(pcb_t* pcb) {
   if (pcb->process_state == 'R') {
     if (pcb->priority == 0) {
@@ -126,6 +148,9 @@ void put_pcb_into_correct_queue(pcb_t* pcb) {
   }
 }
 
+/**
+ * Deletes the given PCB from the specified queue.
+ */
 void delete_process_from_particular_queue(pcb_t* pcb, Vec* queue) {
   for (int i = 0; i < vec_len(queue); i++) {
     pcb_t* curr_pcb = vec_get(queue, i);
@@ -136,6 +161,9 @@ void delete_process_from_particular_queue(pcb_t* pcb, Vec* queue) {
   }
 }
 
+/**
+ * Deletes the given PCB from all queues except the current one.
+ */
 void delete_process_from_all_queues_except_current(pcb_t* pcb) {
   delete_process_from_particular_queue(pcb, &zero_priority_queue);
   delete_process_from_particular_queue(pcb, &one_priority_queue);
@@ -144,11 +172,17 @@ void delete_process_from_all_queues_except_current(pcb_t* pcb) {
   delete_process_from_particular_queue(pcb, &sleep_blocked_queue);
 }
 
+/**
+ * Deletes the given PCB from all queues.
+ */
 void delete_process_from_all_queues(pcb_t* pcb) {
   delete_process_from_all_queues_except_current(pcb);
   delete_process_from_particular_queue(pcb, &current_pcbs);
 }
 
+/**
+ * Gets the PCB with the specified PID from the given queue.
+ */
 pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid) {
   for (int i = 0; i < vec_len(queue); i++) {
     pcb_t* curr_pcb = vec_get(queue, i);
@@ -160,6 +194,9 @@ pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid) {
   return NULL;
 }
 
+/**
+ * Checks if the given parent PCB has any children in the zombie queue.
+ */
 bool child_in_zombie_queue(pcb_t* parent) {
   for (int i = 0; i < vec_len(&zombie_queue); i++) {
     pcb_t* child = vec_get(&zombie_queue, i);
@@ -170,6 +207,9 @@ bool child_in_zombie_queue(pcb_t* parent) {
   return false;
 }
 
+/**
+ * Checks if the given parent PCB has any children with a changed process status.
+ */
 bool child_with_changed_process_status(pcb_t* parent) {
   for (int i = 0; i < vec_len(&current_pcbs); i++) {
     pcb_t* child = vec_get(&current_pcbs, i);
@@ -180,10 +220,16 @@ bool child_with_changed_process_status(pcb_t* parent) {
   return false;
 }
 
+/**
+ * Signal handler for SIGALRM.
+ */
 void alarm_handler(int signum) {
   tick_counter++;
 }
 
+/**
+ * Handles the specified signal for the given PCB.
+ */
 void handle_signal(pcb_t* pcb, int signal) {
   switch (signal) {
     case 0:  // P_SIGSTOP
@@ -219,10 +265,16 @@ void handle_signal(pcb_t* pcb, int signal) {
   }
 }
 
+/**
+ * Shuts down the scheduler and cleans up resources.
+ */
 void s_shutdown_pennos(void) {
   scheduling_done = true;
 }
 
+/**
+ * The main scheduler function for PennOS.
+ */
 void scheduler() {
   int curr_priority_queue_num;
 

@@ -1,3 +1,9 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystoff Purtell and Richard Zhang
+ * Purpose: Defines the PCB stucture, process-related helper functions,
+ *          and the kernel-level process functions.  
+ */
+
 #ifndef KERN_PCB_H_
 #define KERN_PCB_H_
 
@@ -49,7 +55,7 @@ typedef struct pcb_st {
 } pcb_t;
 
 ////////////////////////////////////////////////////////////////////////////////
-//                             PCB FUNCTIONS                                  //
+//                               PCB FUNCTIONS                                //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
