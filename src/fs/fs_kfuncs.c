@@ -525,8 +525,6 @@ int k_write(int fd, const char* str, int n) {
 /**
  * Kernel-level call to close a file.
  */
- * Kernel-level call to close a file.
- */
 int k_close(int fd) {
   /*if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
       P_ERRNO = P_EINVAL;
@@ -563,8 +561,6 @@ int k_close(int fd) {
 }
 
 /**
- * Kernel-level call to remove a file.
- */
  * Kernel-level call to remove a file.
  */
 int k_unlink(const char* fname) {
@@ -621,8 +617,6 @@ int k_unlink(const char* fname) {
 }
 
 /**
- * Kernel-level call to re-position a file offset.
- */
  * Kernel-level call to re-position a file offset.
  */
 int k_lseek(int fd, int offset, int whence) {
@@ -690,8 +684,6 @@ void format_file_info(dir_entry_t* entry, char* buffer) {
 }
 
 /**
- * Kernel-level call to list files.
- */
  * Kernel-level call to list files.
  */
 int k_ls(const char* filename) {
