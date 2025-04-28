@@ -117,7 +117,12 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
     child->fd_table[i] = parent->fd_table[i];
   }
 
-  // incr reference counts for all releveant fds
+  /*for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
+    if (child->fd_table[i] != -1 && child->fd_table[i] != STDIN_FILENO &&
+        child->fd_table[i] != STDOUT_FILENO && child->fd_table[i] != STDERR_FILENO) {
+          increment_fd_ref_count(child->fd_table[i]);
+    }
+  }*/
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
     if (child->fd_table[i] != -1) {
       increment_fd_ref_count(child->fd_table[i]);
@@ -164,10 +169,18 @@ void k_proc_cleanup(pcb_t* proc) {
   }
 
   // decr reference counts + close files if necessary
+  /*for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
+    if (proc->fd_table[i] != -1 && proc->fd_table[i] != STDIN_FILENO &&
+        proc->fd_table[i] != STDOUT_FILENO && proc->fd_table[i] != STDERR_FILENO) {
+      if (decrement_fd_ref_count(proc->fd_table[i]) == 0) {
+        s_close(proc->fd_table[i]); // close the fd since no other process using
+      }
+    }
+  }*/
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
     if (proc->fd_table[i] != -1) {
       if (decrement_fd_ref_count(proc->fd_table[i]) == 0) {
-        s_close(proc->fd_table[i]); // close the fd since no other process using
+        s_close(proc->fd_table[i]);  // close the fd since no other process using
       }
     }
   }
