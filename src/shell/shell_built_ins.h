@@ -209,14 +209,4 @@ void* u_zombify(void* arg);
  */
 void* u_orphanify(void* arg);
 
-////////////////////////////////////////////////////////////////////////////////
-//    Extra credit                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-/**
-* @brief Compacts the root directory by removing all deleted entries.
-*
-*/
-void* u_cmpctdir(void* arg);
-
 #endif
