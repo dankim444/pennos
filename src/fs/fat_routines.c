@@ -1,3 +1,8 @@
+/* CS5480 PennOS Group 61
+ * Authors: Dan Kim and Kevin Zhou
+ * Purpose: Implements the functions for various PennFAT routines.
+ */
+
 #include "fat_routines.h"
 #include "../lib/pennos-errno.h"
 #include "../shell/builtins.h"
@@ -195,9 +200,8 @@ int unmount() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//                           OTHER ROUTINES                                   //
+//                             OTHER ROUTINES                                 //
 ////////////////////////////////////////////////////////////////////////////////
-
 
 /**
  * Concatenates and displays files.
@@ -374,8 +378,8 @@ void* cat(void* arg) {
 }
 
 /**
-* Searches root directory and lists all files in the directory.
-*/
+ * Searches root directory and lists all files in the directory.
+ */
 void* ls(void* arg) {
   if (!is_mounted) {
     P_ERRNO = P_EFS_NOT_MOUNTED;
@@ -738,11 +742,10 @@ void* rm(void* arg) {
 }
 
 /**
-* - chmod +x FILE (adds executable permission)
-* - chmod +rw FILE (adds read and write permissions)
-* - chmod -wx FILE (removes write and executable permissions)
-
-*/
+ * - chmod +x FILE (adds executable permission)
+ * - chmod +rw FILE (adds read and write permissions)
+ * - chmod -wx FILE (removes write and executable permissions)
+ */
 void* chmod(void* arg) {
   char** args = (char**)arg;
   if (!args || !args[0] || !args[1] || !args[2]) {
@@ -818,12 +821,12 @@ void* chmod(void* arg) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//                           EXTRA CREDIT                                     //
+//                               EXTRA CREDIT                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
-* Implements compaction of root directory.
-*/
+ * Implements compaction of root directory.
+ */
 void* cmpctdir(void* arg) {
   if (!is_mounted) {
     P_ERRNO = P_EFS_NOT_MOUNTED;

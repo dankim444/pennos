@@ -1,9 +1,14 @@
+/* CS5480 PennOS Group 61
+ * Authors: Dan Kim and Kevin Zhou
+ * Purpose: Implements the kernel-level file system functions.
+ */
+
 #include "fs_kfuncs.h"
 #include "../kernel/kern_pcb.h"
 #include "../lib/pennos-errno.h"
 #include "fat_routines.h"
 #include "fs_helpers.h"
-#include "fs_syscalls.h"  // F_READ, F_WRITE, F_APPEND, STDIN_FILENO, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO
+#include "fs_syscalls.h"
 #include "../kernel/kern_sys_calls.h"
 #include "../kernel/signal.h"
 
@@ -21,8 +26,8 @@ extern pcb_t* current_running_pcb;
 extern pid_t current_fg_pid;
 
 /**
-* Kernel-level call to open a file.
-*/
+ * Kernel-level call to open a file.
+ */
 int k_open(const char* fname, int mode) {
     // validate arguments
     if (fname == NULL || *fname == '\0') {
@@ -153,8 +158,8 @@ int k_open(const char* fname, int mode) {
 }
 
 /**
-* Kernel-level call to read a file.
-*/
+ * Kernel-level call to read a file.
+ */
 int k_read(int fd, char *buf, int n) {
     // handle terminal control (if doesn't control, send a STOP signal)
     if (fd == STDIN_FILENO && current_running_pcb != NULL) {
@@ -264,8 +269,8 @@ int k_read(int fd, char *buf, int n) {
 }
 
 /**
-* Kernel-level call to write to a file.
-*/
+ * Kernel-level call to write to a file.
+ */
 int k_write(int fd, const char* str, int n) {
     // handle standard output and error
     if (fd == STDOUT_FILENO) {
@@ -505,8 +510,8 @@ int k_write(int fd, const char* str, int n) {
 }
 
 /**
-* Kernel-level call to close a file.
-*/
+ * Kernel-level call to close a file.
+ */
 int k_close(int fd) {
 
     /*if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
@@ -544,8 +549,8 @@ int k_close(int fd) {
 }
 
 /**
-* Kernel-level call to remove a file.
-*/
+ * Kernel-level call to remove a file.
+ */
 int k_unlink(const char* fname) {
     if (fname == NULL || *fname == '\0') {
         P_ERRNO = P_EINVAL;
@@ -600,8 +605,8 @@ int k_unlink(const char* fname) {
 }
 
 /**
-* Kernel-level call to re-position a file offset.
-*/
+ * Kernel-level call to re-position a file offset.
+ */
 int k_lseek(int fd, int offset, int whence) {
     // standard file descriptors don't support lseek
     if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
@@ -669,8 +674,8 @@ void format_file_info(dir_entry_t* entry, char* buffer) {
 }
 
 /**
-* Kernel-level call to list files.
-*/
+ * Kernel-level call to list files.
+ */
 int k_ls(const char* filename) {
     if (!is_mounted) {
         P_ERRNO = P_EFS_NOT_MOUNTED;
