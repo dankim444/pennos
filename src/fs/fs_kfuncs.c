@@ -526,6 +526,7 @@ int k_write(int fd, const char* str, int n) {
  * @brief Kernel-level call to close a file.
  */
 int k_close(int fd) {
+  // TODO: make sure to delete this later
   /*if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
       P_ERRNO = P_EINVAL;
       return -1;
@@ -548,6 +549,7 @@ int k_close(int fd) {
       entry.size = fd_table[fd].size;
       entry.mtime = time(NULL);
 
+      // TODO: error check lseek, then error check write
       if (lseek(fs_fd, file_offset, SEEK_SET) != -1) {
         write(fs_fd, &entry, sizeof(entry));
       }

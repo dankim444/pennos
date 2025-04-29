@@ -159,7 +159,7 @@ The PennOS shell provides a user interface to interact with the simulated operat
     - Handles script arguments
 
 ### Error Handling
-An error modules is defined in `lib/pennos-errno.h` and `lib/pennos-errno.c`. This module simply defines the set of error codes used throughout our code, and `P_ERRNO` is the variable that tracks the current error code set at any point in the program. `shell/builtins.h` and `shell/builtins.c` define and implement the `u_perror` function, which is used to display user-level error messages to stdout.
+An error module is defined in `lib/pennos-errno.h` and `lib/pennos-errno.c`. This module simply defines the set of error codes used throughout our code, and `P_ERRNO` is the variable that tracks the current error code set at any point in the program. `shell/builtins.h` and `shell/builtins.c` define and implement the `u_perror` function, which is used to display user-level error messages to stdout.
 
 
 ## Code Layout
@@ -356,4 +356,4 @@ todo
 ### Shell
 
 ## General Comments
-- N/A
+- extra credit
