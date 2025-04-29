@@ -162,6 +162,13 @@ void* u_nice_pid(void* arg);
 void* u_man(void* arg);
 
 /**
+ * @brief Helper function. Finds a job by its id or the current job.
+ *
+ * Example Usage: findJobByIdOrCurrent(a string representing the job id)
+ */
+job* findJobByIdOrCurrent(const char* arg);
+
+/**
  * @brief Resumes the most recently stopped job in the background, or the job
  * specified by job_id.
  *
@@ -210,11 +217,5 @@ void* u_zombify(void* arg);
  * Example Usage: orphanify
  */
 void* u_orphanify(void* arg);
-
-job* findJobByIdOrCurrent(const char* arg);
-
-void poll_background_jobs(void);
-
-void debug_print_all_jobs(void);
 
 #endif

@@ -7,9 +7,4 @@
  */
 void* shell(void* input);
 
-/* Polls background jobs to see if any have completed.
- *
- */
-void poll_background_jobs(void);
-
 #endif
