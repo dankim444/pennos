@@ -20,7 +20,7 @@
 #define TYPE_UNKNOWN 0
 #define TYPE_REGULAR 1
 #define TYPE_DIRECTORY 2
-#define TYPE_SYMLINK 4 // TODO: EXTRA CREDIT
+#define TYPE_SYMLINK 4
 
 // constants for permission
 #define PERM_NONE 0
@@ -50,7 +50,7 @@ typedef struct {
     uint8_t type;
     uint8_t perm;
     time_t mtime;
-    char reserved[16]; // TODO: EXTRA CREDIT
+    char reserved[16];
 } dir_entry_t;
 
 /**

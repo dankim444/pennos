@@ -9,6 +9,9 @@
 #include "../fs/fs_syscalls.h"
 #include <string.h>
 
+/**
+ * @brief Creates a user-level error message similar to perror.
+ */
 void u_perror(const char *msg) {
     char buffer[256];
     const char *error_msg;

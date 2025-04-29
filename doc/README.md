@@ -51,7 +51,7 @@ PennOS is a UNIX-like operating system simulator built to run as a single proces
 
 ## Extra Credit Implemented
 - Compaction of directory files (extra credit 1)
-- Free memory leaks (only for pennfat)
+- Free memory leaks (run valgrind for pennfat)
 
 ## Compilation Instructions
 - `make` or `make all`: create executables of mains in src/
@@ -220,9 +220,6 @@ An error module is defined in `lib/pennos-errno.h` and `lib/pennos-errno.c`. Thi
 
 ## Code Description and Design Justifications
 
-### Overview of Architecture and Core Data Structures
-todo
-
 ### PennFAT Filesystem
 
 - **fat_routines**
@@ -352,8 +349,227 @@ todo
     - These functions are simply wrappers around the kernel functions.
 
 ### Kernel
+- **kern_pcb**
+    - `free_pcb`:
+        - *Inputs*: A pointer to the pcb to be created
+        - *Output*: Void
+        - *Description*: Frees the heap-allocated fields of the pcb struct. Then it finally frees the struct itself.
+    - `create_pcb`
+        - *Inputs*: Its own pid, its parent pid, priority, and input file descriptor, and an output file descriptor
+        - *Output*: A pointer to the pcb struct that was created.
+        - *Description*: Allocates and initializes a new PCB. It sets up the PCB with the provided parameters and initializes other fields with default values: process state 'R' (running), empty child vector, all signals to false, sleeping status to false, and wake time to -1. It returns the created PCB pointer or NULL if memory allocation fails.
+    - `remove_child_in_parent`:
+        - *Inputs*: A pointer to the parent's pcb struct, a pointer to the child's pcb struct
+        - *Output*: Void
+        - *Description*: Removes a child PCB from its parent's child vector. It searches through the parent's child vector for a PCB with matching PID and removes it without freeing the memory (using `vec_erase_no_deletor`). This allows the child to continue existing independently of its parent.
+    - `k_proc_create`
+        - *Inputs*: A pointer to the parent's pcb struct, a priority
+        - *Output*: Pointer to the newly created child PCB, or NULL on error
+        - *Description*: Creates a new process at the kernel level. For the init process (when parent is NULL), it creates a special PCB with PID 1. For other processes, it creates a child with the next available PID, inherits file descriptors from the parent, and adds the child to the parent's child vector. It also adds the new PCB to the appropriate scheduler queue and to the global PCB list.
+    - `k_proc_cleanup`:
+        - *Inputs*: Pointer to the PCB to clean up
+        - *Output*: None
+        - *Description*: Cleans up resources associated with a terminated process. It removes the process from its parent's child list, handles any children by reassigning them to the init process (PID 1), logs orphan events for these reassigned children, removes the process from all scheduler queues, and finally frees the PCB's memory.
+- **kern_sys_calls**
+    - `determine_index_in_queue`:
+        - *Inputs*: Pointer to a vector queue, process ID to search for
+        - *Output*: Integer index of the PCB in the queue, or -1 if not found
+        - *Description*: Searches through the given queue to find a PCB with the specified PID. It iterates through the queue elements, checks each PCB's PID, and returns the index if found or -1 if not found.
+    - `move_pcb_correct_queue`:
+        - *Inputs*: Previous priority level (0, 1, or 2), new priority level (0, 1, or 2), pointer to the PCB being moved
+        - *Output*: None
+        - *Description*: Moves a PCB from its previous priority queue to a new one. It determines the appropriate queues based on priority levels, removes the PCB from the previous queue (if present), and adds it to the new queue.
+     - `delete_from_queue`:
+        - *Inputs*: Queue identifier (0, 1, or 2 for priority queues), process ID to remove
+        - *Output*: none
+        - *Description*: Removes a PCB with the specified PID from one of the priority queues. It selects the appropriate queue based on queue_id, finds the PCB using determine_index_in_queue, and removes it using vec_erase_no_deletor if found.
+    - `init_func`:
+        - *Inputs*: Void pointer 
+        - *Output*: NULL
+        - *Description*: The function executed by the init process. It spawns the shell process and enters an infinite loop to continuously wait for and reap zombie children. This ensures orphaned processes are properly cleaned up.
+    - `s_spawn_init`:
+        - *Inputs*: None
+        - *Output*: The PID of the created init process, or -1 on error
+        - *Description*: Creates the init process that serves as the ancestor of all processes in the system. It calls `k_proc_create` with NULL parent to create the init PCB, creates a thread to run init_func, sets up the cmd_str and thread_handle, and returns the PID.
+    - `s_spawn`:
+        - *Inputs*: Function pointer to be executed by the child, null-terminated array of arguments, input file descriptor, output file descriptor.
+        - *Output*: The PID of the created child process, or -1 on error
+        - *Description*: Creates a child process to execute the specified function. It determines the appropriate priority (0 for shell_main, 1 for others), creates a PCB using k_proc_create, creates a thread to run the function, sets the command string and file descriptors, logs the creation event, and returns the PID.
+    - `s_waitpid`:
+        - *Inputs*: PID of the child to wait for (-1 for any child), pointer to store the child's status, nohang
+        - *Output*: The PID of the child that changed state, 0 if nohang and no child exited, or -1 on error
+        - *Description*: Waits for a child process to change state. First checks the zombie queue for terminated children, returns immediately with 0 if nohang is true and no child has exited, or blocks the parent and continuously checks the zombie queue until a matching child is found.
+    - `s_kill`:
+        - *Inputs*: PID of the target process, signal number to send (0=P_SIGSTOP, 1=P_SIGCONT, 2=P_SIGTERM)
+        - *Output*: 0 on success, -1 if the PID is not found
+        - *Description*: Sends a signal to a specific process. It finds the PCB with the specified PID, sets the appropriate signal flag, logs the signal event, and returns 0 on success or -1 if the process is not found.
+- **logger**
+    - `log_scheduling_event`:
+        - *Inputs*: Process ID being scheduled, priority queue number, string containing process name
+        - *Output*: none
+        - *Description*: Logs a scheduling event when a process is selected to run. Creates a formatted string with timestamp, schedule event type, PID, queue number, and process name, then writes it to the log file.
+    - `log_generic_event`
+        - *Inputs*: Character code for event type (C=CREATE, S=SIGNALED, etc.), process ID, process priority value, process name string
+        - *Output*: None
+        - *Description*: Logs various process events such as creation, termination, or state changes. Converts the event code to a descriptive string, formats the log entry with timestamp and process info, and writes to the log file.
+     - `log_nice_event`: 
+        - *Inputs*: pid, previous priority, new priority, process name string
+        - *Output*: None
+        - *Description*: Logs when a process's priority (nice value) is changed. Creates a formatted log entry with timestamp, NICE event type, PID, old and new priority values, and process name.
+- **scheduler**
+    - `initialize_scheduler_queues`:
+        - *Inputs*: none
+        - *Output*: none
+        - *Description*: Initializes all scheduler queues (priority queues, zombie queue, sleep queue, etc.) using vec_new. Most queues are created without destructors to prevent double-freeing when PennOS exits.
+    - `free_scheduler_queues`
+        - *Inputs*: none
+        - *Output*: none
+        - *Description*: Properly cleans up all scheduler queues by calling vec_destroy on each one. Used during system shutdown to release allocated memory.
+    - `generate_next_priority`:
+        - *Inputs*: None
+        - *Output*: integer priority level; -1 if queues are empty
+        - *Description*: Determines which priority queue to service next based on the relative scheduling algorithm. Uses a deterministic pattern that ensures priority 0 processes run 1.5x more often than priority 1, which run 1.5x more often than priority 2.
+    - `get_next_pcb`:
+        - *Inputs*: Priority level
+        - *Output*: Pointer to the next PCB to run, or NULL if the specified queue is empty
+        - *Description*: Retrieves and removes the next PCB from the specified priority queue. Returns NULL if priority is -1 or if the corresponding priority queue is empty.
+    - `put_pcb_into_correct_queue`
+        - *Inputs*: Pointer to the PCB to insert
+        - *Output*: None
+        - *Description*: Places a PCB into the appropriate queue based on its state and priority. Running processes go to priority queues, zombies to the zombie queue, and blocked/stopped processes to the sleep queue.
+    - `delete_process_from_particular_queue`:
+        - *Inputs*: pointer to the PCB to remove, pointer to the queue to search
+        - *Output*: none
+        - *Description*: Removes a specific PCB from a given queue if present. Searches the queue for the PCB with matching PID and removes it without freeing its memory.
+    - `delete_process_from_all_queues`:
+        - *Inputs*: Pointer to the PCB to remove
+        - *Output*: None
+        - *Description*: Removes a PCB from all scheduler queues. Calls delete_process_from_particular_queue for each queue type and the global PCB list, ensuring the process is completely removed from the scheduling system.
+    - `child_in_zombie_queue`:
+        - *Inputs*: A pointer to the parent PCB
+        - *Output*: true if a child of the parent is in the zombie queue, false otherwise
+        - *Description*: Checks if a child of the given parent process is in the zombie queue. This function iterates through the zombie queue to determine if any process in the queue has the given parent process as its parent.
+    - `child_with_changed_process_status`:
+        - *Inputs*: A pointer to the parent PCB
+        - *Output*: true if a child of the parent is in the zombie queue, false otherwise
+        - *Description*: Checks if a child of the given parent process has a changed process status. This function iterates through the current PCBs to determine if any child of the given parent process has a non-zero process status, indicating a change.
+    - `alarm_handler`
+        - *Inputs*: signum, the signal number
+        - *Output*: none
+        - *Description*: Handles the alarm signal. This function is triggered when the alarm signal is received. It increments the global tick counter, which is used for scheduling and timing purposes.
+    - `handle_signal`
+        - *Inputs*: a pointer to the pcb struct, signal number
+        - *Output*: none
+        - *Description*: Handles a signal for a given process.
+    - `scheduler`
+        - *Inputs*: none
+        - *Output*: none
+        - *Description*: The main scheduler function for PennOS. This function manages process scheduling, signal handling, and timer-based preemption. It ensures that processes are executed based on their priority and handles signals for both the currently running process and other processes.
+    - `s_shutdown_pennos`
+        - *Inputs*: none
+        - *Output*: none
+        - *Description*: Shuts down the PennOS scheduler. This function sets the scheduling_done flag to true, signaling the scheduler to terminate its loop and shut down.
 
 ### Shell
+- **builtins**
+    - `u_perror`: 
+        - *Inputs*: Error message string
+        - *Output*: None
+        - *Description*: Custom error reporting function similar to perror(). Maps P_ERRNO values to descriptive error messages, formats them with the input message, and outputs to stderr.
+- **shell_built_ins**
+    - `u_cat`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: User-level wrapper for the cat command. Calls the filesystem's cat() function with the provided arguments.
+    - `u_sleep`
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Sleeps for a specified number of seconds. Converts the argument to seconds, calculates the equivalent number of clock ticks, calls s_sleep(), and exits.
+    - `u_busy`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Busy-waits indefinitely in an infinite loop. Can only be interrupted by signals.
+    - `u_echo`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Echoes the input string back to stdout. (Implementation incomplete in the provided code)
+    - `u_ls`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Lists files in the current directory. Calls the filesystem's ls() function with the provided arguments.
+    - `u_chmod`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Changes file permissions. (Implementation incomplete in the provided code).
+    - `u_touch`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Creates empty files or updates timestamps of existing files. Calls the filesystem's touch() function.
+    - `u_mv`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Renames files. Calls the filesystem's mv() function with the provided arguments.
+    - `u_cp`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Copies files. Calls the filesystem's cp() function with the provided arguments.
+    - `u_rm`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Removes files. Calls the filesystem's rm() function with the provided arguments.
+    - `u_ps`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Lists all processes running in PennOS. Displays a formatted table with PID, PPID, priority, status, and command name for each process.
+    - `u_kill`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Sends signals to processes. Interprets signal type (-term, -stop, -cont) and sends the appropriate signal to specified PIDs using s_kill().
+    - `get_associated_ufunc`:
+        - *Inputs*: String containing function name
+        - *Output*: Function pointer to the corresponding "u_" function
+        - *Description*: Helper function that maps command names to their corresponding user-level function implementations. Returns NULL if no match is found.
+    - `u_nice`:
+        - *Inputs*: Pointer to command arguments.
+        - *Output*: NULL
+        - *Description*: Spawns a new process with a specified priority. Parses priority level and command, gets the function pointer using get_associated_ufunc, spawns the process with s_spawn, and sets its priority with s_nice.
+    - `u_nice_pid`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Adjusts the priority of an existing process. Parses priority and PID arguments, then calls s_nice to change the process's priority.
+    - `u_man`:
+        - *Inputs*: Pointer to command arguments (unused)
+        - *Output*: none
+        - *Description*: Displays a help page listing all available commands with their descriptions. Writes a predefined string to stderr.
+    - `u_bg`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Resumes a stopped job in the background. (Implementation incomplete in the provided code)
+    - `u_fg`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*:
+        - *Description*: Brings a job to the foreground. (Implementation incomplete in the provided code)
+    - `u_jobs`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Lists all background jobs. (Implementation incomplete in the provided code)
+    - `u_logout`:
+        - *Inputs*: Pointer to command arguments (unused)
+        - *Output*: none
+        - *Description*: Exits the shell and shuts down PennOS by calling the shutdown_pennos() function.
+    - `u_zombify`:
+        - *Inputs*: Pointer to command arguments (unused)
+        - *Output*: none
+        - *Description*: Creates a child process that immediately exits (becoming a zombie) while the parent enters an infinite loop. Used to test zombie process handling.
+    - `u_orphanify`:
+        - *Inputs*: Pointer to command arguments
+        - *Output*: none
+        - *Description*: Creates a child process that enters an infinite loop, then parent exits immediately. Used to test orphan process handling by init.
+- **shell**
+    - `shell`:
+        - *Inputs*: Void pointer
+        - *Output*: 0
+        - *Description*: Main shell function that provides the command interface. Initializes the job list, sets up signal handlers, enters a loop to read and process commands, manages background and foreground jobs, and finally cleans up resources on exit.
 
 ## General Comments
-- extra credit
+- N/A
