@@ -24,7 +24,7 @@ extern pcb_t* current_running_pcb;
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Free resources associated with a PCB.
+ * @brief Free resources associated with a PCB.
  */
 void free_pcb(void* pcb) {
   pcb_t* casted_pcb = (pcb_t*)pcb;
@@ -36,7 +36,7 @@ void free_pcb(void* pcb) {
 }
 
 /**
- * Initializes a PCB with the given parameters.
+ * @brief Initializes a PCB with the given parameters.
  */
 pcb_t* create_pcb(pid_t pid,
                   pid_t par_pid,
@@ -72,7 +72,7 @@ pcb_t* create_pcb(pid_t pid,
 }
 
 /**
- * Removes a child PCB from its parent's child list.
+ * @brief Removes a child PCB from its parent's child list.
  */
 void remove_child_in_parent(pcb_t* parent, pcb_t* child) {
   for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
@@ -89,7 +89,7 @@ void remove_child_in_parent(pcb_t* parent, pcb_t* child) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Creates a new process. If the parent is NULL, it creates the init process.
+ * @brief Creates a new process. If the parent is NULL, it creates the init process.
  */
 pcb_t* k_proc_create(pcb_t* parent, int priority) {
   if (parent == NULL) {  // init creation case
@@ -146,7 +146,7 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
 }
 
 /**
- * Cleans up a process by removing it from its parent's child list,
+ * @brief Cleans up a process by removing it from its parent's child list,
  * removing its children, decrementing file descriptor reference counts,
  * closing files, and freeing the PCB.
  */

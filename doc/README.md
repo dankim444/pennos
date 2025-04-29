@@ -129,7 +129,7 @@ The PennOS kernel provides a thread scheduler and process management system that
     - Implemented system clock implementation using SIGALRM
 - **Idling**
     - Manages CPU usage when no processes are runnable
-    - Implemented sigsuspend
+    - Implements sigsuspend
 - **Logging**
     - Implements event logging for debugging and verification with timestamps
 
@@ -214,13 +214,15 @@ The PennOS shell provides a user interface to interact with the simulated operat
 
 ## Code Description and Design Justifications
 
+### Overview of Architecture and Core Data Structures
+
 ### PennFAT Filesystem
 
 - **fat_routines**
     - `mkfs`: 
         - *Inputs*: filename, number of blocks, and size of each block
         - *Output*: 0 on success, -1 on failure
-        - *Description*: Makes a filesystem. Uses the inputs to calculate the size of the FAT region, data region, and the filesystem. It then makes a system call to open() to open the filename and use ftruncate() to extend the size of the filesystem. A combination of calloc, lseek, and write are used to allocate space for the fat region and root directory and write the contents to the filesystem. 
+        - *Description*: Makes a filesystem. Uses the inputs to calculate the size of the FAT region, data region, and the filesystem. Then makes a system call with open() to open the filename and uses ftruncate() to extend the filesystem's size. A combination of calloc, lseek, and write are used to allocate space for both the fat region and root directory and write their contents to the filesystem. 
     - `mount`:
         - *Inputs*: 
         - *Output*:
@@ -262,11 +264,57 @@ The PennOS shell provides a user interface to interact with the simulated operat
         - *Output*:
         - *Description*:
 - **fs_helpers**
-    - todo
+    - `mkfs`: 
+        - *Inputs*: filename, number of blocks, and size of each block
+        - *Output*: 0 on success, -1 on failure
+        - *Description*: Makes a filesystem. Uses the inputs to calculate the size of the FAT region, data region, and the filesystem. It then makes a system call to open() to open the filename and use ftruncate() to extend the size of the filesystem. A combination of calloc, lseek, and write are used to allocate space for the fat region and root directory and write the contents to the filesystem. 
+    - `mount`:
+        - *Inputs*: 
+        - *Output*:
+        - *Description*:
+    - `unmount`:
+        - *Inputs*:
+        - *Output*:
+        - *Description*:
+    - `cat`:
+        - *Inputs*:
+        - *Output*:
+        - *Description*:
+    - `ls`:
+        - *Inputs*:
+        - *Output*:
+        - *Description*:
+    - `touch`:
+        - *Inputs*:
+        - *Output*:
+        - *Description*:
 - **fs_kfuncs**
-    - todo
+    - `mkfs`: 
+        - *Inputs*: filename, number of blocks, and size of each block
+        - *Output*: 0 on success, -1 on failure
+        - *Description*: Makes a filesystem. Uses the inputs to calculate the size of the FAT region, data region, and the filesystem. It then makes a system call to open() to open the filename and use ftruncate() to extend the size of the filesystem. A combination of calloc, lseek, and write are used to allocate space for the fat region and root directory and write the contents to the filesystem. 
+    - `mount`:
+        - *Inputs*: 
+        - *Output*:
+        - *Description*:
+    - `unmount`:
+        - *Inputs*:
+        - *Output*:
+        - *Description*:
+    - `cat`:
+        - *Inputs*:
+        - *Output*:
+        - *Description*:
+    - `ls`:
+        - *Inputs*:
+        - *Output*:
+        - *Description*:
+    - `touch`:
+        - *Inputs*:
+        - *Output*:
+        - *Description*:
 - **fs_syscalls**
-    - todo
+    - These functions are simply wrappers around the kernel functions.
 
 ### Kernel
 

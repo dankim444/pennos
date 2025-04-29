@@ -28,7 +28,7 @@ extern pcb_t* current_running_pcb;
 extern pid_t current_fg_pid;
 
 /**
- * Kernel-level call to open a file.
+ * @brief Kernel-level call to open a file.
  */
 int k_open(const char* fname, int mode) {
   // validate arguments
@@ -161,7 +161,7 @@ int k_open(const char* fname, int mode) {
 }
 
 /**
- * Kernel-level call to read a file.
+ * @brief Kernel-level call to read a file.
  */
 int k_read(int fd, char *buf, int n) {
     // handle terminal control (if doesn't control, send a STOP signal)
@@ -276,7 +276,7 @@ int k_read(int fd, char *buf, int n) {
 }
 
 /**
- * Kernel-level call to write to a file.
+ * @brief Kernel-level call to write to a file.
  */
 int k_write(int fd, const char* str, int n) {
   // handle standard output and error
@@ -523,7 +523,7 @@ int k_write(int fd, const char* str, int n) {
 }
 
 /**
- * Kernel-level call to close a file.
+ * @brief Kernel-level call to close a file.
  */
 int k_close(int fd) {
   /*if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
@@ -561,7 +561,7 @@ int k_close(int fd) {
 }
 
 /**
- * Kernel-level call to remove a file.
+ * @brief Kernel-level call to remove a file.
  */
 int k_unlink(const char* fname) {
   if (fname == NULL || *fname == '\0') {
@@ -617,7 +617,7 @@ int k_unlink(const char* fname) {
 }
 
 /**
- * Kernel-level call to re-position a file offset.
+ * @brief Kernel-level call to re-position a file offset.
  */
 int k_lseek(int fd, int offset, int whence) {
   // standard file descriptors don't support lseek
@@ -684,7 +684,7 @@ void format_file_info(dir_entry_t* entry, char* buffer) {
 }
 
 /**
- * Kernel-level call to list files.
+ * @brief Kernel-level call to list files.
  */
 int k_ls(const char* filename) {
   if (!is_mounted) {

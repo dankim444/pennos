@@ -20,6 +20,13 @@
 //              PROCESS CONTROL BLOCK (PCB) STRUCTURE AND FUNCTIONS           //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief The PCB structure, which contains all the information about a process.
+ *        Notably, it contains the thread handle, pid, parent pid, child pcbs,
+ *        priority level, process state, command string, signals to be sent,
+ *        input and output file descriptors, process status, sleeping status,
+ *        and time to wake.
+ */
 typedef struct pcb_st {
     spthread_t thread_handle; 
 

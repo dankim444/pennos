@@ -24,7 +24,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Creates a PennFAT filesystem in the file named fs_name at the OS-level
+ * @brief Creates a PennFAT filesystem in the file named fs_name at the OS-level
  */
 int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   // validate arguments
@@ -110,7 +110,7 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
 }
 
 /**
- * Mounts a filesystem with name fs_name by loading its FAT into memory.
+ * @brief Mounts a filesystem with name fs_name by loading its FAT into memory.
  */
 int mount(const char* fs_name) {
   // check if a filesystem is already mounted
@@ -164,7 +164,7 @@ int mount(const char* fs_name) {
 }
 
 /**
- * Unmounts the current filesystem and reset variables.
+ * @brief Unmounts the current filesystem and reset variables.
  */
 int unmount() {
   // first check that a file system is actually mounted
@@ -204,7 +204,7 @@ int unmount() {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Concatenates and displays files.
+ * @brief Concatenates and displays files.
  */
 void* cat(void* arg) {
   char** args = (char**)arg;
@@ -378,7 +378,7 @@ void* cat(void* arg) {
 }
 
 /**
- * Searches root directory and lists all files in the directory.
+ * @brief Searches root directory and lists all files in the directory.
  */
 void* ls(void* arg) {
   if (!is_mounted) {
@@ -475,7 +475,7 @@ void* ls(void* arg) {
 }
 
 /**
- * Creates files or updates timestamps.
+ * @brief Creates files or updates timestamps.
  *
  * For each file argument, creates the file if it doesn't exist,
  * or updates its timestamp if it already exists.
@@ -538,7 +538,7 @@ void* touch(void* arg) {
 }
 
 /**
- * Renames files.
+ * @brief Renames files.
  */
 void* mv(void* arg) {
   char** args = (char**)arg;
@@ -616,7 +616,7 @@ void* mv(void* arg) {
 }
 
 /**
- * Copies the source file to the destination.
+ * @brief Copies the source file to the destination.
  */
 void* cp(void* arg) {
   char** args = (char**)arg;
@@ -674,7 +674,7 @@ void* cp(void* arg) {
 }
 
 /**
- * Removes files.
+ * @brief Removes files.
  */
 void* rm(void* arg) {
   char** args = (char**)arg;
@@ -742,6 +742,8 @@ void* rm(void* arg) {
 }
 
 /**
+ * @brief Changes the permissions of a file.
+ *
  * - chmod +x FILE (adds executable permission)
  * - chmod +rw FILE (adds read and write permissions)
  * - chmod -wx FILE (removes write and executable permissions)
@@ -825,7 +827,7 @@ void* chmod(void* arg) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Implements compaction of root directory.
+ * @brief Implements compaction of root directory.
  */
 void* cmpctdir(void* arg) {
   if (!is_mounted) {
