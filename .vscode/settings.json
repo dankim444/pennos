@@ -3,6 +3,7 @@
         "vec.h": "c",
         "fs_helpers.h": "c",
         "builtins.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "fs_syscalls.h": "c"
     }
 }

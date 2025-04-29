@@ -364,12 +364,18 @@ void* s_echo(void* arg) {
 
   int i = 1;                 // words after "echo"
   while (argv[i] != NULL) {  // while the arg isn't NULL
-    s_write(current_running_pcb->output_fd, argv[i], strlen(argv[i]));
-    s_write(current_running_pcb->output_fd, " ", 1);
+    if (s_write(current_running_pcb->output_fd, argv[i], strlen(argv[i])) == -1) {
+      u_perror("s_write error");
+    }
+    if (s_write(current_running_pcb->output_fd, " ", 1) == -1) {
+      u_perror("s_write error");
+    }
     i++;
   }
 
-  s_write(current_running_pcb->output_fd, "\n", 1);
+  if (s_write(current_running_pcb->output_fd, "\n", 1) == -1) {
+    u_perror("s_write error");
+  }
   return NULL;
 }
 
@@ -378,14 +384,18 @@ void* s_echo(void* arg) {
  */
 void* s_ps(void* arg) {
   char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";
-  s_write(current_running_pcb->output_fd, pid_top, strlen(pid_top));
+  if (s_write(current_running_pcb->output_fd, pid_top, strlen(pid_top)) == -1) {
+    u_perror("s_write error");
+  }
   for (int i = 0; i < vec_len(&current_pcbs); i++) {
     pcb_t* curr_pcb = (pcb_t*)vec_get(&current_pcbs, i);
     char buffer[100];
     snprintf(buffer, sizeof(buffer), "%d\t%d\t%d\t%c\t%s\n", curr_pcb->pid,
              curr_pcb->par_pid, curr_pcb->priority, curr_pcb->process_state,
              curr_pcb->cmd_str);
-    s_write(current_running_pcb->output_fd, buffer, strlen(buffer));
+    if (s_write(current_running_pcb->output_fd, buffer, strlen(buffer)) == -1) {
+      u_perror("s_write error");
+    }
   }
   return NULL;
 }

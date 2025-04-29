@@ -12,6 +12,7 @@
 #include "scheduler.h"
 #include "stdio.h"  // for perror
 #include "stdlib.h"
+#include "../shell/builtins.h"
 
 int next_pid = 2;  // global variable to track the next pid to be assigned
                    // Note: Starts at 2 because init is 1
@@ -178,8 +179,9 @@ void k_proc_cleanup(pcb_t* proc) {
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
     if (proc->fd_table[i] != -1) {
       if (decrement_fd_ref_count(proc->fd_table[i]) == 0) {
-        s_close(
-            proc->fd_table[i]);  // close the fd since no other process using
+        if (s_close(proc->fd_table[i]) == -1) {
+          u_perror("closing on a non-valid fd");
+        }
       }
     }
   }
