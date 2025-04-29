@@ -21,6 +21,7 @@
 #include "signal.h"
 #include "lib/pennos-errno.h"
 #include "stdio.h"  
+#include "builtins.h"
 
 #ifndef PROMPT
 #define PROMPT "$ "
@@ -56,7 +57,9 @@ void shell_sigint_handler(int sig) {
     s_kill(current_fg_pid, 2);  // P_SIGTERM
   }
 
-  s_write(STDOUT_FILENO, "\n", 1); 
+  if (s_write(STDOUT_FILENO, "\n", 1) == -1) {
+    u_perror("s_write error");
+  }
 }
 
 // Signal handler for (Ctrl-Z)
@@ -66,7 +69,9 @@ void shell_sigstp_handler(int sig) {
     s_kill(current_fg_pid, 0);  // P_SIGSTOP
   }
 
-  s_write(STDOUT_FILENO, "\n", 1);
+  if (s_write(STDOUT_FILENO, "\n", 1) == -1) {
+    u_perror("s_write error");
+  }
 }
 
 // Set up terminal signal handlers in the shell (only for interactive mode).
@@ -345,7 +350,9 @@ pid_t execute_command(struct parsed_command* cmd) {
     return -1;
   }
   if (has_executable_permission(script_fd_open) != 1) {
-    s_close(script_fd_open);
+    if (s_close(script_fd_open) == -1) {
+      u_perror("s_close error i.e. not a valid fd");
+    }
     return -1;
   } else {
     script_fd = script_fd_open; // update global
@@ -360,7 +367,9 @@ pid_t execute_command(struct parsed_command* cmd) {
     script_fd = -1; // reset global
     input_fd_script = STDIN_FILENO;
     output_fd_script = STDOUT_FILENO;
-    s_close(script_fd_open);
+    if (s_close(script_fd_open) == -1) {
+      u_perror("s_close error i.e. not a valid fd");
+    }
     return 0;
   }
 
@@ -388,7 +397,7 @@ void* shell(void*) {
 
     // prompt
     if (s_write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
-        u_perror("prompt write error");
+        u_perror("prompt s_write error");
         break;
     }
 
@@ -460,7 +469,9 @@ void* shell(void*) {
       char msg[128];
       snprintf(msg, sizeof(msg), "[%lu] %d\n", (unsigned long)new_job->id,
                child_pid);
-      s_write(STDOUT_FILENO, msg, strlen(msg));
+      if (s_write(STDOUT_FILENO, msg, strlen(msg)) == -1) {
+        u_perror("s_write error");
+      }
     } else {
       // Foreground execution.
       current_fg_pid = child_pid;
