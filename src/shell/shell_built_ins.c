@@ -274,19 +274,6 @@ void* u_man(void* arg) {
   return NULL;
 }
 
-void print_all_job_commands(void) {
-  char buf[128];
-  for (size_t ji = 0; ji < vec_len(&job_list); ji++) {
-    job* j = vec_get(&job_list, ji);
-    char** argv = j->cmd->commands[0];
-    for (int ai = 0; argv[ai] != NULL; ai++) {
-      int n = snprintf(buf, sizeof(buf), "%s ", argv[ai]);
-      s_write(STDOUT_FILENO, buf, n);
-    }
-    s_write(STDOUT_FILENO, "\n", 1);
-  }
-}
-
 // helpers for job control here (carried from pennshell)
 job* findJobByIdOrCurrent(const char* arg) {
   if (vec_len(&job_list) == 0) {
@@ -364,6 +351,93 @@ void* u_bg(void* arg) {
 void* u_fg(void* arg) {
   // TODO --> implement fg
   return NULL;
+}
+
+void debug_print_all_jobs(void) {
+  size_t n = vec_len(&job_list);
+  for (size_t i = 0; i < n; i++) {
+    job* j = vec_get(&job_list, i);
+
+    // Print job ID
+    printf("[%lu]  ", (unsigned long)j->id);
+
+    // Print each command in the pipeline
+    for (size_t cmdIdx = 0; cmdIdx < j->cmd->num_commands; cmdIdx++) {
+      char** argv = j->cmd->commands[cmdIdx];
+      for (int argIdx = 0; argv[argIdx] != NULL; argIdx++) {
+        printf("%s ", argv[argIdx]);
+      }
+      if (cmdIdx + 1 < j->cmd->num_commands) {
+        printf("| ");
+      }
+    }
+
+    printf("\n");
+  }
+}
+
+void poll_background_jobs(void) {
+  int status;
+  pid_t cpid;
+
+  // Reap as many changed children as possible
+  while ((cpid = s_waitpid(-1, &status, true)) > 0) {
+    // Find which job cpid belongs to
+    for (size_t i = 0; i < vec_len(&job_list); i++) {
+      job* job = vec_get(&job_list, i);
+      bool in_this_job = false;
+      for (size_t j = 0; j < job->num_pids; j++) {
+        if (job->pids[j] == cpid) {
+          in_this_job = true;
+          break;
+        }
+      }
+
+      if (!in_this_job) {
+        continue;
+      }
+
+      // If the process ended normally or via signal
+      if (P_WIFEXITED(status) || P_WIFSIGNALED(status)) {
+        job->finished_count++;
+        if (job->finished_count == job->num_pids) {
+          char buf[128];
+          snprintf(buf, sizeof(buf), "Finished: ");
+          s_write(STDOUT_FILENO, buf, strlen(buf));
+          for (size_t cmdIdx = 0; cmdIdx < job->cmd->num_commands; cmdIdx++) {
+            char** argv = job->cmd->commands[cmdIdx];
+            int argIdx = 0;
+            while (argv[argIdx] != NULL) {
+              snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+              s_write(STDOUT_FILENO, buf, strlen(buf));
+              argIdx++;
+            }
+          }
+          snprintf(buf, sizeof(buf), "\n");
+          s_write(STDOUT_FILENO, buf, strlen(buf));
+          vec_erase(&job_list, i);
+        }
+      } else if (P_WIFSTOPPED(status) && job->state == RUNNING) {
+        job->state = STOPPED;
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Stopped: ");
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        for (size_t cmdIdx = 0; cmdIdx < job->cmd->num_commands; cmdIdx++) {
+          char** argv = job->cmd->commands[cmdIdx];
+          int argIdx = 0;
+          while (argv[argIdx] != NULL) {
+            snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+            s_write(STDOUT_FILENO, buf, strlen(buf));
+            argIdx++;
+          }
+        }
+        snprintf(buf, sizeof(buf), "\n");
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+      }
+
+      break;  // break from for-loop over job_list
+    }
+  }
 }
 
 // straight up same as pennshell just snprintf instead of fprintf

@@ -213,6 +213,8 @@ void* u_orphanify(void* arg);
 
 job* findJobByIdOrCurrent(const char* arg);
 
-void print_all_job_commands(void);
+void poll_background_jobs(void);
+
+void debug_print_all_jobs(void);
 
 #endif

@@ -350,11 +350,64 @@ void* shell(void*) {
   setup_terminal_signal_handlers();
 
   while (true) {
+    // poll background jobs
     int status;
     pid_t child_pid;
     while ((child_pid = s_waitpid(-1, &status, true)) > 0) {
-      // Child process has completed, no need to do anything special
-      // The s_waitpid function already handles cleanup
+      // Find which job child_pid belongs to
+      for (size_t i = 0; i < vec_len(&job_list); i++) {
+        job* job = vec_get(&job_list, i);
+        bool in_this_job = false;
+        for (size_t j = 0; j < job->num_pids; j++) {
+          if (job->pids[j] == child_pid) {
+            in_this_job = true;
+            break;
+          }
+        }
+
+        if (!in_this_job) {
+          continue;
+        }
+
+        // If the process ended normally or via signal
+        if (P_WIFEXITED(status) || P_WIFSIGNALED(status)) {
+          job->finished_count++;
+          if (job->finished_count == job->num_pids) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Finished: ");
+            s_write(STDOUT_FILENO, buf, strlen(buf));
+            for (size_t cmdIdx = 0; cmdIdx < job->cmd->num_commands; cmdIdx++) {
+              char** argv = job->cmd->commands[cmdIdx];
+              int argIdx = 0;
+              while (argv[argIdx] != NULL) {
+                snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+                s_write(STDOUT_FILENO, buf, strlen(buf));
+                argIdx++;
+              }
+            }
+            snprintf(buf, sizeof(buf), "\n");
+            s_write(STDOUT_FILENO, buf, strlen(buf));
+            vec_erase(&job_list, i);
+          }
+        } else if (P_WIFSTOPPED(status) && job->state == RUNNING) {
+          job->state = STOPPED;
+          char buf[128];
+          snprintf(buf, sizeof(buf), "Stopped: ");
+          s_write(STDOUT_FILENO, buf, strlen(buf));
+          for (size_t cmdIdx = 0; cmdIdx < job->cmd->num_commands; cmdIdx++) {
+            char** argv = job->cmd->commands[cmdIdx];
+            int argIdx = 0;
+            while (argv[argIdx] != NULL) {
+              snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+              s_write(STDOUT_FILENO, buf, strlen(buf));
+              argIdx++;
+            }
+          }
+          snprintf(buf, sizeof(buf), "\n");
+          s_write(STDOUT_FILENO, buf, strlen(buf));
+        }
+        break;  // break from for-loop over job_list
+      }
     }
 
     // prompt

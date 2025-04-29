@@ -286,7 +286,7 @@ void scheduler() {
       pcb_t* blocked_proc = vec_get(&sleep_blocked_queue, i);
       bool make_runnable = false;
       if (blocked_proc->is_sleeping &&
-          blocked_proc->time_to_wake == tick_counter) {
+          blocked_proc->time_to_wake <= tick_counter) {
         blocked_proc->is_sleeping = false;
         blocked_proc->time_to_wake = -1;
         blocked_proc->signals[2] = false;  // Unlikely, but reset signal
