@@ -51,6 +51,7 @@ PennOS is a UNIX-like operating system simulator built to run as a single proces
 
 ## Extra Credit Implemented
 - Compaction of directory files (extra credit 1)
+- Free memory leaks (only for pennfat)
 
 ## Compilation Instructions
 - `make` or `make all`: create executables of mains in src/
@@ -84,7 +85,7 @@ The standalone PennFAT provides an interface for creating, mounting, and unmount
     - Allocation and mapping of fat region is taken care of in `mkfs` and `mount`
 - **Core Data Structures**
     - *Directory entry structure*: Stores file metadata including name, size, first block, type, permissions, and modification time.
-    - *File descriptor entry structure*: Holds metadata about each file descriptor in the system-wide file descriptor table. Tracks open file state including position, access mode, and reference counts.
+    - *File descriptor entry structure*: Holds metadata about each file descriptor in the system-wide file descriptor table. Tracks open file state including position (indicates where subsequent reads or writes should take place), access mode, and reference counts.
 - **File Descriptor Management**
     - Maintains a system-wide file descriptor table to track all open files.
     - Reserves standard file descriptors (0, 1, 2) for stdin, stdout, and stderr.
@@ -98,6 +99,7 @@ The standalone PennFAT provides an interface for creating, mounting, and unmount
     - System call functions (s_ functions) are wrappers around kernel functions to provide an interface for user programs.
     - Kernel-level functions (k_ functions) implement core filesystem operations such as k_open, k_close, k_read, k_write, k_lseek, k_unlink, and k_ls.
     - Process control blocks maintain per-process file descriptor tables.
+    - Note: the only time we use regular system calls (ie. `read`, `lseek`, `write`, etc.) is when we interact with the host OS. For example, in `cp SOURCE -h DEST` we use `k_open()` to open `SOURCE` but `open()` to open `DEST`. However, in `cat` we only use the kernel-level functions we implemented. We use `lseek` and `write` to write to a file in the host OS.
 - **Summary of Core Features**
     - *Basic file operations*: open, read, write, close, unlink, lseek
     - *File manipulation utilities*: cat, ls, touch, mv, cp, rm
@@ -155,6 +157,9 @@ The PennOS shell provides a user interface to interact with the simulated operat
     - Enables running of simple shell scripts
     - Checks for execution permissions
     - Handles script arguments
+
+### Error Handling
+An error modules is defined in `lib/pennos-errno.h` and `lib/pennos-errno.c`. This module simply defines the set of error codes used throughout our code, and `P_ERRNO` is the variable that tracks the current error code set at any point in the program. `shell/builtins.h` and `shell/builtins.c` define and implement the `u_perror` function, which is used to display user-level error messages to stdout.
 
 
 ## Code Layout
