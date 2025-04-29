@@ -1,5 +1,5 @@
 /* CS5480 PennOS Group 61
- * Authors: Krystoff Purtell and Richard Zhang
+ * Authors: Krystof Purtell and Richard Zhang
  * Purpose: Implements the system-level process-related kernel functions. 
  */
 
@@ -16,8 +16,7 @@
 #include "scheduler.h"
 #include "signal.h"
 #include "../fs/fs_syscalls.h"
-
-#include "stdio.h"  // TODO: delete this once finished
+#include <stdio.h>
 
 extern Vec zero_priority_queue;  // lower index = more recent
 extern Vec one_priority_queue;
@@ -155,7 +154,6 @@ pid_t s_spawn_init() {
 /**
  * Cleans up Init's resources.
  */
-// TODO: I don't think this will clean up resources the right way
 void s_cleanup_init_process() {
   k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1));
 }
@@ -253,8 +251,6 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
         vec_erase_no_deletor(&zombie_queue, i);
         delete_from_explicit_queue(&parent->child_pcbs, child->pid);
         k_proc_cleanup(child);
-        //parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
-        //log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
         return child->pid;
       }
     }
@@ -262,14 +258,12 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
     // scan children of current running process for non-terminated state changes
     for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
       pcb_t* child = vec_get(&parent->child_pcbs, i);
-      if ((pid == -1 || child->pid == pid) && (child->process_status == 21 || child->process_status == 23)) { // signaled --> TODO ensure 0 invariant maintained
+      if ((pid == -1 || child->pid == pid) && (child->process_status == 21 || child->process_status == 23)) { // signaled
         if (wstatus != NULL) {
           *wstatus = child->process_status;
         }
         log_generic_event('W', child->pid, child->priority, child->cmd_str);
         child->process_status = 0; // reset status
-        //parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
-        //log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
         return child->pid;
       }
     }

@@ -1,5 +1,5 @@
 /* CS5480 PennOS Group 61
- * Authors: Krystoff Purtell and Richard Zhang
+ * Authors: Krystof Purtell and Richard Zhang
  * Purpose: Defines the system-level process-related kernel functions. 
  */
 
