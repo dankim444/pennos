@@ -89,5 +89,7 @@ void u_perror(const char *msg) {
     }
 
     snprintf(buffer, sizeof(buffer), "%s: %s\n", msg, error_msg);
-    s_write(STDERR_FILENO, buffer, strlen(buffer));
+    if (s_write(STDERR_FILENO, buffer, strlen(buffer)) == -1) {
+        perror("s_write");
+    }
 }

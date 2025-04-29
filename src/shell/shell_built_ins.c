@@ -15,6 +15,7 @@
 #include "../kernel/scheduler.h"  // just for s_shutdown_pennos
 #include "../lib/Vec.h"          
 #include "../lib/spthread.h"
+#include "builtins.h"
 
 #include <errno.h>   // For errno for strtol
 #include <stdio.h>   // Using snprintf
@@ -133,13 +134,17 @@ void* u_kill(void* arg) {
     long pid_long = strtol(argv[i], &endptr, 10);
     if (*endptr != '\0' || pid_long <= 0) {
       snprintf(err_buf, 128, "Invalid PID: %s\n", argv[i]);
-      s_write(STDERR_FILENO, err_buf, strlen(err_buf));
+      if (s_write(STDERR_FILENO, err_buf, strlen(err_buf)) == -1) {
+        u_perror("s_write error");
+      }
       continue;
     }
     pid_t pid = (pid_t)pid_long;
     if (s_kill(pid, sig) < 0) {
       snprintf(err_buf, 128, "b_kill error on PID %d\n", pid);
-      s_write(STDERR_FILENO, err_buf, strlen(err_buf));
+      if (s_write(STDERR_FILENO, err_buf, strlen(err_buf)) == -1) {
+        u_perror("s_write error");
+      }
     }
   }
   s_exit();
@@ -264,7 +269,9 @@ void* u_man(void* arg) {
       "orphanify             : creates a child process that becomes an "
       "orphan\n";
 
-  s_write(STDOUT_FILENO, man_string, strlen(man_string));
+  if (s_write(STDOUT_FILENO, man_string, strlen(man_string)) == -1) {
+    u_perror("s_write error");
+  }
   return NULL;
 }
 
