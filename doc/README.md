@@ -344,6 +344,10 @@ todo
         - *Inputs*: The file descriptor, the offset value, and the reference position (SEEK_SET, SEEK_CUR, or SEEK_END)
         - *Output*: The new file position on success, -1 on error
         - *Description*: Repositions the file offset within an open file. Validates the file descriptor and calculates the new position based on the whence parameter: `SEEK_SET` positions relative to the beginning of the file, `SEEK_CUR` relative to the current position, and `SEEK_END` relative to the end of the file. Verifies the resulting position is valid (not negative), updates the file descriptor's position field, and returns the new position. Returns an appropriate error code if the file descriptor is invalid or the resulting position would be negative.
+    - `k_ls`:
+        - *Inputs*: The name of a file to list, or NULL to list all files in the current directory
+        - *Output*: 0 on success, -1 on error
+        - *Description*: Lists files or file information in the current directory. First checks if the filesystem is mounted. If a specific filename is provided, it locates that file's directory entry using `find_file()` and displays its detailed information. If NULL is provided, it traverses the entire root directory structure, following the FAT chain if necessary, and displays information about each valid file entry (skipping deleted entries). For each file, it formats information including block number, permissions, size, timestamp, and name, then writes this information to standard output using `k_write()`. Returns 0 on success or an appropriate error code.
 - **fs_syscalls**
     - These functions are simply wrappers around the kernel functions.
 
