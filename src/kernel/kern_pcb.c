@@ -1,5 +1,5 @@
 /* CS5480 PennOS Group 61
- * Authors: Krystoff Purtell and Richard Zhang
+ * Authors: Krystof Purtell and Richard Zhang
  * Purpose: Implements the process-related helper functions
  *          and the kernel-level process functions.  
  */
@@ -57,9 +57,8 @@ pcb_t* create_pcb(pid_t pid,
   ret_pcb->output_fd = output_fd;
   ret_pcb->process_status = 0;  // default status
 
-  // changed the deconstructor to NULL because when exiting don't want PennOS to
-  // double free
-  ret_pcb->child_pcbs = vec_new(0, NULL);
+  ret_pcb->child_pcbs = vec_new(0, NULL); // NULL deconstructor prevents
+                                          // double free
 
   for (int i = 0; i < 3; i++) {
     ret_pcb->signals[i] = false;
@@ -105,6 +104,10 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
       init->fd_table[i] = -1;
     }
 
+    increment_fd_ref_count(STDIN_FILENO);
+    increment_fd_ref_count(STDOUT_FILENO);
+    increment_fd_ref_count(STDERR_FILENO);
+
     current_running_pcb = init;
     put_pcb_into_correct_queue(init);
     vec_push_back(&current_pcbs, init);
@@ -123,12 +126,6 @@ pcb_t* k_proc_create(pcb_t* parent, int priority) {
     child->fd_table[i] = parent->fd_table[i];
   }
 
-  /*for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
-    if (child->fd_table[i] != -1 && child->fd_table[i] != STDIN_FILENO &&
-        child->fd_table[i] != STDOUT_FILENO && child->fd_table[i] !=
-  STDERR_FILENO) { increment_fd_ref_count(child->fd_table[i]);
-    }
-  }*/
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
     if (child->fd_table[i] != -1) {
       increment_fd_ref_count(child->fd_table[i]);
@@ -164,8 +161,6 @@ void k_proc_cleanup(pcb_t* proc) {
   // if proc has children, remove them and assign them to init parent
   if (vec_len(&proc->child_pcbs) > 0) {
     // retrieve the init process
-    // TODO: what if the we are cleaning the init process?
-    // Do we want to redirect its children to the init process itself here?
     pcb_t* init_pcb =
         get_pcb_in_queue(&current_pcbs, 1);  // init process has pid 1
 
@@ -180,15 +175,6 @@ void k_proc_cleanup(pcb_t* proc) {
   }
 
   // decr reference counts + close files if necessary
-  /*for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
-    if (proc->fd_table[i] != -1 && proc->fd_table[i] != STDIN_FILENO &&
-        proc->fd_table[i] != STDOUT_FILENO && proc->fd_table[i] !=
-STDERR_FILENO) {
-      if (decrement_fd_ref_count(proc->fd_table[i]) == 0) {
-        s_close(proc->fd_table[i]); // close the fd since no other process using
-      }
-    }
-  }*/
   for (int i = 0; i < FILE_DESCRIPTOR_TABLE_SIZE; i++) {
     if (proc->fd_table[i] != -1) {
       if (decrement_fd_ref_count(proc->fd_table[i]) == 0) {

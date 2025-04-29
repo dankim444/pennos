@@ -1,11 +1,11 @@
 /* CS5480 PennOS Group 61
- * Authors: Krystoff Purtell and Richard Zhang
+ * Authors: Krystof Purtell and Richard Zhang
  * Purpose: Implements the all scheduler-related functions and 
  *          initializes the scheduler queues.
  */
 
 #include "scheduler.h"
-#include <signal.h>  // TODO --> make sure this is ok to include
+#include <signal.h>
 #include <stdbool.h>
 #include <sys/time.h>
 #include "../lib/Vec.h"
@@ -14,8 +14,7 @@
 #include "kern_pcb.h"
 #include "logger.h"
 #include "stdlib.h"
-
-#include <stdio.h>  // TODO: delete this once finished
+#include <stdio.h> 
 #include <string.h>
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -337,8 +336,7 @@ void scheduler() {
         blocked_proc->time_to_wake = -1;
         blocked_proc->signals[2] = false;  // Unlikely, but reset signal
         make_runnable = true;
-      }  // TODO: THIS BLOCK MAY BE REDUNDANT NOW B/C SIGNAL HANDLERS CALLED
-      else if (blocked_proc->is_sleeping &&
+      } else if (blocked_proc->is_sleeping &&
                blocked_proc->signals[2]) {  // P_SIGTERM received
         blocked_proc->is_sleeping = false;
         blocked_proc->process_state = 'Z';
