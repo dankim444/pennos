@@ -9,13 +9,20 @@
 #include "../kernel/kern_pcb.h"  // TODO --> this is a little dangerous,
 #include "../kernel/kern_sys_calls.h"
 #include "../kernel/scheduler.h"  // TODO --> make sure this is allowed, otw make wrapper
-#include "../lib/Vec.h"           // make sure not to use k funcs
+#include "../kernel/signal.h"
+#include "../lib/Vec.h"  // make sure not to use k funcs
 #include "../lib/spthread.h"
 
 #include <errno.h>   // For errno for strtol
 #include <stdio.h>   // I think this is okay? Using snprintf
 #include <stdlib.h>  // For strtol
 #include <unistd.h>  // probably delete once done
+
+#include "Job.h"
+
+// needed for job control
+extern Vec job_list;
+extern pid_t current_fg_pid;
 
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
@@ -183,7 +190,7 @@ void* (*get_associated_ufunc(char* func))(void*) {
     return u_ps;
   } else if (strcmp(func, "kill") == 0) {
     return u_kill;
-  } 
+  }
 
   return NULL;  // no matches case
 }
@@ -267,9 +274,91 @@ void* u_man(void* arg) {
   return NULL;
 }
 
+void print_all_job_commands(void) {
+  char buf[128];
+  for (size_t ji = 0; ji < vec_len(&job_list); ji++) {
+    job* j = vec_get(&job_list, ji);
+    char** argv = j->cmd->commands[0];
+    for (int ai = 0; argv[ai] != NULL; ai++) {
+      int n = snprintf(buf, sizeof(buf), "%s ", argv[ai]);
+      s_write(STDOUT_FILENO, buf, n);
+    }
+    s_write(STDOUT_FILENO, "\n", 1);
+  }
+}
+
+// helpers for job control here (carried from pennshell)
+job* findJobByIdOrCurrent(const char* arg) {
+  if (vec_len(&job_list) == 0) {
+    return NULL;
+  }
+
+  if (arg != NULL) {
+    // parse numeric
+    char* endPtr = NULL;
+    long val = strtol(arg, &endPtr, 10);
+    if (*endPtr != '\0' || val < 1) {
+      return NULL;
+    }
+    for (size_t i = 0; i < vec_len(&job_list); i++) {
+      job* job_ptr = (job*)vec_get(&job_list, i);
+      if ((jid_t)val == job_ptr->id) {
+        return job_ptr;
+      }
+    }
+    return NULL;
+  }
+
+  // Look for most recently stopped job first
+  for (size_t i = vec_len(&job_list); i > 0; i--) {
+    job* job_ptr = (job*)vec_get(&job_list, i - 1);
+    if (job_ptr->state == STOPPED) {
+      return job_ptr;
+    }
+  }
+
+  return (job*)vec_get(&job_list, vec_len(&job_list) - 1);
+}
+
 void* u_bg(void* arg) {
-  // TODO --> implement bg
-  return NULL;
+  char buf[128];
+  char** argv = (char**)arg;
+  const char* jobArg = argv[1];  // NULL if no ID was given
+  job* job_ptr = findJobByIdOrCurrent(jobArg);
+  if (!job_ptr) {
+    snprintf(buf, sizeof(buf), "bg: no such job\n");
+    s_write(STDERR_FILENO, buf, strlen(buf));
+    return NULL;
+  }
+  if (job_ptr->state == STOPPED) {
+    job_ptr->state = RUNNING;
+    snprintf(buf, sizeof(buf), "Running: ");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "\n");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    // P_SIGCONT is 1
+    s_kill(job_ptr->pids[0], P_SIGCONT);
+    return NULL;
+  } else if (job_ptr->state == RUNNING) {
+    snprintf(buf, sizeof(buf), "bg: job [%lu] is already running\n",
+             (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    return NULL;
+  } else {
+    snprintf(buf, sizeof(buf), "bg: job [%lu] not stopped\n",
+             (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    return NULL;
+  }
 }
 
 void* u_fg(void* arg) {
@@ -277,8 +366,39 @@ void* u_fg(void* arg) {
   return NULL;
 }
 
+// straight up same as pennshell just snprintf instead of fprintf
 void* u_jobs(void* arg) {
-  // TODO --> implement jobs
+  char buf[128];
+  if (vec_is_empty(&job_list)) {
+    return NULL;
+  }
+
+  for (size_t idx = 0; idx < vec_len(&job_list); idx++) {
+    job* job_ptr = (job*)vec_get(&job_list, idx);
+
+    const char* state = "unknown";
+    if (job_ptr->state == RUNNING) {
+      state = "running";
+    } else if (job_ptr->state == STOPPED) {
+      state = "stopped";
+    } else if (job_ptr->state == FINISHED) {
+      state = "finished";
+    }
+
+    snprintf(buf, sizeof(buf), "[%lu] ", (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "(%s)\n", state);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+  }
   return NULL;
 }
 
@@ -322,4 +442,3 @@ void* u_orphanify(void* arg) {
   s_exit();
   return NULL;
 }
-

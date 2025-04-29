@@ -1,19 +1,20 @@
+#include <fcntl.h>
 #include <string.h>
 #include "../fs/fat_routines.h"
-#include "../fs/fs_syscalls.h"
 #include "../fs/fs_helpers.h"
+#include "../fs/fs_syscalls.h"
 #include "../kernel/kern_sys_calls.h"
-#include "builtins.h"
-#include "parser.h"
-#include "shell_built_ins.h"
-#include "stdlib.h"
-#include "../kernel/stress.h"
-#include <fcntl.h>
 #include "../kernel/scheduler.h"
+#include "../kernel/signal.h"
+#include "../kernel/stress.h"
 #include "../lib/Vec.h"
 #include "Job.h"
-#include "signal.h"
+#include "builtins.h"
 #include "lib/pennos-errno.h"
+#include "parser.h"
+#include "shell_built_ins.h"
+#include "signal.h"
+#include "stdlib.h"
 
 #include "stdio.h"  // TODO: delete this once finished
 
@@ -24,23 +25,20 @@
 #define MAX_BUFFER_SIZE 4096
 #define MAX_LINE_BUFFER_SIZE 128
 
-
-
 // Global variable to track foreground process for signal forwarding.
 extern pid_t current_fg_pid;
+
 // Global job list and job counter (for background processes)
 Vec job_list;           // initialize in main; holds job pointers
 jid_t next_job_id = 1;  // global job id counter
 
 // global variables for script execution, to prevent major arguments refactoring
-int script_fd = -1; 
-int input_fd_script = -1; 
+int script_fd = -1;
+int input_fd_script = -1;
 int output_fd_script = -1;
 
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////
-//                              Signals Setup                                            //
+//                              Signals Setup //
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 // Signal handler for (Ctrl-C)
@@ -51,7 +49,7 @@ void shell_sigint_handler(int sig) {
     s_kill(current_fg_pid, 2);  // P_SIGTERM
   }
 
-  s_write(STDOUT_FILENO, "\n", 1); // TODO --> integrate with FS calls
+  s_write(STDOUT_FILENO, "\n", 1);  // TODO --> integrate with FS calls
 }
 
 // Signal handler for (Ctrl-Z)
@@ -79,9 +77,8 @@ void setup_terminal_signal_handlers(void) {
   sigaction(SIGTSTP, &sa_stp, NULL);
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////
-//                              Job Management                                           //
+//                              Job Management //
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 // This function will be used by vec_new as the destructor
@@ -92,9 +89,8 @@ void free_job_ptr(void* ptr) {
   free(job_ptr);
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////////
-//                     Command and Script Execution Functions                           //
+//                     Command and Script Execution Functions //
 //////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -105,25 +101,25 @@ void fill_buffer_until_full_or_newline(int fd, char* buffer) {
   char currChar;
   while (i < MAX_LINE_BUFFER_SIZE - 1) {
     int bytes_read = s_read(fd, &currChar, 1);
-    if (bytes_read <= 0 || currChar == '\n') { // EOF or newline cases
-      break; 
+    if (bytes_read <= 0 || currChar == '\n') {  // EOF or newline cases
+      break;
     }
     buffer[i] = currChar;
     i++;
   }
-  buffer[i] = '\0'; // Null-terminate the string, replaces \n
+  buffer[i] = '\0';  // Null-terminate the string, replaces \n
 }
 
 /**
  * TODO
  */
 pid_t u_execute_command(struct parsed_command* cmd) {
-
   // check for independently scheduled processes
   if (strcmp(cmd->commands[0][0], "cat") == 0) {
     return s_spawn(u_cat, cmd->commands[0], input_fd_script, output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "sleep") == 0) {
-    return s_spawn(u_sleep, cmd->commands[0], input_fd_script, output_fd_script);
+    return s_spawn(u_sleep, cmd->commands[0], input_fd_script,
+                   output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "busy") == 0) {
     return s_spawn(u_busy, cmd->commands[0], input_fd_script, output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "echo") == 0) {
@@ -131,7 +127,8 @@ pid_t u_execute_command(struct parsed_command* cmd) {
   } else if (strcmp(cmd->commands[0][0], "ls") == 0) {
     return s_spawn(u_ls, cmd->commands[0], input_fd_script, output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "touch") == 0) {
-    return s_spawn(u_touch, cmd->commands[0], input_fd_script, output_fd_script);
+    return s_spawn(u_touch, cmd->commands[0], input_fd_script,
+                   output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "mv") == 0) {
     return s_spawn(u_mv, cmd->commands[0], input_fd_script, output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "cp") == 0) {
@@ -139,15 +136,18 @@ pid_t u_execute_command(struct parsed_command* cmd) {
   } else if (strcmp(cmd->commands[0][0], "rm") == 0) {
     return s_spawn(u_rm, cmd->commands[0], input_fd_script, output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "chmod") == 0) {
-    return s_spawn(u_chmod, cmd->commands[0], input_fd_script, output_fd_script);
+    return s_spawn(u_chmod, cmd->commands[0], input_fd_script,
+                   output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "ps") == 0) {
     return s_spawn(u_ps, cmd->commands[0], input_fd_script, output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "kill") == 0) {
     return s_spawn(u_kill, cmd->commands[0], input_fd_script, output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "zombify") == 0) {
-    return s_spawn(u_zombify, cmd->commands[0], input_fd_script, output_fd_script);
+    return s_spawn(u_zombify, cmd->commands[0], input_fd_script,
+                   output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "orphanify") == 0) {
-    return s_spawn(u_orphanify, cmd->commands[0], input_fd_script, output_fd_script);
+    return s_spawn(u_orphanify, cmd->commands[0], input_fd_script,
+                   output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "hang") == 0) {
     return s_spawn(hang, cmd->commands[0], input_fd_script, output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "nohang") == 0) {
@@ -156,9 +156,9 @@ pid_t u_execute_command(struct parsed_command* cmd) {
     return s_spawn(recur, cmd->commands[0], input_fd_script, output_fd_script);
   } else if (strcmp(cmd->commands[0][0], "crash") == 0) {
     return s_spawn(crash, cmd->commands[0], input_fd_script, output_fd_script);
-  } 
+  }
 
-  // check for sub-routines 
+  // check for sub-routines
   if (strcmp(cmd->commands[0][0], "nice") == 0) {
     u_nice(cmd->commands[0]);
     return 0;
@@ -181,13 +181,11 @@ pid_t u_execute_command(struct parsed_command* cmd) {
     u_logout(cmd->commands[0]);
     return 0;
   } else {
-    return -1; // no matches, no scripts now
+    return -1;  // no matches, no scripts now
   }
 
-  return 0; // built-in case
+  return 0;  // built-in case
 }
-
-
 
 void* u_read_and_execute_script(void* arg) {
   // read the script line by line, parse each line, and execute the command
@@ -195,7 +193,7 @@ void* u_read_and_execute_script(void* arg) {
     char buffer[MAX_LINE_BUFFER_SIZE];
     fill_buffer_until_full_or_newline(script_fd, buffer);
     if (buffer[0] == '\0') {
-      break; // EOF case
+      break;  // EOF case
     }
 
     // parse the command
@@ -207,18 +205,17 @@ void* u_read_and_execute_script(void* arg) {
       free(cmd);
     }
 
-    // execute the command 
+    // execute the command
     pid_t child_pid = u_execute_command(cmd);
-    if (child_pid > 0) { // if process was spawned, wait for it to finish 
+    if (child_pid > 0) {  // if process was spawned, wait for it to finish
       int status;
       s_waitpid(child_pid, &status, false);
     }
   }
 
-  s_exit(); // exit the script
+  s_exit();  // exit the script
   return NULL;
 }
-
 
 /**
  * @brief Helper function to execute a parsed command from the shell.
@@ -231,25 +228,24 @@ void* u_read_and_execute_script(void* arg) {
  *         subroutine call, -1 when nothing was called
  */
 pid_t execute_command(struct parsed_command* cmd) {
-
   // setup fds
-  int input_fd = STDIN_FILENO; // standard fds
+  int input_fd = STDIN_FILENO;  // standard fds
   int output_fd = STDOUT_FILENO;
 
   if (cmd->stdin_file != NULL) {
     input_fd = s_open(cmd->stdin_file, F_READ);
     if (input_fd < 0) {
-      input_fd = STDIN_FILENO; // reset to default
+      input_fd = STDIN_FILENO;  // reset to default
     }
   }
 
   if (cmd->is_file_append) {
-    output_fd = s_open(cmd->stdout_file, F_APPEND); 
+    output_fd = s_open(cmd->stdout_file, F_APPEND);
   } else {
     output_fd = s_open(cmd->stdout_file, F_WRITE);
   }
   if (output_fd < 0) {
-    output_fd = STDOUT_FILENO; // reset to default
+    output_fd = STDOUT_FILENO;  // reset to default
   }
 
   // check for independently scheduled processes
@@ -289,9 +285,9 @@ pid_t execute_command(struct parsed_command* cmd) {
     return s_spawn(recur, cmd->commands[0], input_fd, output_fd);
   } else if (strcmp(cmd->commands[0][0], "crash") == 0) {
     return s_spawn(crash, cmd->commands[0], input_fd, output_fd);
-  } 
+  }
 
-  // check for sub-routines 
+  // check for sub-routines
   if (strcmp(cmd->commands[0][0], "nice") == 0) {
     u_nice(cmd->commands[0]);
     return 0;
@@ -317,40 +313,38 @@ pid_t execute_command(struct parsed_command* cmd) {
 
   // otherwise, try to run command as a script
   int script_fd_open = s_open(cmd->commands[0][0], F_READ);
-  if (script_fd_open < 0) { // if not a file, just move on
+  if (script_fd_open < 0) {  // if not a file, just move on
     return -1;
   }
-  increment_fd_ref_count(script_fd_open); // TODO check this
+  increment_fd_ref_count(script_fd_open);  // TODO check this
   if (has_executable_permission(script_fd_open) != 1) {
     s_close(script_fd_open);
     return -1;
   } else {
-    script_fd = script_fd_open; // update global
+    script_fd = script_fd_open;  // update global
     input_fd_script = input_fd;
     output_fd_script = output_fd;
 
     char* script_argv[] = {cmd->commands[0][0], NULL};
-    pid_t wait_on = s_spawn(u_read_and_execute_script, script_argv, input_fd,
-             output_fd); 
+    pid_t wait_on =
+        s_spawn(u_read_and_execute_script, script_argv, input_fd, output_fd);
     int status;
-    s_waitpid(wait_on, &status, false); // wait for script to finish
-    script_fd = -1; // reset global
+    s_waitpid(wait_on, &status, false);  // wait for script to finish
+    script_fd = -1;                      // reset global
     input_fd_script = STDIN_FILENO;
     output_fd_script = STDOUT_FILENO;
     s_close(script_fd_open);
     return 0;
   }
 
-  return -1; // no matches case
+  return -1;  // no matches case
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////
-//                        Shell main function                                   //
+//                        Shell main function //
 //////////////////////////////////////////////////////////////////////////////////
 
 void* shell(void*) {
- 
   job_list = vec_new(0, free_job_ptr);
 
   setup_terminal_signal_handlers();
@@ -365,8 +359,8 @@ void* shell(void*) {
 
     // prompt
     if (s_write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) < 0) {
-        u_perror("prompt write error");
-        break;
+      u_perror("prompt write error");
+      break;
     }
 
     // parse user input
@@ -423,7 +417,7 @@ void* shell(void*) {
       new_job->num_pids = 1;
       new_job->pids = malloc(sizeof(pid_t));
       if (new_job->pids == NULL) {
-        perror("Error: mallocing new_job->pids failed"); 
+        perror("Error: mallocing new_job->pids failed");
         free(new_job);
         free(cmd);
         continue;
@@ -444,9 +438,52 @@ void* shell(void*) {
       current_fg_pid = child_pid;
       int status;
       s_waitpid(child_pid, &status, false);
+
+      if (P_WIFSTOPPED(status)) {
+        // Create a new job entry (this time for a stopped process)
+        job* new_job = malloc(sizeof(job));
+        if (new_job == NULL) {
+          perror("Error: mallocing new_job failed");
+          free(cmd);
+          continue;
+        }
+        new_job->id = next_job_id++;
+        new_job->pgid = child_pid;  // For single commands, child's pid = pgid.
+        new_job->num_pids = 1;
+        new_job->pids = malloc(sizeof(pid_t));
+        if (new_job->pids == NULL) {
+          perror("Error: mallocing new_job->pids failed");
+          free(new_job);
+          free(cmd);
+          continue;
+        }
+        new_job->pids[0] = child_pid;
+        new_job->state = STOPPED;
+        new_job->cmd = cmd;  // Retain command info; do not free here.
+        new_job->finished_count = 0;
+        vec_push_back(&job_list, new_job);
+
+        // Print stopped job
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Stopped: ");
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        for (size_t cmdIdx = 0; cmdIdx < new_job->cmd->num_commands; cmdIdx++) {
+          char** argv = new_job->cmd->commands[cmdIdx];
+          int argIdx = 0;
+          while (argv[argIdx] != NULL) {
+            snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+            s_write(STDOUT_FILENO, buf, strlen(buf));
+            argIdx++;
+          }
+        }
+        snprintf(buf, sizeof(buf), "\n");
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+      }
+
       current_fg_pid = 2;
+
       // Free cmd memory for foreground commands.
-      //free(cmd); // TODO --> check if this is already freed, it may be
+      // free(cmd); // TODO --> check if this is already freed, it may be
     }
   }
 

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../fs/fs_kfuncs.h"
+#include "../fs/fs_syscalls.h"
 #include "../lib/Vec.h"
 #include "../lib/pennos-errno.h"
 #include "../shell/builtins.h"
@@ -10,7 +11,6 @@
 #include "logger.h"
 #include "scheduler.h"
 #include "signal.h"
-#include "../fs/fs_syscalls.h"
 
 #include "stdio.h"  // TODO: delete this once finished
 
@@ -24,7 +24,7 @@ extern pcb_t* current_running_pcb;  // currently running process
 
 extern int tick_counter;
 
-pid_t current_fg_pid = 2; // terminal controller
+pid_t current_fg_pid = 2;  // terminal controller
 
 // TODO: Should we add these helper functions to the .h file?
 
@@ -123,7 +123,7 @@ void delete_from_queue(int queue_id, int pid) {
  * @brief Helper function that deletes the given PCB from the explicit queue
  *        passed in. Notably, it does not free the PCB but instead uses
  *       vec_erase_no_deletor to remove it from the queue.
- * 
+ *
  * @param queue_to_delete_from ptr to Vec* queue to delete from
  * @param pid                  the pid of the PCB to delete
  */
@@ -138,14 +138,13 @@ void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
 //        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
 ////////////////////////////////////////////////////////////////////////////////
 
-
 /**
- * @brief The init process function. It spawns the shell process and 
+ * @brief The init process function. It spawns the shell process and
  *        reaps zombie children.
- * 
+ *
  * @param input unused but needed for typing reasons
  * @return irrelvant return value because never supposed to return
- */ 
+ */
 void* init_func(void* input) {
   char* shell_argv[] = {"shell", NULL};
   s_spawn(shell, shell_argv, STDIN_FILENO, STDOUT_FILENO);
@@ -181,11 +180,9 @@ pid_t s_spawn_init() {
   return init->pid;
 }
 
-
-
 pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   pcb_t* child;
-  if (strcmp(argv[0], "shell") == 0) { 
+  if (strcmp(argv[0], "shell") == 0) {
     child = k_proc_create(current_running_pcb, 0);
   } else {
     child = k_proc_create(current_running_pcb, 1);
@@ -211,7 +208,7 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
 
   log_generic_event('C', child->pid, child->priority, child->cmd_str);
 
-  return child->pid; 
+  return child->pid;
 }
 
 pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
@@ -270,8 +267,9 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
         vec_erase_no_deletor(&zombie_queue, i);
         delete_from_explicit_queue(&parent->child_pcbs, child->pid);
         k_proc_cleanup(child);
-        //parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
-        //log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
+        // parent->process_state = 'R'; // TODO --> see if these 2 lines added
+        // is correct log_generic_event('U', parent->pid, parent->priority,
+        // parent->cmd_str);
         return child->pid;
       }
     }
@@ -279,14 +277,18 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
     // scan children of current running process for non-terminated state changes
     for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
       pcb_t* child = vec_get(&parent->child_pcbs, i);
-      if ((pid == -1 || child->pid == pid) && (child->process_status == 21 || child->process_status == 23)) { // signaled --> TODO ensure 0 invariant maintained
+      if ((pid == -1 || child->pid == pid) &&
+          (child->process_status == 21 ||
+           child->process_status ==
+               23)) {  // signaled --> TODO ensure 0 invariant maintained
         if (wstatus != NULL) {
           *wstatus = child->process_status;
         }
         log_generic_event('W', child->pid, child->priority, child->cmd_str);
-        child->process_status = 0; // reset status
-        //parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
-        //log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
+        child->process_status = 0;  // reset status
+        // parent->process_state = 'R'; // TODO --> see if these 2 lines added
+        // is correct log_generic_event('U', parent->pid, parent->priority,
+        // parent->cmd_str);
         return child->pid;
       }
     }
@@ -341,7 +343,7 @@ int s_nice(pid_t pid, int priority) {
 }
 
 void s_sleep(unsigned int ticks) {
-  if (ticks <= 0) { 
+  if (ticks <= 0) {
     P_ERRNO = P_EINVAL;
     return;
   }
@@ -353,11 +355,12 @@ void s_sleep(unsigned int ticks) {
   log_generic_event('B', current_running_pcb->pid,
                     current_running_pcb->priority,
                     current_running_pcb->cmd_str);
-  if (spthread_suspend(current_running_pcb->thread_handle) != 0) { // give scheduler control
+
+  if (spthread_suspend(current_running_pcb->thread_handle) !=
+      0) {  // give scheduler control
     perror("Error in spthread_suspend in s_sleep call");
   }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //        SYSTEM-LEVEl BUILTIN-RELATED KERNEL FUNCTIONS                       //
