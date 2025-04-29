@@ -533,7 +533,7 @@ int k_close(int fd) {
   }*/
 
   // validate the file descriptor
-  if (fd < 0 || fd >= MAX_FDS || !fd_table[fd].in_use) {
+  if (fd < 0 || fd >= MAX_FDS) {
     P_ERRNO = P_EBADF;
     return -1;
   }

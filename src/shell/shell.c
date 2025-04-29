@@ -42,6 +42,7 @@ jid_t next_job_id = 1;  // global job id counter
 int script_fd = -1; 
 int input_fd_script = -1; 
 int output_fd_script = -1;
+int is_append = 0;
 
 
 
@@ -282,8 +283,10 @@ pid_t execute_command(struct parsed_command* cmd) {
 
   if (cmd->is_file_append) {
     output_fd = s_open(cmd->stdout_file, F_APPEND); 
+    is_append = 1;
   } else {
     output_fd = s_open(cmd->stdout_file, F_WRITE);
+    is_append = 0;
   }
   if (output_fd < 0) {
     output_fd = STDOUT_FILENO; // reset to default
