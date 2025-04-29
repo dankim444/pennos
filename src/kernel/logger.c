@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
-
+/**
+ * @brief Logs when an event is scheduled
+ */
 void log_scheduling_event(int pid, int queue_num, char* process_name) {
     char buffer[200];
     int str_len = snprintf(buffer, sizeof(buffer), "[%d]\tSCHEDULE\t%d\t%d\t%s\n", tick_counter, pid, queue_num, process_name);
@@ -11,6 +13,9 @@ void log_scheduling_event(int pid, int queue_num, char* process_name) {
     }
 }
 
+/**
+ * @brief Logs non-nice, non-scheduling events since they have same format
+ */
 void log_generic_event(char event_type, int pid, int nice_value, char* process_name) {
     char* operation;
 
@@ -54,6 +59,9 @@ void log_generic_event(char event_type, int pid, int nice_value, char* process_n
     }
 }
 
+/**
+ * @brief Logs a nice-related event
+ */
 void log_nice_event(int pid, int old_nice_value, int new_nice_value, char* process_name) {
     char buffer[200];
     int str_len = snprintf(buffer, sizeof(buffer), "[%d]\tNICE\t%d\t%d\t%d\t%s\n", tick_counter, pid, old_nice_value, new_nice_value, process_name);

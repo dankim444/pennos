@@ -26,12 +26,18 @@
 //        independently scheduled PennOS processes.                           //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief The standard 'cat' program built-in
+ */
 void* u_cat(void* arg) {
   cat(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief The standard 'sleep' program built-in
+ */
 void* u_sleep(void* arg) {
   char* endptr;
   errno = 0;
@@ -51,6 +57,9 @@ void* u_sleep(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Built-in that hangs indefinitely
+ */
 void* u_busy(void* arg) {
   while (1)
     ;
@@ -58,54 +67,87 @@ void* u_busy(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Standard 'echo' program built-in that 
+ *        reads a string and echos it backs
+ */
 void* u_echo(void* arg) {
   s_echo(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'ls' program built-in that lists 
+ *        files in working directory
+ */
 void* u_ls(void* arg) {
   ls(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'chmod' progrom built-in that changes 
+ *        the permissions of a given file
+ */
 void* u_chmod(void* arg) {
   chmod(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'touch' program built-in that creates 
+ *        empty files or updates timestamps
+ */
 void* u_touch(void* arg) {
   touch(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'mv' program built-in that renames files
+ */
 void* u_mv(void* arg) {
   mv(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'cp' program built-in that copies files
+ */
 void* u_cp(void* arg) {
   cp(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'rm' program built-in that removes files
+ */
 void* u_rm(void* arg) {
   rm(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'ps' program built-in that lists processes
+ *        in PennOS
+ */
 void* u_ps(void* arg) {
   s_ps(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'kill' program built-in that sends the 
+ *        specified signal to a process
+ */
 void* u_kill(void* arg) {
   char** argv = (char**)arg;
   int sig = 2;          // Default signal: term (2)
@@ -196,6 +238,10 @@ void* (*get_associated_ufunc(char* func))(void*) {
   return NULL;  // no matches case
 }
 
+/**
+ * @brief Spawns a new process for the given command and
+ *        sets it priority to the given priority
+ */
 void* u_nice(void* arg) {
   char* endptr;
   errno = 0;
@@ -220,6 +266,9 @@ void* u_nice(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Adjusts priority level of an existing process
+ */
 void* u_nice_pid(void* arg) {
   char* endptr;
   errno = 0;
@@ -235,6 +284,9 @@ void* u_nice_pid(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Lists all available commands in PennOS in terminal
+ */
 void* u_man(void* arg) {
   const char* man_string =
       "cat f1 f2 ...        : concatenates provided files (if none, reads from "
@@ -275,21 +327,35 @@ void* u_man(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Resumes the most recently stopped background jobs or
+ *        a specified one
+ */
 void* u_bg(void* arg) {
   // TODO --> implement bg
   return NULL;
 }
 
+/**
+ * @brief Brings the most recently stopped or background job 
+ *        to the foreground or a specified one
+ */
 void* u_fg(void* arg) {
   // TODO --> implement fg
   return NULL;
 }
 
+/**
+ * @brief Lists all jobs
+ */
 void* u_jobs(void* arg) {
   // TODO --> implement jobs
   return NULL;
 }
 
+/**
+ * @brief Exits the shell and shuts down PennOS
+ */
 void* u_logout(void* arg) {
   s_shutdown_pennos();
   return NULL;
@@ -307,6 +373,10 @@ void* zombie_child(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Built-in that tests zombifying functionality of the 
+ *        kernel 
+ */
 void* u_zombify(void* arg) {
   char* zombie_child_argv[] = {"zombie_child", NULL};
   s_spawn(zombie_child, zombie_child_argv, STDIN_FILENO, STDOUT_FILENO);
@@ -324,6 +394,10 @@ void* orphan_child(void* arg) {
   s_exit();
 }
 
+/**
+ * @brief Built-in that tests orphanifying functionality of the 
+ *        kernel 
+ */
 void* u_orphanify(void* arg) {
   char* orphan_child_argv[] = {"orphan_child", NULL};
   s_spawn(orphan_child, orphan_child_argv, STDIN_FILENO, STDOUT_FILENO);
