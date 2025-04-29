@@ -38,7 +38,7 @@ fd_entry_t fd_table[100];
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Initializes the global kernel-level file descriptor table.
+ * @brief Initializes the global kernel-level file descriptor table.
  */
 void init_fd_table(fd_entry_t* fd_table) {
   // STDIN (fd 0)
@@ -72,7 +72,7 @@ void init_fd_table(fd_entry_t* fd_table) {
 }
 
 /**
- * Gets a free file descriptor
+ * @brief Gets a free file descriptor
  */
 int get_free_fd(fd_entry_t* fd_table) {
   for (int i = 3; i < MAX_FDS; i++) {
@@ -84,7 +84,7 @@ int get_free_fd(fd_entry_t* fd_table) {
 }
 
 /**
- * Increments the reference count of a file descriptor
+ * @brief Increments the reference count of a file descriptor
  */
 int increment_fd_ref_count(int fd) {
   if (fd < 0 || fd >= MAX_FDS) {
@@ -100,7 +100,8 @@ int increment_fd_ref_count(int fd) {
 }
 
 /**
- * Decrements the reference count of a file descriptor.
+ * @brief Decrements the reference count of a file descriptor.
+ * 
  * If reference count reaches 0, flush field values.
  */
 int decrement_fd_ref_count(int fd) {
@@ -127,7 +128,7 @@ int decrement_fd_ref_count(int fd) {
 }
 
 /**
- * Checks if a file has executable permissions
+ * @brief Checks if a file has executable permissions
  */
 int has_executable_permission(int fd) {
   // check if fs is mounted
@@ -159,7 +160,8 @@ int has_executable_permission(int fd) {
 }
 
 /**
- * Allocates a block.
+ * @brief Allocates a block.
+ *
  * If no block found, we try compacting the directory.
  */
 uint16_t allocate_block() {
@@ -183,7 +185,8 @@ uint16_t allocate_block() {
 }
 
 /**
- * Searches for a file in the root directory.
+ * @brief Searches for a file in the root directory.
+ *
  * Retrieves the file's absolute offset in the filesystem.
  */
 int find_file(const char* filename, dir_entry_t* entry) {
@@ -258,7 +261,7 @@ int find_file(const char* filename, dir_entry_t* entry) {
 }
 
 /**
- * Adds a file to the root directory
+ * @brief Adds a file to the root directory
  */
 int add_file_entry(const char* filename,
                    uint32_t size,
@@ -388,7 +391,7 @@ int add_file_entry(const char* filename,
 }
 
 /**
- * Marks a file entry as deleted and frees its blocks.
+ * @brief Marks a file entry as deleted and frees its blocks.
  */
 int mark_entry_as_deleted(dir_entry_t* entry, int absolute_offset) {
   if (!is_mounted || entry == NULL || absolute_offset < 0) {
@@ -426,7 +429,7 @@ int mark_entry_as_deleted(dir_entry_t* entry, int absolute_offset) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Copies data from host OS file to the PennFAT file.
+ * @brief Copies data from host OS file to the PennFAT file.
  */
 int copy_host_to_pennfat(const char* host_filename,
                          const char* pennfat_filename) {
@@ -514,7 +517,7 @@ int copy_host_to_pennfat(const char* host_filename,
 }
 
 /**
- * Copies data from PennFAT file to host OS file.
+ * @brief Copies data from PennFAT file to host OS file.
  */
 int copy_pennfat_to_host(const char* pennfat_filename,
                          const char* host_filename) {
@@ -600,7 +603,7 @@ int copy_pennfat_to_host(const char* pennfat_filename,
 }
 
 /**
- * Copies data from source file to destination file.
+ * @brief Copies data from source file to destination file.
  */
 int copy_source_to_dest(const char* source_filename,
                         const char* dest_filename) {
@@ -684,7 +687,7 @@ int copy_source_to_dest(const char* source_filename,
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Compacts a directory.
+ * @brief Compacts a directory.
  */
 int compact_directory() {
   if (!is_mounted) {

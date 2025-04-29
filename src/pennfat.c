@@ -121,15 +121,12 @@ int main(int argc, char *argv[]) {
             cat(args);
         } else if (strcmp(args[0], "chmod") == 0) {
             chmod(args);
-        } 
-        else if (strcmp(args[0], "mv") == 0) {
+        }  else if (strcmp(args[0], "mv") == 0) {
             mv(args);
         } else if (strcmp(args[0], "rm") == 0) {
             rm(args);
         } else if (strcmp(args[0], "cp") == 0) {
             cp(args);
-        } else if (strcmp(args[0], "chmod") == 0) {
-            chmod(args);
         } else if (strcmp(args[0], "cmpctdir") == 0) { // extra credit
             cmpctdir(args);
         } else {

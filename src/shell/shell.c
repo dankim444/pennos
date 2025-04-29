@@ -80,13 +80,21 @@ void setup_terminal_signal_handlers(void) {
   sa_int.sa_handler = shell_sigint_handler;
   sigemptyset(&sa_int.sa_mask);
   sa_int.sa_flags = SA_RESTART;
-  sigaction(SIGINT, &sa_int, NULL);
+  if (sigaction(SIGINT, &sa_int, NULL) == -1) {
+    P_ERRNO = P_ESIGNAL;
+    u_perror("sigaction");
+    exit(EXIT_FAILURE);
+  }
 
   struct sigaction sa_stp = {0};
   sa_stp.sa_handler = shell_sigstp_handler;
   sigemptyset(&sa_stp.sa_mask);
   sa_stp.sa_flags = SA_RESTART;
-  sigaction(SIGTSTP, &sa_stp, NULL);
+  if (sigaction(SIGTSTP, &sa_stp, NULL) == -1) {
+    P_ERRNO = P_ESIGNAL;
+    u_perror("sigaction");
+    exit(EXIT_FAILURE);
+  }
 }
 
 

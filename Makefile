@@ -4,7 +4,7 @@ LOG_DIR = log
 DOC_DIR = doc
 TESTS_DIR = tests
 
-.PHONY: all tests info format clean
+.PHONY: all tests info format clean docs
 
 CC = clang-15
 CXX = clang++-15
@@ -66,3 +66,7 @@ format:
 
 clean:
 	rm $(OBJS) $(EXECS) $(TEST_EXECS)
+
+docs:
+	doxygen doxygen
+	$(MAKE) -C $(DOC_DIR)/doxygen/latex

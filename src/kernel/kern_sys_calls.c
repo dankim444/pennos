@@ -35,7 +35,7 @@ pid_t current_fg_pid = 2; // terminal controller
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Determines the index of a PCB in a given queue. 
+ * @brief Determines the index of a PCB in a given queue. 
  */
 int determine_index_in_queue(Vec* queue, int pid) {
   for (int i = 0; i < vec_len(queue); i++) {
@@ -49,7 +49,7 @@ int determine_index_in_queue(Vec* queue, int pid) {
 }
 
 /**
- * Moves a PCB from its previous priority queue to its new priority queue.
+ * @brief Moves a PCB from its previous priority queue to its new priority queue.
  */
 void move_pcb_correct_queue(int prev_priority,
                             int new_priority,
@@ -83,7 +83,7 @@ void move_pcb_correct_queue(int prev_priority,
 }
 
 /**
- * Deletes a PCB from the specified queue based on its PID.
+ * @brief Deletes a PCB from the specified queue based on its PID.
  */
 void delete_from_queue(int queue_id, int pid) {
   Vec* queue = NULL;
@@ -102,7 +102,7 @@ void delete_from_queue(int queue_id, int pid) {
 }
 
 /**
- * Deletes a PCB from the specified explicit queue based on its PID.
+ * @brief Deletes a PCB from the specified explicit queue based on its PID.
  */
 void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
   int index = determine_index_in_queue(queue_to_delete_from, pid);
@@ -112,7 +112,7 @@ void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
 }
 
 /**
- * The function that runs the shell process.
+ * @brief The function that runs the shell process.
  */
 void* init_func(void* input) {
   char* shell_argv[] = {"shell", NULL};
@@ -132,7 +132,7 @@ void* init_func(void* input) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Creates the init process and spawns the shell process.
+ * @brief Creates the init process and spawns the shell process.
  */
 pid_t s_spawn_init() {
   pcb_t* init = k_proc_create(NULL, 0);
@@ -152,14 +152,14 @@ pid_t s_spawn_init() {
 }
 
 /**
- * Cleans up Init's resources.
+ * @brief Cleans up Init's resources.
  */
 void s_cleanup_init_process() {
   k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1));
 }
 
 /**
- * Spawns a child process with the given function and arguments.
+ * @brief Spawns a child process with the given function and arguments.
  */
 pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   pcb_t* child;
@@ -193,7 +193,7 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
 }
 
 /**
- * Waits for a child of the calling process.
+ * @brief Waits for a child of the calling process.
  */
 pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
   pcb_t* parent = current_running_pcb;
@@ -274,7 +274,7 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
 }
 
 /**
- * Sends a signal to a process with specified pid.
+ * @brief Sends a signal to a process with specified pid.
  */
 int s_kill(pid_t pid, int signal) {
   pcb_t* pcb_with_pid = get_pcb_in_queue(&current_pcbs, pid);
@@ -288,7 +288,7 @@ int s_kill(pid_t pid, int signal) {
 }
 
 /**
- * Exits the current process and cleans up its resources.
+ * @brief Exits the current process and cleans up its resources.
  */
 void s_exit(void) {
   // Set process state to zombie
@@ -308,7 +308,7 @@ void s_exit(void) {
 }
 
 /**
- * Sets the priority of a process with specified pid.
+ * @brief Sets the priority of a process with specified pid.
  */
 int s_nice(pid_t pid, int priority) {
   if (priority < 0 || priority > 2) {  // error check
@@ -327,7 +327,7 @@ int s_nice(pid_t pid, int priority) {
 }
 
 /**
- * Suspends the current process for a specified number of ticks.
+ * @brief Suspends the current process for a specified number of ticks.
  */
 void s_sleep(unsigned int ticks) {
   if (ticks <= 0) { 
@@ -353,7 +353,7 @@ void s_sleep(unsigned int ticks) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * System-level wrapper for the shell built-in command "echo".
+ * @brief System-level wrapper for the shell built-in command "echo".
  */
 void* s_echo(void* arg) {
   char** argv = (char**)arg;
@@ -380,7 +380,7 @@ void* s_echo(void* arg) {
 }
 
 /**
- * System-level wrapper for the shell built-in command "ps".
+ * @brief System-level wrapper for the shell built-in command "ps".
  */
 void* s_ps(void* arg) {
   char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";

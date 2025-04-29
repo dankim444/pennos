@@ -8,7 +8,8 @@
 #include "../lib/pennos-errno.h"
 
 /**
- * System call to open a file.
+ * @brief System call to open a file.
+ * 
  * This is a wrapper around the kernel function k_open.
  */
 int s_open(const char *fname, int mode) {
@@ -16,7 +17,8 @@ int s_open(const char *fname, int mode) {
 }
 
 /**
- * System call to read from a file.
+ * @brief System call to read from a file.
+ * 
  * This is a wrapper around the kernel function k_read.
  */
 int s_read(int fd, char *buf, int n) {
@@ -24,7 +26,8 @@ int s_read(int fd, char *buf, int n) {
 }
 
 /**
- * System call to write to a file.
+ * @brief System call to write to a file.
+ * 
  * This is a wrapper around the kernel function k_write.
  */
 int s_write(int fd, const char *str, int n) {
@@ -32,7 +35,8 @@ int s_write(int fd, const char *str, int n) {
 }
 
 /**
- * System call to close a file.
+ * @brief System call to close a file.
+ * 
  * This is a wrapper around the kernel function k_close.
  */
 int s_close(int fd) {
@@ -40,7 +44,8 @@ int s_close(int fd) {
 }
 
 /**
- * System call to remove a file.
+ * @brief System call to remove a file.
+ * 
  * This is a wrapper around the kernel function k_unlink.
  */
 int s_unlink(const char *fname) {
@@ -48,7 +53,8 @@ int s_unlink(const char *fname) {
 }
 
 /**
- * System call to reposition the file offset.
+ * @brief System call to reposition the file offset.
+ * 
  * This is a wrapper around the kernel function k_lseek.
  */
 int s_lseek(int fd, int offset, int whence) {
@@ -56,7 +62,8 @@ int s_lseek(int fd, int offset, int whence) {
 }
 
 /**
- * System call to list files.
+ * @brief System call to list files.
+ * 
  * This is a wrapper around the kernel function k_ls.
  */
 int s_ls(const char *filename) {

@@ -28,7 +28,7 @@ extern pcb_t* current_running_pcb;
 extern pid_t current_fg_pid;
 
 /**
- * Kernel-level call to open a file.
+ * @brief Kernel-level call to open a file.
  */
 int k_open(const char* fname, int mode) {
   // validate arguments
@@ -161,7 +161,7 @@ int k_open(const char* fname, int mode) {
 }
 
 /**
- * Kernel-level call to read a file.
+ * @brief Kernel-level call to read a file.
  */
 int k_read(int fd, char *buf, int n) {
     // handle terminal control (if doesn't control, send a STOP signal)
@@ -276,7 +276,7 @@ int k_read(int fd, char *buf, int n) {
 }
 
 /**
- * Kernel-level call to write to a file.
+ * @brief Kernel-level call to write to a file.
  */
 int k_write(int fd, const char* str, int n) {
   // handle standard output and error
@@ -523,9 +523,10 @@ int k_write(int fd, const char* str, int n) {
 }
 
 /**
- * Kernel-level call to close a file.
+ * @brief Kernel-level call to close a file.
  */
 int k_close(int fd) {
+  // TODO: make sure to delete this later
   /*if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
       P_ERRNO = P_EINVAL;
       return -1;
@@ -548,6 +549,7 @@ int k_close(int fd) {
       entry.size = fd_table[fd].size;
       entry.mtime = time(NULL);
 
+      // TODO: error check lseek, then error check write
       if (lseek(fs_fd, file_offset, SEEK_SET) != -1) {
         write(fs_fd, &entry, sizeof(entry));
       }
@@ -561,7 +563,7 @@ int k_close(int fd) {
 }
 
 /**
- * Kernel-level call to remove a file.
+ * @brief Kernel-level call to remove a file.
  */
 int k_unlink(const char* fname) {
   if (fname == NULL || *fname == '\0') {
@@ -617,7 +619,7 @@ int k_unlink(const char* fname) {
 }
 
 /**
- * Kernel-level call to re-position a file offset.
+ * @brief Kernel-level call to re-position a file offset.
  */
 int k_lseek(int fd, int offset, int whence) {
   // standard file descriptors don't support lseek
@@ -662,29 +664,8 @@ int k_lseek(int fd, int offset, int whence) {
   return new_position;
 }
 
-// helper function to format file information into a string
-void format_file_info(dir_entry_t* entry, char* buffer) {
-  // convert permissions to string
-  char perms[4] = "---";
-  if (entry->perm & PERM_READ)
-    perms[0] = 'r';
-  if (entry->perm & PERM_WRITE)
-    perms[1] = 'w';
-  if (entry->perm & PERM_READ_EXEC & ~PERM_READ)
-    perms[2] = 'x';
-
-  // convert time to string
-  char time_str[20];
-  struct tm* tm = localtime(&entry->mtime);
-  strftime(time_str, sizeof(time_str), "%b %d %H:%M", tm);
-
-  // format the output string
-  snprintf(buffer, 256, "%4d %s %6d %s %s\n", entry->firstBlock, perms,
-           entry->size, time_str, entry->name);
-}
-
 /**
- * Kernel-level call to list files.
+ * @brief Kernel-level call to list files.
  */
 int k_ls(const char* filename) {
   if (!is_mounted) {
@@ -694,67 +675,136 @@ int k_ls(const char* filename) {
 
   // start with root directory block
   uint16_t current_block = 1;
-  dir_entry_t entry;
-  uint32_t offset_in_block = 0;
+  dir_entry_t dir_entry;
+  uint32_t offset = 0;
 
   // if filename is null, list all files in the current directory
   if (filename == NULL) {
-    while (current_block != FAT_EOF) {
-      // calculate absolute offset in filesystem
-      off_t abs_offset =
-          fat_size + (current_block - 1) * block_size + offset_in_block;
-
-      // read directory entry
-      if (lseek(fs_fd, abs_offset, SEEK_SET) == -1) {
+    while (1) {
+      // adjust pointer to beginning of current block
+      if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
         P_ERRNO = P_ELSEEK;
         return -1;
       }
-      if (read(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
-        P_ERRNO = P_EREAD;
-        return -1;
+
+      offset = 0;
+
+      // search current block
+      while (offset < block_size) {
+        if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
+          P_ERRNO = P_EREAD;
+          return -1;
+        }
+
+        // check if we've reached the end of directory
+        if (dir_entry.name[0] == 0) {
+          break;
+        }
+
+        // skip deleted entries
+        if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
+          offset += sizeof(dir_entry);
+          continue;
+        }
+
+        // format permission string
+        char perm_str[4] = "---";
+        if (dir_entry.perm & PERM_READ)
+          perm_str[0] = 'r';
+        if (dir_entry.perm & PERM_WRITE)
+          perm_str[1] = 'w';
+        if (dir_entry.perm & PERM_EXEC)
+          perm_str[2] = 'x';
+
+        // format time
+        struct tm* tm_info = localtime(&dir_entry.mtime);
+        char time_str[50];
+        strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);
+
+        // print entry details
+        char buffer[128];
+        int len;
+        if (dir_entry.firstBlock == 0) {
+          len = snprintf(buffer, sizeof(buffer), "   -%s- %6d %s %s\n", 
+                  perm_str, dir_entry.size, time_str, dir_entry.name);
+        } else {
+          len = snprintf(buffer, sizeof(buffer), "%2d -%s- %6d %s %s\n", 
+                  dir_entry.firstBlock, perm_str, dir_entry.size, time_str, dir_entry.name);
+        }
+
+        if (len < 0 || len >= (int)sizeof(buffer)) {
+          P_ERRNO = P_EUNKNOWN;
+          return -1;
+        }
+
+        if (k_write(STDOUT_FILENO, buffer, len) != len) {
+          P_ERRNO = P_EWRITE;
+          return -1;
+        }
+
+        offset += sizeof(dir_entry);
       }
 
-      // check for end of directory
-      if (entry.name[0] == 0)
-        break;
-
-      // skip deleted entries
-      if (entry.name[0] == 1 || entry.name[0] == 2) {
-        offset_in_block += sizeof(entry);
-        // check if we need to move to next block
-        if (offset_in_block + sizeof(entry) > block_size) {
-          current_block = fat[current_block];
-          offset_in_block = 0;
-        }
+      // move to the next block if there is one
+      if (fat[current_block] != FAT_EOF) {
+        current_block = fat[current_block];
         continue;
       }
 
-      // format and write entry information
-      char output_buffer[256];
-      format_file_info(&entry, output_buffer);
-      if (k_write(STDOUT_FILENO, output_buffer, strlen(output_buffer)) < 0) {
-        return -1;
-      }
-
-      // move to next entry
-      offset_in_block += sizeof(entry);
-      // check if we need to move to next block
-      if (offset_in_block + sizeof(entry) > block_size) {
-        current_block = fat[current_block];
-        offset_in_block = 0;
-      }
+      // no more blocks to search
+      break;
     }
   } else {
     // find and display specific file
-    int file_offset = find_file(filename, &entry);
+    int file_offset = find_file(filename, &dir_entry);
     if (file_offset < 0) {
       P_ERRNO = P_ENOENT;
       return -1;
     }
 
-    char output_buffer[256];
-    format_file_info(&entry, output_buffer);
-    if (k_write(STDOUT_FILENO, output_buffer, strlen(output_buffer)) < 0) {
+    if (dir_entry.name[0] == 0) {
+      P_ERRNO = P_ENOENT;
+      return -1;
+    }
+
+    // skip deleted entries
+    if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
+      P_ERRNO = P_ENOENT;
+      return -1;
+    }
+
+    // format permission string
+    char perm_str[4] = "---";
+    if (dir_entry.perm & PERM_READ)
+      perm_str[0] = 'r';
+    if (dir_entry.perm & PERM_WRITE)
+      perm_str[1] = 'w';
+    if (dir_entry.perm & PERM_EXEC)
+      perm_str[2] = 'x';
+
+    // format time
+    struct tm* tm_info = localtime(&dir_entry.mtime);
+    char time_str[50];
+    strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);
+
+    // print entry details
+    char buffer[128];
+    int len;
+    if (dir_entry.firstBlock == 0) {
+      len = snprintf(buffer, sizeof(buffer), "   -%s- %6d %s %s\n", 
+              perm_str, dir_entry.size, time_str, dir_entry.name);
+    } else {
+      len = snprintf(buffer, sizeof(buffer), "%2d -%s- %6d %s %s\n", 
+              dir_entry.firstBlock, perm_str, dir_entry.size, time_str, dir_entry.name);
+    }
+
+    if (len < 0 || len >= (int)sizeof(buffer)) {
+      P_ERRNO = P_EUNKNOWN;
+      return -1;
+    }
+
+    if (k_write(STDOUT_FILENO, buffer, len) != len) {
+      P_ERRNO = P_EWRITE;
       return -1;
     }
   }

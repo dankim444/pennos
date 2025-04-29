@@ -40,7 +40,9 @@
 //                             FAT STRUCTURES                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// directory entry structure (64 bytes)
+/**
+ * @brief Directory entry structure for files in the filesystem.
+ */
 typedef struct {
     char name[32]; 
     uint32_t size;
@@ -51,15 +53,17 @@ typedef struct {
     char reserved[16]; // TODO: EXTRA CREDIT
 } dir_entry_t;
 
-// file descriptor structure
+/**
+ * @brief File descriptor entry structure for open files.
+ */
 typedef struct {
-    int in_use; // 1 for in use, 0 for not in use
-    int ref_count; // reference count for the file descriptor
-    char filename[32]; // name of the file
-    uint32_t size; // size of the file (in bytes)
-    uint16_t first_block; // first block of the file
-    uint32_t position; // current file position
-    uint8_t mode; // open mode (read, write, append)
+    int in_use;              // 1 for in use, 0 for not in use
+    int ref_count;          // reference count for the file descriptor
+    char filename[32];      // name of the file
+    uint32_t size;          // size of the file (in bytes)
+    uint16_t first_block;   // first block of the file
+    uint32_t position;      // current file position
+    uint8_t mode;           // open mode (read, write, append)
 } fd_entry_t;
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -44,8 +44,8 @@ int k_open(const char* fname, int mode);
  * bytes read.
  *
  * @param fd File descriptor of the open file.
- * @param n  Maximum number of bytes to read.
  * @param buf Buffer to store the read data.
+ * @param n  Maximum number of bytes to read.
  *
  * @return The number of bytes read on success, -1 on error with P_ERRNO set.
  *         Possible error codes:
