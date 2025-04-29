@@ -1,3 +1,8 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystof Purtell and Richard Zhang
+ * Purpose: Defines the shell built-ins and their functionality
+ */
+
 #ifndef SHELL_BUILT_INS_H_
 #define SHELL_BUILT_INS_H_
 

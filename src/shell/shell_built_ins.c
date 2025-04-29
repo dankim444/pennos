@@ -1,3 +1,8 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystof Purtell and Richard Zhang
+ * Purpose: Implements the shell built-ins
+ */
+
 #include "shell_built_ins.h"
 
 #include <stdbool.h>
@@ -6,16 +11,14 @@
 #include <sys/types.h>
 #include "../fs/fat_routines.h"
 #include "../fs/fs_syscalls.h"
-#include "../kernel/kern_pcb.h"  // TODO --> this is a little dangerous,
 #include "../kernel/kern_sys_calls.h"
-#include "../kernel/scheduler.h"  // TODO --> make sure this is allowed, otw make wrapper
-#include "../lib/Vec.h"           // make sure not to use k funcs
+#include "../kernel/scheduler.h"  // just for s_shutdown_pennos
+#include "../lib/Vec.h"          
 #include "../lib/spthread.h"
 
 #include <errno.h>   // For errno for strtol
-#include <stdio.h>   // I think this is okay? Using snprintf
+#include <stdio.h>   // Using snprintf
 #include <stdlib.h>  // For strtol
-#include <unistd.h>  // probably delete once done
 
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
@@ -203,9 +206,7 @@ void* u_nice(void* arg) {
     return NULL;  // no matches, don't spawn
   }
 
-  pid_t new_proc_pid = s_spawn(ufunc, &((char**)arg)[2], 0,
-                               1);  // TODO --> check these fds THESE ARE WRONG
-                                    // FIX, should allowed redirection
+  pid_t new_proc_pid = s_spawn(ufunc, &((char**)arg)[2], 0, 1); 
 
   if (new_proc_pid != -1) {  // non-error case
     s_nice(new_proc_pid, new_priority);

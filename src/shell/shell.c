@@ -1,3 +1,9 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystof Purtell and Richard Zhang
+ * Purpose: Implements a shell that can run built-in commands and scripts.
+ */
+
+
 #include <string.h>
 #include "../fs/fat_routines.h"
 #include "../fs/fs_syscalls.h"
@@ -14,8 +20,7 @@
 #include "Job.h"
 #include "signal.h"
 #include "lib/pennos-errno.h"
-
-#include "stdio.h"  // TODO: delete this once finished
+#include "stdio.h"  
 
 #ifndef PROMPT
 #define PROMPT "$ "
@@ -51,7 +56,7 @@ void shell_sigint_handler(int sig) {
     s_kill(current_fg_pid, 2);  // P_SIGTERM
   }
 
-  s_write(STDOUT_FILENO, "\n", 1); // TODO --> integrate with FS calls
+  s_write(STDOUT_FILENO, "\n", 1); 
 }
 
 // Signal handler for (Ctrl-Z)
@@ -98,7 +103,12 @@ void free_job_ptr(void* ptr) {
 //////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * TODO
+ * @brief Helper function that fills a buffer with characters read from a given
+ *        file descriptor until the buffer is full (rare and impractical case), 
+ *        a newline is encountered, or EOF is reached.
+ * 
+ * @param fd      the file descriptor to read from, assumed to be open
+ * @param buffer  the buffer to fill with characters
  */
 void fill_buffer_until_full_or_newline(int fd, char* buffer) {
   int i = 0;
@@ -115,7 +125,13 @@ void fill_buffer_until_full_or_newline(int fd, char* buffer) {
 }
 
 /**
- * TODO
+ * @brief Helper function that will execute a given command so long as it's
+ *        one of the built-ins. Notably, its output and input are determined 
+ *        by the spawning script process.
+ * 
+ * @param cmd the parsed command to try executing
+ * @return    the pid of the process if one was spawned, 0 if a routine was run
+ *            or -1 if not matches found
  */
 pid_t u_execute_command(struct parsed_command* cmd) {
 
@@ -184,11 +200,17 @@ pid_t u_execute_command(struct parsed_command* cmd) {
     return -1; // no matches, no scripts now
   }
 
-  return 0; // built-in case
+  return 0;
 }
 
 
-
+/**
+ * @brief Helper function that reads a script file line by line, parses each
+ *        line as a command, and executes it.
+ * 
+ * @param arg standard {function name, NULL} args
+ * @return    NULL
+ */
 void* u_read_and_execute_script(void* arg) {
   // read the script line by line, parse each line, and execute the command
   while (true) {
@@ -212,6 +234,8 @@ void* u_read_and_execute_script(void* arg) {
     if (child_pid > 0) { // if process was spawned, wait for it to finish 
       int status;
       s_waitpid(child_pid, &status, false);
+    } else if (child_pid < 0) { // nothing spawning so safe to free cmd
+      free(cmd);
     }
   }
 
@@ -320,7 +344,6 @@ pid_t execute_command(struct parsed_command* cmd) {
   if (script_fd_open < 0) { // if not a file, just move on
     return -1;
   }
-  increment_fd_ref_count(script_fd_open); // TODO check this
   if (has_executable_permission(script_fd_open) != 1) {
     s_close(script_fd_open);
     return -1;
@@ -401,7 +424,6 @@ void* shell(void*) {
 
     child_pid = execute_command(cmd);
     if (child_pid < 0) {
-      // TODO --> handle error via some valid print
       free(cmd);
       continue;
     } else if (child_pid == 0) {
@@ -445,8 +467,6 @@ void* shell(void*) {
       int status;
       s_waitpid(child_pid, &status, false);
       current_fg_pid = 2;
-      // Free cmd memory for foreground commands.
-      //free(cmd); // TODO --> check if this is already freed, it may be
     }
   }
 
