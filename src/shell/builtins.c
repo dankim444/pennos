@@ -83,6 +83,9 @@ void u_perror(const char *msg) {
         case P_NEEDF:
             error_msg = "no file provided to mount";
             break;
+        case P_EREDIR:
+            error_msg = "input and output cannot be the same when appending";
+            break;
         default: 
             error_msg = "Unknown error"; 
             break;

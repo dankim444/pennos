@@ -27,6 +27,7 @@ extern int P_ERRNO; // Global errno variable that is set to different
 #define P_ECOMMAND 21 // Command not found
 #define P_NEEDF 22 // Error when no file provided to mount 
 #define P_INITFAIL 23 // Error when trying to spawn init process
+#define P_EREDIR 24 // Error when trying to redirect
 #define P_EUNKNOWN 99 // Catch-all unknown error
 
 #endif

@@ -8,6 +8,9 @@
 #include "../shell/builtins.h"
 #include "fs_helpers.h"
 #include "fs_kfuncs.h"
+#include "../kernel/kern_sys_calls.h"
+#include "../kernel/signal.h"
+#include "../shell/shell.h"
 
 #include <fcntl.h>
 #include <stdint.h>
@@ -18,6 +21,8 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+extern pcb_t* current_running_pcb;
 
 ////////////////////////////////////////////////////////////////////////////////
 //                           SPECIAL ROUTINES                                 //
@@ -218,6 +223,84 @@ void* cat(void* arg) {
 
   // early return if there is nothing after cat
   if (args[1] == NULL) {
+    // if none of the above conditions, then check if we need to redirect stdin
+    if (current_running_pcb) {
+      // open new stdin
+      int in_fd = current_running_pcb->input_fd;
+      int out_fd = current_running_pcb->output_fd;
+      char* file_1 = fd_table[in_fd].filename;
+      char* file_2 = fd_table[out_fd].filename;
+
+      // edge case when input and output have the same file name and we're appending
+      if ((strcmp(file_1, file_2) == 0) && is_append) {
+        P_ERRNO = P_EREDIR;
+        u_perror("cat");
+        return NULL;
+      }
+
+      // edge case when input and output files names are the same but we're not appending
+      // truncates the file
+      if ((strcmp(file_1, file_2) == 0)) {
+        return NULL;
+      }
+
+      // get the size of stdin file
+      off_t in_fd_size = k_lseek(in_fd, 0, SEEK_END);
+      if (in_fd_size == -1) {
+        k_close(in_fd);
+        u_perror("cat");
+        return NULL;
+      }
+      if (k_lseek(in_fd, 0, SEEK_SET) == -1) {
+        k_close(in_fd);
+        u_perror("cat");
+        return NULL;
+      }
+
+      char* buffer = (char*)malloc(block_size);
+      if (buffer == NULL) {
+        P_ERRNO = P_EMALLOC;
+        k_close(in_fd);
+        u_perror("cat");
+        return NULL;
+      }
+
+      int bytes_read;
+      ssize_t bytes_remaining = in_fd_size;
+
+      while (bytes_remaining > 0) {
+        ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+        bytes_read = k_read(in_fd, buffer, bytes_to_read);
+
+        if (bytes_read <= 0) {
+          break;
+        }
+
+        if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
+          free(buffer);
+          k_close(in_fd);
+          u_perror("cat");
+          break;
+        }
+
+        bytes_remaining -= bytes_read;
+      }
+
+      // read error
+      if (bytes_read < 0) {
+        free(buffer);
+        k_close(in_fd);
+        u_perror("cat");
+        return NULL;
+      }
+
+      k_close(in_fd);
+      if (out_fd != STDOUT_FILENO) {
+        k_close(out_fd);
+      }
+      free(buffer);
+      return NULL;
+    }
     P_ERRNO = P_EINVAL;
     u_perror("cat");
     return NULL;
@@ -251,7 +334,11 @@ void* cat(void* arg) {
 
   // if no output redirection found, use STDOUT
   if (out_fd < 0) {
-    out_fd = STDOUT_FILENO;
+    if (current_running_pcb) {
+      out_fd = current_running_pcb->output_fd;
+    } else {
+      out_fd = STDOUT_FILENO;
+    }
   }
 
   // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from stdin)

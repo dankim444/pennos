@@ -7,6 +7,8 @@
 #ifndef SHELL_H_
 #define SHELL_H_
 
+extern int is_append;
+
 /**
  * @brief The main shell function that runs the shell. This is run via 
  *        an s_spawn call from init's process. It prompts the user for 
