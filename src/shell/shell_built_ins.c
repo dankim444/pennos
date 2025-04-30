@@ -11,15 +11,25 @@
 #include <sys/types.h>
 #include "../fs/fat_routines.h"
 #include "../fs/fs_syscalls.h"
+#include "../kernel/kern_pcb.h"  // TODO --> this is a little dangerous,
 #include "../kernel/kern_sys_calls.h"
-#include "../kernel/scheduler.h"  // just for s_shutdown_pennos
-#include "../lib/Vec.h"
+#include "../kernel/scheduler.h"  // TODO --> make sure this is allowed, otw make wrapper
+#include "../kernel/signal.h"
+#include "../lib/Vec.h"  // make sure not to use k funcs
 #include "../lib/spthread.h"
 #include "builtins.h"
+#include "lib/pennos-errno.h"
 
 #include <errno.h>   // For errno for strtol
-#include <stdio.h>   // Using snprintf
+#include <stdio.h>   // I think this is okay? Using snprintf
 #include <stdlib.h>  // For strtol
+#include <unistd.h>  // probably delete once done
+
+#include "Job.h"
+
+// needed for job control
+extern Vec job_list;
+extern pid_t current_fg_pid;
 
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
@@ -321,10 +331,43 @@ void* u_man(void* arg) {
       "orphanify             : creates a child process that becomes an "
       "orphan\n";
 
-  if (s_write(STDOUT_FILENO, man_string, strlen(man_string)) == -1) {
-    u_perror("s_write error");
-  }
+  s_write(STDOUT_FILENO, man_string, strlen(man_string));
   return NULL;
+}
+
+/**
+ * @brief Helper function. Finds a job by its id or the current job.
+ */
+job* findJobByIdOrCurrent(const char* arg) {
+  if (vec_len(&job_list) == 0) {
+    return NULL;
+  }
+
+  if (arg != NULL) {
+    // parse numeric
+    char* endPtr = NULL;
+    long val = strtol(arg, &endPtr, 10);
+    if (*endPtr != '\0' || val < 1) {
+      return NULL;
+    }
+    for (size_t i = 0; i < vec_len(&job_list); i++) {
+      job* job_ptr = (job*)vec_get(&job_list, i);
+      if ((jid_t)val == job_ptr->id) {
+        return job_ptr;
+      }
+    }
+    return NULL;
+  }
+
+  // Look for most recently stopped job first
+  for (size_t i = vec_len(&job_list); i > 0; i--) {
+    job* job_ptr = (job*)vec_get(&job_list, i - 1);
+    if (job_ptr->state == STOPPED) {
+      return job_ptr;
+    }
+  }
+
+  return (job*)vec_get(&job_list, vec_len(&job_list) - 1);
 }
 
 /**
@@ -332,8 +375,44 @@ void* u_man(void* arg) {
  *        a specified one
  */
 void* u_bg(void* arg) {
-  // TODO --> implement bg
-  return NULL;
+  char buf[128];
+  char** argv = (char**)arg;
+  const char* jobArg = argv[1];  // NULL if no ID was given
+  job* job_ptr = findJobByIdOrCurrent(jobArg);
+  if (!job_ptr) {
+    snprintf(buf, sizeof(buf), "bg: no such job\n");
+    s_write(STDERR_FILENO, buf, strlen(buf));
+    return NULL;
+  }
+  if (job_ptr->state == STOPPED) {
+    job_ptr->state = RUNNING;
+    snprintf(buf, sizeof(buf), "Running: ");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "\n");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    // P_SIGCONT is 1
+    s_kill(job_ptr->pids[0], P_SIGCONT);
+    return NULL;
+  } else if (job_ptr->state == RUNNING) {
+    snprintf(buf, sizeof(buf), "bg: job [%lu] is already running\n",
+             (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    return NULL;
+  } else {
+    snprintf(buf, sizeof(buf), "bg: job [%lu] not stopped\n",
+             (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    return NULL;
+  }
 }
 
 /**
@@ -341,7 +420,88 @@ void* u_bg(void* arg) {
  *        to the foreground or a specified one
  */
 void* u_fg(void* arg) {
-  // TODO --> implement fg
+  char buf[128];
+  char** argv = (char**)arg;
+  const char* jobArg = argv[1];  // NULL if no ID was given
+  job* job_ptr = findJobByIdOrCurrent(jobArg);
+  if (!job_ptr) {
+    snprintf(buf, sizeof(buf), "fg: no such job\n");
+    s_write(STDERR_FILENO, buf, strlen(buf));
+    return NULL;
+  }
+
+  if (job_ptr->state == FINISHED) {
+    snprintf(buf, sizeof(buf), "fg: job [%lu] is already finished\n",
+             (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    return NULL;
+  }
+
+  if (job_ptr->state == STOPPED) {
+    job_ptr->state = RUNNING;
+    snprintf(buf, sizeof(buf), "Restarting: ");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "\n");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    // P_SIGCONT is 1
+    s_kill(job_ptr->pids[0], P_SIGCONT);
+  } else {
+    snprintf(buf, sizeof(buf), "Bringing to foreground: ");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "\n");
+  }
+
+  current_fg_pid = job_ptr->pids[0];
+
+  while (true) {
+    int status = 0;
+    pid_t wpid = s_waitpid(job_ptr->pgid, &status, false);
+    if (wpid < 0) {
+      if (P_ERRNO == P_EINTR) {
+        continue;
+      }
+      break;
+    }
+    if (P_WIFEXITED(status) || P_WIFSIGNALED(status)) {
+      job_ptr->state = FINISHED;
+      // Remove finished job from list
+      for (size_t i = 0; i < vec_len(&job_list); i++) {
+        if ((job*)vec_get(&job_list, i) == job_ptr) {
+          vec_erase(&job_list, i);
+          break;
+        }
+      }
+      break;
+    }
+    if (P_WIFSTOPPED(status)) {
+      job_ptr->state = STOPPED;
+      snprintf(buf, sizeof(buf), "Stopped: ");
+      s_write(STDOUT_FILENO, buf, strlen(buf));
+      print_parsed_command(job_ptr->cmd);
+      break;
+    }
+  }
+
+  // back to shell
+  current_fg_pid = 2;
   return NULL;
 }
 
@@ -349,7 +509,37 @@ void* u_fg(void* arg) {
  * @brief Lists all jobs
  */
 void* u_jobs(void* arg) {
-  // TODO --> implement jobs
+  char buf[128];
+  if (vec_is_empty(&job_list)) {
+    return NULL;
+  }
+
+  for (size_t idx = 0; idx < vec_len(&job_list); idx++) {
+    job* job_ptr = (job*)vec_get(&job_list, idx);
+
+    const char* state = "unknown";
+    if (job_ptr->state == RUNNING) {
+      state = "running";
+    } else if (job_ptr->state == STOPPED) {
+      state = "stopped";
+    } else if (job_ptr->state == FINISHED) {
+      state = "finished";
+    }
+
+    snprintf(buf, sizeof(buf), "[%lu] ", (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "(%s)\n", state);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+  }
   return NULL;
 }
 

@@ -245,11 +245,17 @@ void handle_signal(pcb_t* pcb, int signal) {
       break;
     case 1:                             // P_SIGCONT
       if (pcb->process_state == 'S') {  // Only continue if stopped
-        pcb->process_state = 'R';
+        if (pcb->is_sleeping) {
+          pcb->process_state = 'B';
+          delete_process_from_all_queues_except_current(pcb);
+          put_pcb_into_correct_queue(pcb);
+        } else {
+          pcb->process_state = 'R';
+          delete_process_from_all_queues_except_current(pcb);
+          put_pcb_into_correct_queue(pcb);
+        }
         log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
-        delete_process_from_all_queues_except_current(pcb);
-        put_pcb_into_correct_queue(pcb);
-        pcb->process_status = 23;  // Reset status
+        pcb->process_status = 23;  // CONT_BY_SIG
       }
       pcb->signals[1] = false;
       break;
@@ -334,7 +340,7 @@ void scheduler() {
       pcb_t* blocked_proc = vec_get(&sleep_blocked_queue, i);
       bool make_runnable = false;
       if (blocked_proc->is_sleeping &&
-          blocked_proc->time_to_wake == tick_counter) {
+          blocked_proc->time_to_wake <= tick_counter) {
         blocked_proc->is_sleeping = false;
         blocked_proc->time_to_wake = -1;
         blocked_proc->signals[2] = false;  // Unlikely, but reset signal

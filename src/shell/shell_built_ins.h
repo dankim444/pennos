@@ -6,22 +6,26 @@
 #ifndef SHELL_BUILT_INS_H_
 #define SHELL_BUILT_INS_H_
 
+#include "Job.h"
+
 ////////////////////////////////////////////////////////////////////////////////
-//        The following shell built-in routines should run as                 //
-//        independently scheduled PennOS processes.                           //
+//        The following shell built-in routines should run as //
+//        independently scheduled PennOS processes. //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief The usual `cat` program.
  *
  * If `files` arg is provided, concatenate these files and print to stdout
- * If `files` arg is *not* provided, read from stdin and print back to stdout
+ * If `files` arg is *not* provided, read from stdin and print back to
+ * stdout
  *
  * Example Usage: cat f1 f2 (concatenates f1 and f2 and print to stdout)
- * Example Usage: cat f1 f2 < f3 (concatenates f1 and f2 and prints to stdout,
- * ignores f3) Example Usage: cat < f3 (concatenates f3, prints to stdout)
+ * Example Usage: cat f1 f2 < f3 (concatenates f1 and f2 and prints to
+ * stdout, ignores f3) Example Usage: cat < f3 (concatenates f3, prints to
+ * stdout)
  */
-void* u_cat(void *arg);
+void* u_cat(void* arg);
 
 /**
  * @brief Sleep for `n` seconds.
@@ -55,7 +59,7 @@ void* u_echo(void* arg);
  * Example Usage: ls (regular credit)
  * Example Usage: ls ../../foo/./bar/sample (only for EC)
  */
-void* u_ls(void *arg);
+void* u_ls(void* arg);
 
 /**
  * @brief For each file, create an empty file if it doesn't exist, else update
@@ -63,7 +67,7 @@ void* u_ls(void *arg);
  *
  * Example Usage: touch f1 f2 f3 f4 f5
  */
-void* u_touch(void *arg);
+void* u_touch(void* arg);
 
 /**
  * @brief Rename a file. If the `dst_file` file already exists, overwrite it.
@@ -75,7 +79,7 @@ void* u_touch(void *arg);
  *
  * Example Usage: mv src_file dst_file
  */
-void* u_mv(void *arg);
+void* u_mv(void* arg);
 
 /**
  * Copy a file. If the `dst_file` file already exists, overwrite it.
@@ -87,7 +91,7 @@ void* u_mv(void *arg);
  *
  * Example Usage: cp src_file dst_file
  */
-void* u_cp(void *arg);
+void* u_cp(void* arg);
 
 /**
  * @brief Remove a list of files.
@@ -99,7 +103,7 @@ void* u_cp(void *arg);
  *
  * Example Usage: rm f1 f2 f3 f4 f5
  */
-void* u_rm(void *arg);
+void* u_rm(void* arg);
 
 /**
  * @brief Change permissions of a file.
@@ -163,6 +167,13 @@ void* u_nice_pid(void* arg);
  * Example Usage: man
  */
 void* u_man(void* arg);
+
+/**
+ * @brief Helper function. Finds a job by its id or the current job.
+ *
+ * Example Usage: findJobByIdOrCurrent(a string representing the job id)
+ */
+job* findJobByIdOrCurrent(const char* arg);
 
 /**
  * @brief Resumes the most recently stopped job in the background, or the job
