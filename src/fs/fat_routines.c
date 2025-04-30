@@ -695,7 +695,6 @@ void* cp(void* arg) {
 /**
  * @brief Removes files.
  */
-// TODO: use k_unlink??????
 void* rm(void* arg) {
   char** args = (char**)arg;
 

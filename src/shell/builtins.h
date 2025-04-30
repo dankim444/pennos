@@ -2,7 +2,7 @@
 #define USER_UTILS_H
 
 /**
- * Creates a user-level error message similar to perror.
+ * @brief Creates a user-level error message similar to perror.
  *
  * @param msg A string representing the error message from the shell.
  */

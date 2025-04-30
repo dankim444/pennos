@@ -524,12 +524,6 @@ int k_write(int fd, const char* str, int n) {
  * @brief Kernel-level call to close a file.
  */
 int k_close(int fd) {
-  // TODO: make sure to delete this later
-  /*if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
-      P_ERRNO = P_EINVAL;
-      return -1;
-  }*/
-
   // validate the file descriptor
   if (fd < 0 || fd >= MAX_FDS) {
     P_ERRNO = P_EBADF;
@@ -546,10 +540,14 @@ int k_close(int fd) {
     if (entry.size != fd_table[fd].size) {
       entry.size = fd_table[fd].size;
       entry.mtime = time(NULL);
-
-      // TODO: error check lseek, then error check write
-      if (lseek(fs_fd, file_offset, SEEK_SET) != -1) {
-        write(fs_fd, &entry, sizeof(entry));
+      
+      if (lseek(fs_fd, file_offset, SEEK_SET) == -1) {
+        P_ERRNO = P_ELSEEK;
+        return -1;
+      }
+      if (write(fs_fd, &entry, sizeof(entry)) != sizeof(entry)) {
+        P_ERRNO = P_EWRITE;
+        return -1;
       }
     }
   }
