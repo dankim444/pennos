@@ -1,3 +1,8 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystof Purtell and Richard Zhang
+ * Purpose: Defines the shell built-ins and their functionality
+ */
+
 #ifndef SHELL_BUILT_INS_H_
 #define SHELL_BUILT_INS_H_
 
@@ -7,7 +12,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief The ususal `cat` program.
+ * @brief The usual `cat` program.
  *
  * If `files` arg is provided, concatenate these files and print to stdout
  * If `files` arg is *not* provided, read from stdin and print back to stdout

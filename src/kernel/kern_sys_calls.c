@@ -1,7 +1,14 @@
+/* CS5480 PennOS Group 61
+ * Authors: Krystof Purtell and Richard Zhang
+ * Purpose: Implements the system-level process-related kernel functions.
+ */
+
 #include "kern_sys_calls.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../fs/fs_kfuncs.h"
+#include "../fs/fs_syscalls.h"
 #include "../lib/Vec.h"
 #include "../lib/pennos-errno.h"
 #include "../shell/builtins.h"
@@ -10,9 +17,6 @@
 #include "logger.h"
 #include "scheduler.h"
 #include "signal.h"
-#include "../fs/fs_syscalls.h"
-
-#include "stdio.h"  // TODO: delete this once finished
 
 extern Vec zero_priority_queue;  // lower index = more recent
 extern Vec one_priority_queue;
@@ -24,23 +28,14 @@ extern pcb_t* current_running_pcb;  // currently running process
 
 extern int tick_counter;
 
-pid_t current_fg_pid = 2; // terminal controller
-
-// TODO: Should we add these helper functions to the .h file?
+pid_t current_fg_pid = 2;  // terminal controller
 
 ////////////////////////////////////////////////////////////////////////////////
 //                         GENERAL HELPER FUNCTIONS                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Given a thread pid and Vec* queue, this helper function determines
- *        the vector index of the thread/pid in the queue. If the thread/pid
- *        is not found, it returns -1.
- *
- * @param queue pointer to the vector queue that may contain the thread/pid
- * @param pid   the thread's pid
- *
- * @return the index of the thread/pid in the queue, or -1 if not found
+ * @brief Determines the index of a PCB in a given queue.
  */
 int determine_index_in_queue(Vec* queue, int pid) {
   for (int i = 0; i < vec_len(queue); i++) {
@@ -54,15 +49,8 @@ int determine_index_in_queue(Vec* queue, int pid) {
 }
 
 /**
- * @brief Given a thread's previous priority, this helper checks if the
- *        thread is present in that priority's queue, removes it from that
- *        queue if so, and then puts it into the new priority level's queue.
- *
- * @param prev_priority thread's previous priority
- * @param new_priority  thread's new priority
- * @param curr_pcb     pointer to the thread's PCB
- *
- * @pre assumes the prev_priority and new_priority falls in integers [0, 2]
+ * @brief Moves a PCB from its previous priority queue to its new priority
+ * queue.
  */
 void move_pcb_correct_queue(int prev_priority,
                             int new_priority,
@@ -96,12 +84,7 @@ void move_pcb_correct_queue(int prev_priority,
 }
 
 /**
- * @brief Deletes the PCB with the specified PID from one of the priority
- * queues, selected by the provided queue_id (0, 1, or 2).
- *
- * @param queue_id An integer representing the queue: 0 for zero_priority_queue,
- *                 1 for one_priority_queue, or 2 for two_priority_queue.
- * @param pid The PID of the PCB to be removed.
+ * @brief Deletes a PCB from the specified queue based on its PID.
  */
 void delete_from_queue(int queue_id, int pid) {
   Vec* queue = NULL;
@@ -120,12 +103,7 @@ void delete_from_queue(int queue_id, int pid) {
 }
 
 /**
- * @brief Helper function that deletes the given PCB from the explicit queue
- *        passed in. Notably, it does not free the PCB but instead uses
- *       vec_erase_no_deletor to remove it from the queue.
- * 
- * @param queue_to_delete_from ptr to Vec* queue to delete from
- * @param pid                  the pid of the PCB to delete
+ * @brief Deletes a PCB from the specified explicit queue based on its PID.
  */
 void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
   int index = determine_index_in_queue(queue_to_delete_from, pid);
@@ -134,18 +112,9 @@ void delete_from_explicit_queue(Vec* queue_to_delete_from, int pid) {
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//        SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                       //
-////////////////////////////////////////////////////////////////////////////////
-
-
 /**
- * @brief The init process function. It spawns the shell process and 
- *        reaps zombie children.
- * 
- * @param input unused but needed for typing reasons
- * @return irrelvant return value because never supposed to return
- */ 
+ * @brief The function that runs the shell process.
+ */
 void* init_func(void* input) {
   char* shell_argv[] = {"shell", NULL};
   s_spawn(shell, shell_argv, STDIN_FILENO, STDOUT_FILENO);
@@ -159,11 +128,13 @@ void* init_func(void* input) {
   return NULL;  // should never reach
 }
 
-// TODO: I don't think this will clean up resources the right way
-void s_cleanup_init_process() {
-  k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1));
-}
+////////////////////////////////////////////////////////////////////////////////
+//             SYSTEM-LEVEl PROCESS-RELATED KERNEL FUNCTIONS                  //
+////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief Creates the init process and spawns the shell process.
+ */
 pid_t s_spawn_init() {
   pcb_t* init = k_proc_create(NULL, 0);
   if (init == NULL) {
@@ -181,11 +152,19 @@ pid_t s_spawn_init() {
   return init->pid;
 }
 
+/**
+ * @brief Cleans up Init's resources.
+ */
+void s_cleanup_init_process() {
+  k_proc_cleanup(get_pcb_in_queue(&current_pcbs, 1));
+}
 
-
+/**
+ * @brief Spawns a child process with the given function and arguments.
+ */
 pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   pcb_t* child;
-  if (strcmp(argv[0], "shell") == 0) { 
+  if (strcmp(argv[0], "shell") == 0) {
     child = k_proc_create(current_running_pcb, 0);
   } else {
     child = k_proc_create(current_running_pcb, 1);
@@ -211,9 +190,12 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
 
   log_generic_event('C', child->pid, child->priority, child->cmd_str);
 
-  return child->pid; 
+  return child->pid;
 }
 
+/**
+ * @brief Waits for a child of the calling process.
+ */
 pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
   pcb_t* parent = current_running_pcb;
   if (parent == NULL) {
@@ -270,8 +252,6 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
         vec_erase_no_deletor(&zombie_queue, i);
         delete_from_explicit_queue(&parent->child_pcbs, child->pid);
         k_proc_cleanup(child);
-        //parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
-        //log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
         return child->pid;
       }
     }
@@ -279,14 +259,14 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
     // scan children of current running process for non-terminated state changes
     for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
       pcb_t* child = vec_get(&parent->child_pcbs, i);
-      if ((pid == -1 || child->pid == pid) && (child->process_status == 21 || child->process_status == 23)) { // signaled --> TODO ensure 0 invariant maintained
+      if ((pid == -1 || child->pid == pid) &&
+          (child->process_status == 21 ||
+           child->process_status == 23)) {  // signaled
         if (wstatus != NULL) {
           *wstatus = child->process_status;
         }
         log_generic_event('W', child->pid, child->priority, child->cmd_str);
-        child->process_status = 0; // reset status
-        //parent->process_state = 'R'; // TODO --> see if these 2 lines added is correct
-        //log_generic_event('U', parent->pid, parent->priority, parent->cmd_str);
+        child->process_status = 0;  // reset status
         return child->pid;
       }
     }
@@ -296,6 +276,9 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
   return -1;
 }
 
+/**
+ * @brief Sends a signal to a process with specified pid.
+ */
 int s_kill(pid_t pid, int signal) {
   pcb_t* pcb_with_pid = get_pcb_in_queue(&current_pcbs, pid);
   if (pcb_with_pid == NULL) {
@@ -307,6 +290,9 @@ int s_kill(pid_t pid, int signal) {
   return 0;
 }
 
+/**
+ * @brief Exits the current process and cleans up its resources.
+ */
 void s_exit(void) {
   // Set process state to zombie
   current_running_pcb->process_state = 'Z';
@@ -324,6 +310,9 @@ void s_exit(void) {
                     current_running_pcb->cmd_str);
 }
 
+/**
+ * @brief Sets the priority of a process with specified pid.
+ */
 int s_nice(pid_t pid, int priority) {
   if (priority < 0 || priority > 2) {  // error check
     return -1;
@@ -340,8 +329,11 @@ int s_nice(pid_t pid, int priority) {
   return -1;  // pid not found
 }
 
+/**
+ * @brief Suspends the current process for a specified number of ticks.
+ */
 void s_sleep(unsigned int ticks) {
-  if (ticks <= 0) { 
+  if (ticks <= 0) {
     P_ERRNO = P_EINVAL;
     return;
   }
@@ -353,16 +345,19 @@ void s_sleep(unsigned int ticks) {
   log_generic_event('B', current_running_pcb->pid,
                     current_running_pcb->priority,
                     current_running_pcb->cmd_str);
-  if (spthread_suspend(current_running_pcb->thread_handle) != 0) { // give scheduler control
+  if (spthread_suspend(current_running_pcb->thread_handle) !=
+      0) {  // give scheduler control
     perror("Error in spthread_suspend in s_sleep call");
   }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
-//        SYSTEM-LEVEl BUILTIN-RELATED KERNEL FUNCTIONS                       //
+//              SYSTEM-LEVEl BUILTIN-RELATED KERNEL FUNCTIONS                 //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief System-level wrapper for the shell built-in command "echo".
+ */
 void* s_echo(void* arg) {
   char** argv = (char**)arg;
   if (argv[1] == NULL) {  // no args case
@@ -372,25 +367,39 @@ void* s_echo(void* arg) {
 
   int i = 1;                 // words after "echo"
   while (argv[i] != NULL) {  // while the arg isn't NULL
-    s_write(current_running_pcb->output_fd, argv[i], strlen(argv[i]));
-    s_write(current_running_pcb->output_fd, " ", 1);
+    if (s_write(current_running_pcb->output_fd, argv[i], strlen(argv[i])) ==
+        -1) {
+      u_perror("s_write error");
+    }
+    if (s_write(current_running_pcb->output_fd, " ", 1) == -1) {
+      u_perror("s_write error");
+    }
     i++;
   }
 
-  s_write(current_running_pcb->output_fd, "\n", 1);
+  if (s_write(current_running_pcb->output_fd, "\n", 1) == -1) {
+    u_perror("s_write error");
+  }
   return NULL;
 }
 
+/**
+ * @brief System-level wrapper for the shell built-in command "ps".
+ */
 void* s_ps(void* arg) {
   char pid_top[] = "PID\tPPID\tPRI\tSTAT\tCMD\n";
-  s_write(current_running_pcb->output_fd, pid_top, strlen(pid_top));
+  if (s_write(current_running_pcb->output_fd, pid_top, strlen(pid_top)) == -1) {
+    u_perror("s_write error");
+  }
   for (int i = 0; i < vec_len(&current_pcbs); i++) {
     pcb_t* curr_pcb = (pcb_t*)vec_get(&current_pcbs, i);
     char buffer[100];
     snprintf(buffer, sizeof(buffer), "%d\t%d\t%d\t%c\t%s\n", curr_pcb->pid,
              curr_pcb->par_pid, curr_pcb->priority, curr_pcb->process_state,
              curr_pcb->cmd_str);
-    s_write(current_running_pcb->output_fd, buffer, strlen(buffer));
+    if (s_write(current_running_pcb->output_fd, buffer, strlen(buffer)) == -1) {
+      u_perror("s_write error");
+    }
   }
   return NULL;
 }

@@ -1,6 +1,14 @@
+/* CS5480 PennOS Group 61
+ * Authors: Dan Kim and Kevin Zhou
+ * Purpose: Implements the functions for various PennFAT routines.
+ */
+
 #include "fat_routines.h"
+#include "../kernel/kern_sys_calls.h"
+#include "../kernel/signal.h"
 #include "../lib/pennos-errno.h"
 #include "../shell/builtins.h"
+#include "../shell/shell.h"
 #include "fs_helpers.h"
 #include "fs_kfuncs.h"
 
@@ -14,12 +22,14 @@
 #include <time.h>
 #include <unistd.h>
 
+extern pcb_t* current_running_pcb;
+
 ////////////////////////////////////////////////////////////////////////////////
 //                           SPECIAL ROUTINES                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Creates a PennFAT filesystem in the file named fs_name at the OS-level
+ * @brief Creates a PennFAT filesystem in the file named fs_name at the OS-level
  */
 int mkfs(const char* fs_name, int num_blocks, int blk_size) {
   // validate arguments
@@ -105,7 +115,7 @@ int mkfs(const char* fs_name, int num_blocks, int blk_size) {
 }
 
 /**
- * Mounts a filesystem with name fs_name by loading its FAT into memory.
+ * @brief Mounts a filesystem with name fs_name by loading its FAT into memory.
  */
 int mount(const char* fs_name) {
   // check if a filesystem is already mounted
@@ -159,7 +169,7 @@ int mount(const char* fs_name) {
 }
 
 /**
- * Unmounts the current filesystem and reset variables.
+ * @brief Unmounts the current filesystem and reset variables.
  */
 int unmount() {
   // first check that a file system is actually mounted
@@ -195,12 +205,11 @@ int unmount() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//                           OTHER ROUTINES                                   //
+//                             OTHER ROUTINES                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
-
 /**
- * Concatenates and displays files.
+ * @brief Concatenates and displays files.
  */
 void* cat(void* arg) {
   char** args = (char**)arg;
@@ -214,6 +223,86 @@ void* cat(void* arg) {
 
   // early return if there is nothing after cat
   if (args[1] == NULL) {
+    // if none of the above conditions, then check if we need to redirect stdin
+    if (current_running_pcb) {
+      // open new stdin
+      int in_fd = current_running_pcb->input_fd;
+      int out_fd = current_running_pcb->output_fd;
+      char* file_1 = fd_table[in_fd].filename;
+      char* file_2 = fd_table[out_fd].filename;
+
+      // edge case when input and output have the same file name and we're
+      // appending
+      if ((strcmp(file_1, file_2) == 0) && is_append) {
+        P_ERRNO = P_EREDIR;
+        u_perror("cat");
+        return NULL;
+      }
+
+      // edge case when input and output files names are the same but we're not
+      // appending truncates the file
+      if ((strcmp(file_1, file_2) == 0)) {
+        return NULL;
+      }
+
+      // get the size of stdin file
+      off_t in_fd_size = k_lseek(in_fd, 0, SEEK_END);
+      if (in_fd_size == -1) {
+        k_close(in_fd);
+        u_perror("cat");
+        return NULL;
+      }
+      if (k_lseek(in_fd, 0, SEEK_SET) == -1) {
+        k_close(in_fd);
+        u_perror("cat");
+        return NULL;
+      }
+
+      char* buffer = (char*)malloc(block_size);
+      if (buffer == NULL) {
+        P_ERRNO = P_EMALLOC;
+        k_close(in_fd);
+        u_perror("cat");
+        return NULL;
+      }
+
+      int bytes_read;
+      ssize_t bytes_remaining = in_fd_size;
+
+      while (bytes_remaining > 0) {
+        ssize_t bytes_to_read =
+            bytes_remaining < block_size ? bytes_remaining : block_size;
+        bytes_read = k_read(in_fd, buffer, bytes_to_read);
+
+        if (bytes_read <= 0) {
+          break;
+        }
+
+        if (k_write(out_fd, buffer, bytes_read) != bytes_read) {
+          free(buffer);
+          k_close(in_fd);
+          u_perror("cat");
+          break;
+        }
+
+        bytes_remaining -= bytes_read;
+      }
+
+      // read error
+      if (bytes_read < 0) {
+        free(buffer);
+        k_close(in_fd);
+        u_perror("cat");
+        return NULL;
+      }
+
+      k_close(in_fd);
+      if (out_fd != STDOUT_FILENO) {
+        k_close(out_fd);
+      }
+      free(buffer);
+      return NULL;
+    }
     P_ERRNO = P_EINVAL;
     u_perror("cat");
     return NULL;
@@ -247,17 +336,22 @@ void* cat(void* arg) {
 
   // if no output redirection found, use STDOUT
   if (out_fd < 0) {
-    out_fd = STDOUT_FILENO;
+    if (current_running_pcb) {
+      out_fd = current_running_pcb->output_fd;
+    } else {
+      out_fd = STDOUT_FILENO;
+    }
   }
 
-  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from stdin)
+  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from
+  // stdin)
   if ((strcmp(args[1], "-w") == 0 || strcmp(args[1], "-a") == 0) &&
       args[2] != NULL && args[3] == NULL) {
     char buffer[1024];
 
     while (1) {
       ssize_t bytes_read = k_read(STDIN_FILENO, buffer, sizeof(buffer));
-      
+
       if (bytes_read < 0) {
         u_perror("cat");
         if (out_fd != STDOUT_FILENO) {
@@ -336,7 +430,8 @@ void* cat(void* arg) {
     ssize_t bytes_remaining = in_fd_size;
 
     while (bytes_remaining > 0) {
-      ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+      ssize_t bytes_to_read =
+          bytes_remaining < block_size ? bytes_remaining : block_size;
       bytes_read = k_read(in_fd, buffer, bytes_to_read);
 
       if (bytes_read <= 0) {
@@ -374,104 +469,31 @@ void* cat(void* arg) {
 }
 
 /**
-* Searches root directory and lists all files in the directory.
-*/
+ * @brief Searches root directory and lists all files in the directory.
+ *
+ * This function is a wrapper for k_ls, which is a kernel-level function.
+ */
 void* ls(void* arg) {
-  if (!is_mounted) {
-    P_ERRNO = P_EFS_NOT_MOUNTED;
-    u_perror("ls");
-    return NULL;
-  }
+  // Note: we already check if fs is mounted in k_ls
 
-  // start at root directory block
-  uint16_t current_block = 1;
-  int offset = 0;
-  dir_entry_t dir_entry;
-
-  while (1) {
-    // adjust pointer to beginning of current block
-    if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
-      P_ERRNO = P_ELSEEK;
+  char** args = (char**)arg;
+  if (args[1] != NULL) {
+    if (k_ls(args[1]) == -1) {
       u_perror("ls");
       return NULL;
     }
-
-    offset = 0;
-
-    // search current block
-    while (offset < block_size) {
-      if (read(fs_fd, &dir_entry, sizeof(dir_entry)) != sizeof(dir_entry)) {
-        P_ERRNO = P_EREAD;
-        u_perror("ls");
-        return NULL;
-      }
-
-      // check if we've reached the end of directory
-      if (dir_entry.name[0] == 0) {
-        break;
-      }
-
-      // skip deleted entries
-      if (dir_entry.name[0] == 1 || dir_entry.name[0] == 2) {
-        offset += sizeof(dir_entry);
-        continue;
-      }
-
-      // format permission string
-      char perm_str[4] = "---";
-      if (dir_entry.perm & PERM_READ)
-        perm_str[0] = 'r';
-      if (dir_entry.perm & PERM_WRITE)
-        perm_str[1] = 'w';
-      if (dir_entry.perm & PERM_EXEC)
-        perm_str[2] = 'x';
-
-      // format time
-      struct tm* tm_info = localtime(&dir_entry.mtime);
-      char time_str[50];
-      strftime(time_str, sizeof(time_str), "%b %d %H:%M:%S %Y", tm_info);
-
-      // print entry details
-      char buffer[128];
-      int len;
-      if (dir_entry.firstBlock == 0) {
-        len = snprintf(buffer, sizeof(buffer), "   -%s- %6d %s %s\n", 
-                perm_str, dir_entry.size, time_str, dir_entry.name);
-      } else {
-        len = snprintf(buffer, sizeof(buffer), "%2d -%s- %6d %s %s\n", 
-                dir_entry.firstBlock, perm_str, dir_entry.size, time_str, dir_entry.name);
-      }
-
-      if (len < 0 || len >= (int)sizeof(buffer)) {
-        P_ERRNO = P_EUNKNOWN;
-        u_perror("ls");
-        return NULL;
-      }
-
-      if (k_write(STDOUT_FILENO, buffer, len) != len) {
-        P_ERRNO = P_EWRITE;
-        u_perror("ls");
-        return NULL;
-      }
-
-      offset += sizeof(dir_entry);
+  } else {
+    if (k_ls(NULL) == -1) {
+      u_perror("ls");
+      return NULL;
     }
-
-    // move to the next block if there is one
-    if (fat[current_block] != FAT_EOF) {
-      current_block = fat[current_block];
-      continue;
-    }
-
-    // no more blocks to search
-    break;
   }
 
   return NULL;
 }
 
 /**
- * Creates files or updates timestamps.
+ * @brief Creates files or updates timestamps.
  *
  * For each file argument, creates the file if it doesn't exist,
  * or updates its timestamp if it already exists.
@@ -534,7 +556,7 @@ void* touch(void* arg) {
 }
 
 /**
- * Renames files.
+ * @brief Renames files.
  */
 void* mv(void* arg) {
   char** args = (char**)arg;
@@ -593,7 +615,7 @@ void* mv(void* arg) {
 
   // rename file
   strncpy(source_entry.name, dest, sizeof(source_entry.name) - 1);
-  source_entry.name[sizeof(source_entry.name) - 1] ='\0';
+  source_entry.name[sizeof(source_entry.name) - 1] = '\0';
 
   // write the updated entry back to disk
   if (lseek(fs_fd, source_offset, SEEK_SET) == -1) {
@@ -602,7 +624,8 @@ void* mv(void* arg) {
     return NULL;
   }
 
-  if (write(fs_fd, &source_entry, sizeof(source_entry)) != sizeof(source_entry)) {
+  if (write(fs_fd, &source_entry, sizeof(source_entry)) !=
+      sizeof(source_entry)) {
     P_ERRNO = P_EWRITE;
     u_perror("mv");
     return NULL;
@@ -612,7 +635,7 @@ void* mv(void* arg) {
 }
 
 /**
- * Copies the source file to the destination.
+ * @brief Copies the source file to the destination.
  */
 void* cp(void* arg) {
   char** args = (char**)arg;
@@ -670,8 +693,9 @@ void* cp(void* arg) {
 }
 
 /**
- * Removes files.
+ * @brief Removes files.
  */
+// TODO: use k_unlink??????
 void* rm(void* arg) {
   char** args = (char**)arg;
 
@@ -738,11 +762,12 @@ void* rm(void* arg) {
 }
 
 /**
-* - chmod +x FILE (adds executable permission)
-* - chmod +rw FILE (adds read and write permissions)
-* - chmod -wx FILE (removes write and executable permissions)
-
-*/
+ * @brief Changes the permissions of a file.
+ *
+ * - chmod +x FILE (adds executable permission)
+ * - chmod +rw FILE (adds read and write permissions)
+ * - chmod -wx FILE (removes write and executable permissions)
+ */
 void* chmod(void* arg) {
   char** args = (char**)arg;
   if (!args || !args[0] || !args[1] || !args[2]) {
@@ -818,12 +843,12 @@ void* chmod(void* arg) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//                           EXTRA CREDIT                                     //
+//                               EXTRA CREDIT                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
-* Implements compaction of root directory.
-*/
+ * @brief Implements compaction of root directory.
+ */
 void* cmpctdir(void* arg) {
   if (!is_mounted) {
     P_ERRNO = P_EFS_NOT_MOUNTED;
