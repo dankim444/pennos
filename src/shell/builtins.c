@@ -13,8 +13,8 @@
  * @brief Creates a user-level error message similar to perror.
  */
 void u_perror(const char *msg) {
-    char buffer[256];
-    const char *error_msg;
+  char buffer[256];
+  const char *error_msg;
 
   switch (P_ERRNO) {
     case P_ENOENT:
@@ -98,7 +98,4 @@ void u_perror(const char *msg) {
   if (s_write(STDERR_FILENO, buffer, strlen(buffer)) == -1) {
     perror("s_write");
   }
-
-  snprintf(buffer, sizeof(buffer), "%s: %s\n", msg, error_msg);
-  s_write(STDERR_FILENO, buffer, strlen(buffer));
 }
