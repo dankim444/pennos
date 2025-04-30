@@ -11,27 +11,43 @@
 #include <sys/types.h>
 #include "../fs/fat_routines.h"
 #include "../fs/fs_syscalls.h"
+#include "../kernel/kern_pcb.h"  // TODO --> this is a little dangerous,
 #include "../kernel/kern_sys_calls.h"
-#include "../kernel/scheduler.h"  // just for s_shutdown_pennos
-#include "../lib/Vec.h"          
+#include "../kernel/scheduler.h"  // TODO --> make sure this is allowed, otw make wrapper
+#include "../kernel/signal.h"
+#include "../lib/Vec.h"  // make sure not to use k funcs
 #include "../lib/spthread.h"
 #include "builtins.h"
+#include "lib/pennos-errno.h"
 
 #include <errno.h>   // For errno for strtol
-#include <stdio.h>   // Using snprintf
+#include <stdio.h>   // I think this is okay? Using snprintf
 #include <stdlib.h>  // For strtol
+#include <unistd.h>  // probably delete once done
+
+#include "Job.h"
+
+// needed for job control
+extern Vec job_list;
+extern pid_t current_fg_pid;
 
 ////////////////////////////////////////////////////////////////////////////////
 //        The following shell built-in routines should run as                 //
 //        independently scheduled PennOS processes.                           //
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief The standard 'cat' program built-in
+ */
 void* u_cat(void* arg) {
   cat(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief The standard 'sleep' program built-in
+ */
 void* u_sleep(void* arg) {
   char* endptr;
   errno = 0;
@@ -51,6 +67,9 @@ void* u_sleep(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Built-in that hangs indefinitely
+ */
 void* u_busy(void* arg) {
   while (1)
     ;
@@ -58,54 +77,87 @@ void* u_busy(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Standard 'echo' program built-in that
+ *        reads a string and echos it backs
+ */
 void* u_echo(void* arg) {
   s_echo(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'ls' program built-in that lists
+ *        files in working directory
+ */
 void* u_ls(void* arg) {
   ls(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'chmod' progrom built-in that changes
+ *        the permissions of a given file
+ */
 void* u_chmod(void* arg) {
   chmod(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'touch' program built-in that creates
+ *        empty files or updates timestamps
+ */
 void* u_touch(void* arg) {
   touch(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'mv' program built-in that renames files
+ */
 void* u_mv(void* arg) {
   mv(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'cp' program built-in that copies files
+ */
 void* u_cp(void* arg) {
   cp(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'rm' program built-in that removes files
+ */
 void* u_rm(void* arg) {
   rm(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'ps' program built-in that lists processes
+ *        in PennOS
+ */
 void* u_ps(void* arg) {
   s_ps(arg);
   s_exit();
   return NULL;
 }
 
+/**
+ * @brief Standard 'kill' program built-in that sends the
+ *        specified signal to a process
+ */
 void* u_kill(void* arg) {
   char** argv = (char**)arg;
   int sig = 2;          // Default signal: term (2)
@@ -191,11 +243,15 @@ void* (*get_associated_ufunc(char* func))(void*) {
     return u_ps;
   } else if (strcmp(func, "kill") == 0) {
     return u_kill;
-  } 
+  }
 
   return NULL;  // no matches case
 }
 
+/**
+ * @brief Spawns a new process for the given command and
+ *        sets it priority to the given priority
+ */
 void* u_nice(void* arg) {
   char* endptr;
   errno = 0;
@@ -211,7 +267,7 @@ void* u_nice(void* arg) {
     return NULL;  // no matches, don't spawn
   }
 
-  pid_t new_proc_pid = s_spawn(ufunc, &((char**)arg)[2], 0, 1); 
+  pid_t new_proc_pid = s_spawn(ufunc, &((char**)arg)[2], 0, 1);
 
   if (new_proc_pid != -1) {  // non-error case
     s_nice(new_proc_pid, new_priority);
@@ -220,6 +276,9 @@ void* u_nice(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Adjusts priority level of an existing process
+ */
 void* u_nice_pid(void* arg) {
   char* endptr;
   errno = 0;
@@ -235,6 +294,9 @@ void* u_nice_pid(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Lists all available commands in PennOS in terminal
+ */
 void* u_man(void* arg) {
   const char* man_string =
       "cat f1 f2 ...        : concatenates provided files (if none, reads from "
@@ -269,27 +331,221 @@ void* u_man(void* arg) {
       "orphanify             : creates a child process that becomes an "
       "orphan\n";
 
-  if (s_write(STDOUT_FILENO, man_string, strlen(man_string)) == -1) {
-    u_perror("s_write error");
+  s_write(STDOUT_FILENO, man_string, strlen(man_string));
+  return NULL;
+}
+
+/**
+ * @brief Helper function. Finds a job by its id or the current job.
+ */
+job* findJobByIdOrCurrent(const char* arg) {
+  if (vec_len(&job_list) == 0) {
+    return NULL;
+  }
+
+  if (arg != NULL) {
+    // parse numeric
+    char* endPtr = NULL;
+    long val = strtol(arg, &endPtr, 10);
+    if (*endPtr != '\0' || val < 1) {
+      return NULL;
+    }
+    for (size_t i = 0; i < vec_len(&job_list); i++) {
+      job* job_ptr = (job*)vec_get(&job_list, i);
+      if ((jid_t)val == job_ptr->id) {
+        return job_ptr;
+      }
+    }
+    return NULL;
+  }
+
+  // Look for most recently stopped job first
+  for (size_t i = vec_len(&job_list); i > 0; i--) {
+    job* job_ptr = (job*)vec_get(&job_list, i - 1);
+    if (job_ptr->state == STOPPED) {
+      return job_ptr;
+    }
+  }
+
+  return (job*)vec_get(&job_list, vec_len(&job_list) - 1);
+}
+
+/**
+ * @brief Resumes the most recently stopped background jobs or
+ *        a specified one
+ */
+void* u_bg(void* arg) {
+  char buf[128];
+  char** argv = (char**)arg;
+  const char* jobArg = argv[1];  // NULL if no ID was given
+  job* job_ptr = findJobByIdOrCurrent(jobArg);
+  if (!job_ptr) {
+    snprintf(buf, sizeof(buf), "bg: no such job\n");
+    s_write(STDERR_FILENO, buf, strlen(buf));
+    return NULL;
+  }
+  if (job_ptr->state == STOPPED) {
+    job_ptr->state = RUNNING;
+    snprintf(buf, sizeof(buf), "Running: ");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "\n");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    // P_SIGCONT is 1
+    s_kill(job_ptr->pids[0], P_SIGCONT);
+    return NULL;
+  } else if (job_ptr->state == RUNNING) {
+    snprintf(buf, sizeof(buf), "bg: job [%lu] is already running\n",
+             (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    return NULL;
+  } else {
+    snprintf(buf, sizeof(buf), "bg: job [%lu] not stopped\n",
+             (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    return NULL;
+  }
+}
+
+/**
+ * @brief Brings the most recently stopped or background job
+ *        to the foreground or a specified one
+ */
+void* u_fg(void* arg) {
+  char buf[128];
+  char** argv = (char**)arg;
+  const char* jobArg = argv[1];  // NULL if no ID was given
+  job* job_ptr = findJobByIdOrCurrent(jobArg);
+  if (!job_ptr) {
+    snprintf(buf, sizeof(buf), "fg: no such job\n");
+    s_write(STDERR_FILENO, buf, strlen(buf));
+    return NULL;
+  }
+
+  if (job_ptr->state == FINISHED) {
+    snprintf(buf, sizeof(buf), "fg: job [%lu] is already finished\n",
+             (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    return NULL;
+  }
+
+  if (job_ptr->state == STOPPED) {
+    job_ptr->state = RUNNING;
+    snprintf(buf, sizeof(buf), "Restarting: ");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "\n");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    // P_SIGCONT is 1
+    s_kill(job_ptr->pids[0], P_SIGCONT);
+  } else {
+    snprintf(buf, sizeof(buf), "Bringing to foreground: ");
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "\n");
+  }
+
+  current_fg_pid = job_ptr->pids[0];
+
+  while (true) {
+    int status = 0;
+    pid_t wpid = s_waitpid(job_ptr->pgid, &status, false);
+    if (wpid < 0) {
+      if (P_ERRNO == P_EINTR) {
+        continue;
+      }
+      break;
+    }
+    if (P_WIFEXITED(status) || P_WIFSIGNALED(status)) {
+      job_ptr->state = FINISHED;
+      // Remove finished job from list
+      for (size_t i = 0; i < vec_len(&job_list); i++) {
+        if ((job*)vec_get(&job_list, i) == job_ptr) {
+          vec_erase(&job_list, i);
+          break;
+        }
+      }
+      break;
+    }
+    if (P_WIFSTOPPED(status)) {
+      job_ptr->state = STOPPED;
+      snprintf(buf, sizeof(buf), "Stopped: ");
+      s_write(STDOUT_FILENO, buf, strlen(buf));
+      print_parsed_command(job_ptr->cmd);
+      break;
+    }
+  }
+
+  // back to shell
+  current_fg_pid = 2;
+  return NULL;
+}
+
+/**
+ * @brief Lists all jobs
+ */
+void* u_jobs(void* arg) {
+  char buf[128];
+  if (vec_is_empty(&job_list)) {
+    return NULL;
+  }
+
+  for (size_t idx = 0; idx < vec_len(&job_list); idx++) {
+    job* job_ptr = (job*)vec_get(&job_list, idx);
+
+    const char* state = "unknown";
+    if (job_ptr->state == RUNNING) {
+      state = "running";
+    } else if (job_ptr->state == STOPPED) {
+      state = "stopped";
+    } else if (job_ptr->state == FINISHED) {
+      state = "finished";
+    }
+
+    snprintf(buf, sizeof(buf), "[%lu] ", (unsigned long)job_ptr->id);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
+    for (size_t cmdIdx = 0; cmdIdx < job_ptr->cmd->num_commands; cmdIdx++) {
+      char** argv = job_ptr->cmd->commands[cmdIdx];
+      int argIdx = 0;
+      while (argv[argIdx] != NULL) {
+        snprintf(buf, sizeof(buf), "%s ", argv[argIdx]);
+        s_write(STDOUT_FILENO, buf, strlen(buf));
+        argIdx++;
+      }
+    }
+    snprintf(buf, sizeof(buf), "(%s)\n", state);
+    s_write(STDOUT_FILENO, buf, strlen(buf));
   }
   return NULL;
 }
 
-void* u_bg(void* arg) {
-  // TODO --> implement bg
-  return NULL;
-}
-
-void* u_fg(void* arg) {
-  // TODO --> implement fg
-  return NULL;
-}
-
-void* u_jobs(void* arg) {
-  // TODO --> implement jobs
-  return NULL;
-}
-
+/**
+ * @brief Exits the shell and shuts down PennOS
+ */
 void* u_logout(void* arg) {
   s_shutdown_pennos();
   return NULL;
@@ -307,6 +563,10 @@ void* zombie_child(void* arg) {
   return NULL;
 }
 
+/**
+ * @brief Built-in that tests zombifying functionality of the
+ *        kernel
+ */
 void* u_zombify(void* arg) {
   char* zombie_child_argv[] = {"zombie_child", NULL};
   s_spawn(zombie_child, zombie_child_argv, STDIN_FILENO, STDOUT_FILENO);
@@ -324,10 +584,13 @@ void* orphan_child(void* arg) {
   s_exit();
 }
 
+/**
+ * @brief Built-in that tests orphanifying functionality of the
+ *        kernel
+ */
 void* u_orphanify(void* arg) {
   char* orphan_child_argv[] = {"orphan_child", NULL};
   s_spawn(orphan_child, orphan_child_argv, STDIN_FILENO, STDOUT_FILENO);
   s_exit();
   return NULL;
 }
-

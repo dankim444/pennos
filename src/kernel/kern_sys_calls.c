@@ -1,12 +1,14 @@
 /* CS5480 PennOS Group 61
  * Authors: Krystof Purtell and Richard Zhang
- * Purpose: Implements the system-level process-related kernel functions. 
+ * Purpose: Implements the system-level process-related kernel functions.
  */
 
 #include "kern_sys_calls.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../fs/fs_kfuncs.h"
+#include "../fs/fs_syscalls.h"
 #include "../lib/Vec.h"
 #include "../lib/pennos-errno.h"
 #include "../shell/builtins.h"
@@ -15,8 +17,6 @@
 #include "logger.h"
 #include "scheduler.h"
 #include "signal.h"
-#include "../fs/fs_syscalls.h"
-#include <stdio.h>
 
 extern Vec zero_priority_queue;  // lower index = more recent
 extern Vec one_priority_queue;
@@ -28,14 +28,14 @@ extern pcb_t* current_running_pcb;  // currently running process
 
 extern int tick_counter;
 
-pid_t current_fg_pid = 2; // terminal controller
+pid_t current_fg_pid = 2;  // terminal controller
 
 ////////////////////////////////////////////////////////////////////////////////
 //                         GENERAL HELPER FUNCTIONS                           //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Determines the index of a PCB in a given queue. 
+ * @brief Determines the index of a PCB in a given queue.
  */
 int determine_index_in_queue(Vec* queue, int pid) {
   for (int i = 0; i < vec_len(queue); i++) {
@@ -49,7 +49,8 @@ int determine_index_in_queue(Vec* queue, int pid) {
 }
 
 /**
- * @brief Moves a PCB from its previous priority queue to its new priority queue.
+ * @brief Moves a PCB from its previous priority queue to its new priority
+ * queue.
  */
 void move_pcb_correct_queue(int prev_priority,
                             int new_priority,
@@ -163,7 +164,7 @@ void s_cleanup_init_process() {
  */
 pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
   pcb_t* child;
-  if (strcmp(argv[0], "shell") == 0) { 
+  if (strcmp(argv[0], "shell") == 0) {
     child = k_proc_create(current_running_pcb, 0);
   } else {
     child = k_proc_create(current_running_pcb, 1);
@@ -189,7 +190,7 @@ pid_t s_spawn(void* (*func)(void*), char* argv[], int fd0, int fd1) {
 
   log_generic_event('C', child->pid, child->priority, child->cmd_str);
 
-  return child->pid; 
+  return child->pid;
 }
 
 /**
@@ -258,12 +259,14 @@ pid_t s_waitpid(pid_t pid, int* wstatus, bool nohang) {
     // scan children of current running process for non-terminated state changes
     for (int i = 0; i < vec_len(&parent->child_pcbs); i++) {
       pcb_t* child = vec_get(&parent->child_pcbs, i);
-      if ((pid == -1 || child->pid == pid) && (child->process_status == 21 || child->process_status == 23)) { // signaled
+      if ((pid == -1 || child->pid == pid) &&
+          (child->process_status == 21 ||
+           child->process_status == 23)) {  // signaled
         if (wstatus != NULL) {
           *wstatus = child->process_status;
         }
         log_generic_event('W', child->pid, child->priority, child->cmd_str);
-        child->process_status = 0; // reset status
+        child->process_status = 0;  // reset status
         return child->pid;
       }
     }
@@ -330,7 +333,7 @@ int s_nice(pid_t pid, int priority) {
  * @brief Suspends the current process for a specified number of ticks.
  */
 void s_sleep(unsigned int ticks) {
-  if (ticks <= 0) { 
+  if (ticks <= 0) {
     P_ERRNO = P_EINVAL;
     return;
   }
@@ -342,11 +345,11 @@ void s_sleep(unsigned int ticks) {
   log_generic_event('B', current_running_pcb->pid,
                     current_running_pcb->priority,
                     current_running_pcb->cmd_str);
-  if (spthread_suspend(current_running_pcb->thread_handle) != 0) { // give scheduler control
+  if (spthread_suspend(current_running_pcb->thread_handle) !=
+      0) {  // give scheduler control
     perror("Error in spthread_suspend in s_sleep call");
   }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //              SYSTEM-LEVEl BUILTIN-RELATED KERNEL FUNCTIONS                 //
@@ -364,7 +367,8 @@ void* s_echo(void* arg) {
 
   int i = 1;                 // words after "echo"
   while (argv[i] != NULL) {  // while the arg isn't NULL
-    if (s_write(current_running_pcb->output_fd, argv[i], strlen(argv[i])) == -1) {
+    if (s_write(current_running_pcb->output_fd, argv[i], strlen(argv[i])) ==
+        -1) {
       u_perror("s_write error");
     }
     if (s_write(current_running_pcb->output_fd, " ", 1) == -1) {

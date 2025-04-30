@@ -11,8 +11,6 @@
 #include "fat_routines.h"
 #include "fs_helpers.h"
 #include "fs_syscalls.h"
-#include "../kernel/kern_sys_calls.h"
-#include "../kernel/signal.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -163,13 +161,13 @@ int k_open(const char* fname, int mode) {
 /**
  * @brief Kernel-level call to read a file.
  */
-int k_read(int fd, char *buf, int n) {
-    // handle terminal control (if doesn't control, send a STOP signal)
-    if (fd == STDIN_FILENO && current_running_pcb != NULL) {
-        if (current_running_pcb->pid != current_fg_pid) {
-            s_kill(current_running_pcb->pid, P_SIGSTOP);
-        }
+int k_read(int fd, char* buf, int n) {
+  // handle terminal control (if doesn't control, send a STOP signal)
+  if (fd == STDIN_FILENO && current_running_pcb != NULL) {
+    if (current_running_pcb->pid != current_fg_pid) {
+      s_kill(current_running_pcb->pid, P_SIGSTOP);
     }
+  }
 
   // handle standard input
   if (fd == STDIN_FILENO) {
@@ -680,7 +678,8 @@ int k_ls(const char* filename) {
   if (filename == NULL) {
     while (1) {
       // adjust pointer to beginning of current block
-      if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) == -1) {
+      if (lseek(fs_fd, fat_size + (current_block - 1) * block_size, SEEK_SET) ==
+          -1) {
         P_ERRNO = P_ELSEEK;
         return -1;
       }
@@ -723,11 +722,12 @@ int k_ls(const char* filename) {
         char buffer[128];
         int len;
         if (dir_entry.firstBlock == 0) {
-          len = snprintf(buffer, sizeof(buffer), "   -%s- %6d %s %s\n", 
-                  perm_str, dir_entry.size, time_str, dir_entry.name);
+          len = snprintf(buffer, sizeof(buffer), "   -%s- %6d %s %s\n",
+                         perm_str, dir_entry.size, time_str, dir_entry.name);
         } else {
-          len = snprintf(buffer, sizeof(buffer), "%2d -%s- %6d %s %s\n", 
-                  dir_entry.firstBlock, perm_str, dir_entry.size, time_str, dir_entry.name);
+          len = snprintf(buffer, sizeof(buffer), "%2d -%s- %6d %s %s\n",
+                         dir_entry.firstBlock, perm_str, dir_entry.size,
+                         time_str, dir_entry.name);
         }
 
         if (len < 0 || len >= (int)sizeof(buffer)) {
@@ -789,11 +789,12 @@ int k_ls(const char* filename) {
     char buffer[128];
     int len;
     if (dir_entry.firstBlock == 0) {
-      len = snprintf(buffer, sizeof(buffer), "   -%s- %6d %s %s\n", 
-              perm_str, dir_entry.size, time_str, dir_entry.name);
+      len = snprintf(buffer, sizeof(buffer), "   -%s- %6d %s %s\n", perm_str,
+                     dir_entry.size, time_str, dir_entry.name);
     } else {
-      len = snprintf(buffer, sizeof(buffer), "%2d -%s- %6d %s %s\n", 
-              dir_entry.firstBlock, perm_str, dir_entry.size, time_str, dir_entry.name);
+      len = snprintf(buffer, sizeof(buffer), "%2d -%s- %6d %s %s\n",
+                     dir_entry.firstBlock, perm_str, dir_entry.size, time_str,
+                     dir_entry.name);
     }
 
     if (len < 0 || len >= (int)sizeof(buffer)) {
