@@ -53,7 +53,7 @@ int k_open(const char* fname, int mode);
  *         - P_EINVAL: Invalid buffer or count.
  */
 int k_read(int fd, char* buf, int n);
- 
+
 /**
  * @brief Writes data to an open file.
  *
@@ -72,7 +72,7 @@ int k_read(int fd, char* buf, int n);
  *         - P_EFULL: File system is full.
  */
 int k_write(int fd, const char* str, int n);
- 
+
 /**
  * @brief Closes an open file.
  *
@@ -86,7 +86,7 @@ int k_write(int fd, const char* str, int n);
  *         - P_EBADF: Invalid file descriptor.
  */
 int k_close(int fd);
- 
+
 /**
  * @brief Removes a file from the file system.
  *
@@ -101,7 +101,7 @@ int k_close(int fd);
  *         - P_EBUSY: File is still open by some process.
  */
 int k_unlink(const char* fname);
- 
+
 /**
  * @brief Repositions the file offset of an open file.
  *
@@ -122,7 +122,7 @@ int k_unlink(const char* fname);
  *                    negative.
  */
 int k_lseek(int fd, int offset, int whence);
- 
+
 /**
  * @brief Lists files or file information.
  *

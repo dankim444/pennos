@@ -23,5 +23,4 @@
 #define P_WIFSTOPPED(status) ((status) == STOPPED_BY_SIG)
 #define P_WIFSIGNALED(status) ((status) == TERM_BY_SIG)
 
-
 #endif

@@ -1,12 +1,14 @@
 /* CS5480 PennOS Group 61
  * Authors: Krystof Purtell and Richard Zhang
- * Purpose: Implements the all scheduler-related functions and 
+ * Purpose: Implements the all scheduler-related functions and
  *          initializes the scheduler queues.
  */
 
 #include "scheduler.h"
 #include <signal.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/time.h>
 #include "../lib/Vec.h"
 #include "../lib/spthread.h"
@@ -14,11 +16,9 @@
 #include "kern_pcb.h"
 #include "logger.h"
 #include "stdlib.h"
-#include <stdio.h> 
-#include <string.h>
 
 /////////////////////////////////////////////////////////////////////////////////
-//                       QUEUES AND SCHEDULER DATA                             //
+//                       QUEUES AND SCHEDULER DATA //
 /////////////////////////////////////////////////////////////////////////////////
 
 Vec zero_priority_queue;  // lower index = more recent
@@ -42,7 +42,7 @@ int det_priorities_arr[19] = {0, 1, 2, 0, 0, 1, 0, 1, 2, 0,
                               0, 1, 2, 0, 1, 0, 0, 1, 2};
 
 /////////////////////////////////////////////////////////////////////////////////
-//                         QUEUE MAINTENANCE FUNCTIONS                         //
+//                         QUEUE MAINTENANCE FUNCTIONS //
 /////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -73,11 +73,12 @@ void free_scheduler_queues() {
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-//                          SCHEDULING FUNCTIONS                               //
+//                          SCHEDULING FUNCTIONS //
 /////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Generates the next priority for scheduling based on the defined probabilities.
+ * @brief Generates the next priority for scheduling based on the defined
+ * probabilities.
  */
 int generate_next_priority() {
   // check if all queues are empty
@@ -129,7 +130,8 @@ pcb_t* get_next_pcb(int priority) {
 }
 
 /**
- * @brief Puts the given PCB into the correct queue based on its priority and state.
+ * @brief Puts the given PCB into the correct queue based on its priority and
+ * state.
  */
 void put_pcb_into_correct_queue(pcb_t* pcb) {
   if (pcb->process_state == 'R') {
@@ -207,7 +209,8 @@ bool child_in_zombie_queue(pcb_t* parent) {
 }
 
 /**
- * @brief Checks if the given parent PCB has any children with a changed process status.
+ * @brief Checks if the given parent PCB has any children with a changed process
+ * status.
  */
 bool child_with_changed_process_status(pcb_t* parent) {
   for (int i = 0; i < vec_len(&current_pcbs); i++) {
@@ -242,11 +245,17 @@ void handle_signal(pcb_t* pcb, int signal) {
       break;
     case 1:                             // P_SIGCONT
       if (pcb->process_state == 'S') {  // Only continue if stopped
-        pcb->process_state = 'R';
+        if (pcb->is_sleeping) {
+          pcb->process_state = 'B';
+          delete_process_from_all_queues_except_current(pcb);
+          put_pcb_into_correct_queue(pcb);
+        } else {
+          pcb->process_state = 'R';
+          delete_process_from_all_queues_except_current(pcb);
+          put_pcb_into_correct_queue(pcb);
+        }
         log_generic_event('c', pcb->pid, pcb->priority, pcb->cmd_str);
-        delete_process_from_all_queues_except_current(pcb);
-        put_pcb_into_correct_queue(pcb);
-        pcb->process_status = 23;  // Reset status
+        pcb->process_status = 23;  // CONT_BY_SIG
       }
       pcb->signals[1] = false;
       break;
@@ -331,13 +340,13 @@ void scheduler() {
       pcb_t* blocked_proc = vec_get(&sleep_blocked_queue, i);
       bool make_runnable = false;
       if (blocked_proc->is_sleeping &&
-          blocked_proc->time_to_wake == tick_counter) {
+          blocked_proc->time_to_wake <= tick_counter) {
         blocked_proc->is_sleeping = false;
         blocked_proc->time_to_wake = -1;
         blocked_proc->signals[2] = false;  // Unlikely, but reset signal
         make_runnable = true;
       } else if (blocked_proc->is_sleeping &&
-               blocked_proc->signals[2]) {  // P_SIGTERM received
+                 blocked_proc->signals[2]) {  // P_SIGTERM received
         blocked_proc->is_sleeping = false;
         blocked_proc->process_state = 'Z';
         blocked_proc->process_status = 22;  // TERM_BY_SIG

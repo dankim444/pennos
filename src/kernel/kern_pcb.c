@@ -1,18 +1,18 @@
 /* CS5480 PennOS Group 61
  * Authors: Krystof Purtell and Richard Zhang
  * Purpose: Implements the process-related helper functions
- *          and the kernel-level process functions.  
+ *          and the kernel-level process functions.
  */
 
 #include "kern_pcb.h"
 #include "../fs/fs_helpers.h"
 #include "../fs/fs_syscalls.h"
 #include "../lib/pennos-errno.h"
+#include "../shell/builtins.h"
 #include "logger.h"
 #include "scheduler.h"
 #include "stdio.h"  // for perror
 #include "stdlib.h"
-#include "../shell/builtins.h"
 
 int next_pid = 2;  // global variable to track the next pid to be assigned
                    // Note: Starts at 2 because init is 1
@@ -58,8 +58,8 @@ pcb_t* create_pcb(pid_t pid,
   ret_pcb->output_fd = output_fd;
   ret_pcb->process_status = 0;  // default status
 
-  ret_pcb->child_pcbs = vec_new(0, NULL); // NULL deconstructor prevents
-                                          // double free
+  ret_pcb->child_pcbs = vec_new(0, NULL);  // NULL deconstructor prevents
+                                           // double free
 
   for (int i = 0; i < 3; i++) {
     ret_pcb->signals[i] = false;
@@ -89,7 +89,8 @@ void remove_child_in_parent(pcb_t* parent, pcb_t* child) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief Creates a new process. If the parent is NULL, it creates the init process.
+ * @brief Creates a new process. If the parent is NULL, it creates the init
+ * process.
  */
 pcb_t* k_proc_create(pcb_t* parent, int priority) {
   if (parent == NULL) {  // init creation case

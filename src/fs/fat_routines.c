@@ -4,13 +4,13 @@
  */
 
 #include "fat_routines.h"
-#include "../lib/pennos-errno.h"
-#include "../shell/builtins.h"
-#include "fs_helpers.h"
-#include "fs_kfuncs.h"
 #include "../kernel/kern_sys_calls.h"
 #include "../kernel/signal.h"
+#include "../lib/pennos-errno.h"
+#include "../shell/builtins.h"
 #include "../shell/shell.h"
+#include "fs_helpers.h"
+#include "fs_kfuncs.h"
 
 #include <fcntl.h>
 #include <stdint.h>
@@ -231,15 +231,16 @@ void* cat(void* arg) {
       char* file_1 = fd_table[in_fd].filename;
       char* file_2 = fd_table[out_fd].filename;
 
-      // edge case when input and output have the same file name and we're appending
+      // edge case when input and output have the same file name and we're
+      // appending
       if ((strcmp(file_1, file_2) == 0) && is_append) {
         P_ERRNO = P_EREDIR;
         u_perror("cat");
         return NULL;
       }
 
-      // edge case when input and output files names are the same but we're not appending
-      // truncates the file
+      // edge case when input and output files names are the same but we're not
+      // appending truncates the file
       if ((strcmp(file_1, file_2) == 0)) {
         return NULL;
       }
@@ -269,7 +270,8 @@ void* cat(void* arg) {
       ssize_t bytes_remaining = in_fd_size;
 
       while (bytes_remaining > 0) {
-        ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+        ssize_t bytes_to_read =
+            bytes_remaining < block_size ? bytes_remaining : block_size;
         bytes_read = k_read(in_fd, buffer, bytes_to_read);
 
         if (bytes_read <= 0) {
@@ -341,14 +343,15 @@ void* cat(void* arg) {
     }
   }
 
-  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from stdin)
+  // handle small case: cat -w OUTPUT_FILE or cat -a OUTPUT_FILE (read from
+  // stdin)
   if ((strcmp(args[1], "-w") == 0 || strcmp(args[1], "-a") == 0) &&
       args[2] != NULL && args[3] == NULL) {
     char buffer[1024];
 
     while (1) {
       ssize_t bytes_read = k_read(STDIN_FILENO, buffer, sizeof(buffer));
-      
+
       if (bytes_read < 0) {
         u_perror("cat");
         if (out_fd != STDOUT_FILENO) {
@@ -427,7 +430,8 @@ void* cat(void* arg) {
     ssize_t bytes_remaining = in_fd_size;
 
     while (bytes_remaining > 0) {
-      ssize_t bytes_to_read = bytes_remaining < block_size ? bytes_remaining : block_size;
+      ssize_t bytes_to_read =
+          bytes_remaining < block_size ? bytes_remaining : block_size;
       bytes_read = k_read(in_fd, buffer, bytes_to_read);
 
       if (bytes_read <= 0) {
@@ -611,7 +615,7 @@ void* mv(void* arg) {
 
   // rename file
   strncpy(source_entry.name, dest, sizeof(source_entry.name) - 1);
-  source_entry.name[sizeof(source_entry.name) - 1] ='\0';
+  source_entry.name[sizeof(source_entry.name) - 1] = '\0';
 
   // write the updated entry back to disk
   if (lseek(fs_fd, source_offset, SEEK_SET) == -1) {
@@ -620,7 +624,8 @@ void* mv(void* arg) {
     return NULL;
   }
 
-  if (write(fs_fd, &source_entry, sizeof(source_entry)) != sizeof(source_entry)) {
+  if (write(fs_fd, &source_entry, sizeof(source_entry)) !=
+      sizeof(source_entry)) {
     P_ERRNO = P_EWRITE;
     u_perror("mv");
     return NULL;

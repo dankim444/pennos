@@ -1,6 +1,7 @@
 /* CS5480 PennOS Group 61
  * Authors: Krystof Purtell and Richard Zhang
- * Purpose: Defines the all scheduler-related functions and the scheduler queues.
+ * Purpose: Defines the all scheduler-related functions and the scheduler
+ * queues.
  */
 
 #ifndef SCHEDULER_H_
@@ -12,7 +13,7 @@
 #include "kern_pcb.h"
 
 /////////////////////////////////////////////////////////////////////////////////
-//                         QUEUE MAINTENANCE FUNCTIONS                         //
+//                         QUEUE MAINTENANCE FUNCTIONS //
 /////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -28,7 +29,7 @@ void initialize_scheduler_queues();
 void free_scheduler_queues();
 
 /////////////////////////////////////////////////////////////////////////////////
-//                          SCHEDULING FUNCTIONS                               //
+//                          SCHEDULING FUNCTIONS //
 /////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -39,16 +40,16 @@ void free_scheduler_queues();
  *        it'll return -1.
  *
  * @pre assumes that at least one of the scheduler queues in non-empty
- * @return int 0, 1, or 2 for priority or -1 to signify that all queues 
+ * @return int 0, 1, or 2 for priority or -1 to signify that all queues
  *         are empty
  */
 int generate_next_priority();
 
 /**
- * @brief Returns the next PCB in the queue of the specified priority. 
+ * @brief Returns the next PCB in the queue of the specified priority.
  *        or NULL if that queue is empty. Notably, it removes the PCB
  *        from the queue.
- * 
+ *
  * @param priority queue priority to get next PCB from, or -1 if none
  * @return         a ptr to the next pcb struct in queue or NULL
  *                 if the queue is empty
@@ -73,9 +74,9 @@ void put_pcb_into_correct_queue(pcb_t* pcb);
 void delete_process_from_particular_queue(pcb_t* pcb, Vec* queue);
 
 /**
- * @brief Searches through all of the scheduler's queues except the one 
- *        containing all of the current processes and deletes the given 
- *        pcb from all of them Notably, it does not free the pcb via 
+ * @brief Searches through all of the scheduler's queues except the one
+ *        containing all of the current processes and deletes the given
+ *        pcb from all of them Notably, it does not free the pcb via
  *        calling vec_erase_no_deletor instead of vec_erase. If
  *        a particular queue does not contain the pcb, nothing occurs.
  *
@@ -92,7 +93,6 @@ void delete_process_from_all_queues_except_current(pcb_t* pcb);
  * @param pcb a pointer to the pcb with the pid to delete
  */
 void delete_process_from_all_queues(pcb_t* pcb);
-
 
 /**
  * @brief Given a queue, searches for a particular pid inside that queue
@@ -112,19 +112,23 @@ pcb_t* get_pcb_in_queue(Vec* queue, pid_t pid);
  *
  * @param parent A pointer to the parent PCB.
  *
- * @return true if a child of the parent is in the zombie queue, false otherwise.
+ * @return true if a child of the parent is in the zombie queue, false
+ * otherwise.
  */
 bool child_in_zombie_queue(pcb_t* parent);
 
 /**
- * @brief Checks if a child of the given parent process has a changed process status.
+ * @brief Checks if a child of the given parent process has a changed process
+ * status.
  *
  * This function iterates through the current PCBs to determine if any child
- * of the given parent process has a non-zero process status, indicating a change.
+ * of the given parent process has a non-zero process status, indicating a
+ * change.
  *
  * @param parent A pointer to the parent PCB.
  *
- * @return true if a child of the parent has a changed process status, false otherwise.
+ * @return true if a child of the parent has a changed process status, false
+ * otherwise.
  */
 bool child_with_changed_process_status(pcb_t* parent);
 
@@ -148,7 +152,8 @@ void alarm_handler(int signum);
  * - P_SIGTERM: Terminates the process.
  *
  * @param pcb    A pointer to the PCB of the process receiving the signal.
- * @param signal The signal to handle (0 for P_SIGSTOP, 1 for P_SIGCONT, 2 for P_SIGTERM).
+ * @param signal The signal to handle (0 for P_SIGSTOP, 1 for P_SIGCONT, 2 for
+ * P_SIGTERM).
  */
 void handle_signal(pcb_t* pcb, int signal);
 
@@ -157,7 +162,8 @@ void handle_signal(pcb_t* pcb, int signal);
  *
  * This function manages process scheduling, signal handling, and timer-based
  * preemption. It ensures that processes are executed based on their priority
- * and handles signals for both the currently running process and other processes.
+ * and handles signals for both the currently running process and other
+ * processes.
  */
 void scheduler();
 
@@ -168,6 +174,5 @@ void scheduler();
  * to terminate its loop and shut down.
  */
 void s_shutdown_pennos();
-
 
 #endif  // SCHEDULER_H_

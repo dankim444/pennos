@@ -1,6 +1,8 @@
 # PennOS
 PennOS is a UNIX-like operating system simulator built to run as a single process on a host OS. Its main features include a priority-based scheduler that handles threads using the spthread module, a custom FAT-like file system, and a shell with support for job control, system calls, and user-level programs. Though it doesn't boot on actual hardware, our PennOS simulates real OS abstractions like kernel vs. user land, process/thread management, and file handling.
 
+Document design justifications.
+
 ## Members (Name and Pennkey)
 - Dan Kim (pennkey: dankim1)
 - Kevin Zhou (pennkey: kzhou1)
