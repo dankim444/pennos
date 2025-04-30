@@ -4,6 +4,9 @@
                 "fs_helpers.h": "c",
                 "builtins.h": "c",
                 "string.h": "c",
-                "fs_syscalls.h": "c"
+                "fs_syscalls.h": "c",
+                "mman.h": "c",
+                "pennos-errno.h": "c",
+                "kern_sys_calls.h": "c"
         }
 }
