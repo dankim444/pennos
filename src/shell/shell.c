@@ -10,6 +10,7 @@
 #include "../fs/fs_syscalls.h"
 #include "../kernel/kern_sys_calls.h"
 #include "../kernel/scheduler.h"
+#include "../kernel/signal.h"
 #include "../kernel/stress.h"
 #include "../lib/Vec.h"
 #include "Job.h"

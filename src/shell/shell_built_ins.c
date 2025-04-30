@@ -17,6 +17,7 @@
 #include "../kernel/signal.h"
 #include "../lib/Vec.h"  // make sure not to use k funcs
 #include "../lib/spthread.h"
+#include "builtins.h"
 #include "lib/pennos-errno.h"
 
 #include <errno.h>   // For errno for strtol
